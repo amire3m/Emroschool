@@ -31,6 +31,7 @@ const menuItems = [
   { href: "/admin/gallery", label: "گالری", icon: Image },
   { href: "/admin/users", label: "کاربران", icon: Users },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell },
+  { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap },
   { href: "/admin/pagebuilder", label: "صفحه اصلی", icon: Edit },
   { href: "/", label: "بازگشت به سایت", icon: ArrowLeft },
 ];

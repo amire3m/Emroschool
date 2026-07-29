@@ -170,6 +170,20 @@ model Slider {
   updatedAt DateTime @updatedAt
 }
 
+model Alumni {
+  id           String   @id @default(cuid())
+  name         String
+  field        String
+  batch        String
+  quote        String
+  imageUrl     String?
+  achievements String?
+  order        Int      @default(0)
+  showOnSite   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model PageSection {
   id        String   @id @default(cuid())
   slug      String   @unique

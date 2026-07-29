@@ -21,22 +21,18 @@ export default function Footer() {
             </p>
             <div className="flex gap-3 justify-end">
               <Link
-                href="#"
+                href="https://www.instagram.com/imamruhollahschool/"
+                target="_blank"
                 className="w-10 h-10 rounded-full border border-secondary/30 flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-all"
               >
                 <Globe size={18} />
               </Link>
               <Link
-                href="#"
+                href="https://ble.ir/ImamRuhollahSchool"
+                target="_blank"
                 className="w-10 h-10 rounded-full border border-secondary/30 flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-all"
               >
                 <Share2 size={18} />
-              </Link>
-              <Link
-                href="#"
-                className="w-10 h-10 rounded-full border border-secondary/30 flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-all"
-              >
-                <AtSign size={18} />
               </Link>
             </div>
           </div>
@@ -138,8 +134,8 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای آکادمی هنر و رسانه امام روح‌الله (ره) محفوظ است.</p>
           <div className="flex gap-6">
-            <Link href="#">اینستاگرام</Link>
-            <Link href="#">بله</Link>
+            <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank">اینستاگرام</Link>
+            <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank">بله</Link>
           </div>
         </div>
       </div>

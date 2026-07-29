@@ -22,7 +22,6 @@ const config: Config = {
       },
       fontFamily: {
         doran: ["Doran", "sans-serif"],
-        playfair: ["Playfair Display", "serif"],
       },
     },
   },
