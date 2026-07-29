@@ -8,6 +8,7 @@
     "start": "next start",
     "db:push": "npx prisma db push",
     "db:seed": "npx tsx lib/seed.ts",
+    "db:sync-categories": "npx tsx lib/sync-categories.ts",
     "db:studio": "npx prisma studio"
   },
   "dependencies": {

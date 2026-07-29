@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import CategoryIcon from "@/components/CategoryIcon";
+import { primaryCourseCategories } from "@/lib/course-categories";
 
 interface Category {
   id: string;
@@ -258,7 +260,7 @@ export default function AdminCategories() {
                   <td className="p-3 text-outline hidden sm:table-cell">{category.slug}</td>
                   <td className="p-3 text-center hidden md:table-cell">
                     {category.icon ? (
-                      <span className="text-xl">{category.icon}</span>
+                      <span className="inline-flex text-secondary"><CategoryIcon name={category.icon} size={24} /></span>
                     ) : (
                       <span className="text-outline text-xs">—</span>
                     )}
@@ -360,13 +362,16 @@ export default function AdminCategories() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">آیکون</label>
-                  <input
-                    type="text"
+                  <select
                     value={form.icon}
                     onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                    placeholder="مثال: 🎬"
                     className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
+                  >
+                    <option value="">انتخاب آیکون</option>
+                    {primaryCourseCategories.map((category) => (
+                      <option key={category.icon} value={category.icon}>{category.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">ترتیب</label>

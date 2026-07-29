@@ -3,13 +3,8 @@
 import { useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import Link from "next/link";
 import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections";
+import CategoryIcon from "@/components/CategoryIcon";
 import {
-  Film,
-  Palette,
-  Newspaper,
-  BookOpen,
-  Video,
-  Camera,
   Star,
   ChevronLeft,
   ChevronDown,
@@ -21,14 +16,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const departments = [
-  { name: "سینما", icon: Film },
-  { name: "گرافیک", icon: Palette },
-  { name: "رسانه", icon: Newspaper },
-  { name: "فلسفه هنر", icon: BookOpen },
-  { name: "انیمیشن", icon: Video },
-  { name: "عکاسی", icon: Camera },
-];
+interface HomeCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  description: string | null;
+}
 
 interface HomeInstructor {
   id: string;
@@ -160,11 +154,19 @@ export default function HomePage() {
   const [sectionOrder, setSectionOrder] = useState<Record<string, number>>({});
   const [sectionContent, setSectionContent] = useState<Record<string, HomeSectionContent>>({});
   const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
+  const [categories, setCategories] = useState<HomeCategory[]>([]);
 
   const scrollRefs = {
     departments: useRef<HTMLDivElement>(null),
     instructors: useRef<HTMLDivElement>(null),
   };
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((response) => response.json())
+      .then((data) => setCategories(data.categories || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -445,18 +447,18 @@ export default function HomePage() {
               ref={scrollRefs.departments}
               className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
             >
-                  {departments.map((dept) => {
-                const Icon = dept.icon;
+                  {categories.map((category) => {
                 return (
                   <Link
-                    key={dept.name}
-                    href={`/courses?category=${dept.name}`}
-                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px] block"
+                    key={category.id}
+                    href={`/courses?category=${encodeURIComponent(category.name)}`}
+                    title={category.description || category.name}
+                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[170px] md:w-[190px] block"
                   >
                     <div className="mb-4 text-secondary flex justify-center">
-                      <Icon size={40} className="group-hover:scale-110 transition-transform" />
+                      <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />
                     </div>
-                    <h3 className="font-bold text-base text-primary">{dept.name}</h3>
+                    <h3 className="font-bold text-base text-primary">{category.name}</h3>
                   </Link>
                 );
               })}

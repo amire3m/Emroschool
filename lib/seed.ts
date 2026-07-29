@@ -1,14 +1,8 @@
 import prisma from "./prisma";
 import { hashPassword } from "./auth";
+import { primaryCourseCategories } from "./course-categories";
 
-const categories = [
-  { name: "سینما", slug: "cinema", icon: "Film" },
-  { name: "گرافیک", slug: "graphics", icon: "Palette" },
-  { name: "رسانه", slug: "media", icon: "Newspaper" },
-  { name: "فلسفه هنر", slug: "philosophy", icon: "BookOpen" },
-  { name: "انیمیشن", slug: "animation", icon: "Video" },
-  { name: "عکاسی", slug: "photography", icon: "Camera" },
-];
+const categories = primaryCourseCategories;
 
 const pageSections = [
   { slug: "hero_title", content: "آموزش هنر و رسانه در تراز انقلاب اسلامی", order: 1 },
@@ -66,8 +60,12 @@ async function main() {
 
   // Categories
   for (const cat of categories) {
-    const exists = await prisma.category.findUnique({ where: { slug: cat.slug } });
-    if (!exists) {
+    const exists = await prisma.category.findFirst({
+      where: { OR: [{ slug: cat.slug }, { name: cat.name }] },
+    });
+    if (exists) {
+      await prisma.category.update({ where: { id: exists.id }, data: cat });
+    } else {
       await prisma.category.create({ data: cat });
       console.log(`  📁 Category: ${cat.name}`);
     }
