@@ -13,6 +13,7 @@ interface AlumniItem {
   imageUrl: string | null;
   achievements: string | null;
   showOnSite: boolean;
+  user?: { id: string; name: string; avatar: string | null } | null;
 }
 
 export default function HonarAmoozteganPage() {
@@ -69,8 +70,9 @@ export default function HonarAmoozteganPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {alumni.map((person) => (
-                <div key={person.id} className="group bg-white rounded-2xl border border-surface-variant overflow-hidden hover:shadow-lg transition-all">
+              {alumni.map((person) => {
+                const card = (
+                <div className="group bg-white rounded-2xl border border-surface-variant overflow-hidden hover:shadow-lg transition-all">
                   <div className="relative h-48 bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center">
                     {person.imageUrl ? (
                       <img src={person.imageUrl} alt={person.name} className="w-full h-full object-cover" />
@@ -104,7 +106,9 @@ export default function HonarAmoozteganPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+                return person.user?.id ? <Link key={person.id} href={`/profile/${person.user.id}`}>{card}</Link> : <div key={person.id}>{card}</div>;
+              })}
             </div>
           )}
         </div>

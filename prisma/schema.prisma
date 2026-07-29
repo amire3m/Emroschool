@@ -12,18 +12,22 @@ model User {
   email     String   @unique
   name      String
   password  String
-  role      String   @default("user")
+  role      String   @default("user")    // superadmin | admin | user
+  userType  String   @default("student") // student | instructor | alumni | admin
   phone     String?
   avatar    String?
   bio       String?
   expertise String?
   socialLinks String?
+  profileVisible Boolean @default(false)
+  permissions   String?                  // JSON array for content admins
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   enrollments   Enrollment[]
   notifications UserNotification[]
   instructor    Instructor?
+  alumni        Alumni?
 }
 
 model Instructor {
@@ -185,6 +189,9 @@ model Alumni {
   showOnSite   Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model PageSection {

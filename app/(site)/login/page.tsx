@@ -35,7 +35,7 @@ export default function LoginPage() {
       }
 
       setCookie("token", data.token);
-      if (data.user?.role === "admin") {
+      if (data.user?.role === "admin" || data.user?.role === "superadmin") {
         router.push("/admin");
       } else {
         router.push("/dashboard");

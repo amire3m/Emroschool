@@ -19,7 +19,7 @@ import ImageUpload from "@/components/ui/ImageUpload";
 
 interface SliderItem {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   imageUrl: string;
   linkUrl: string | null;
@@ -90,7 +90,7 @@ export default function AdminSlider() {
 
   const openEditModal = (slide: SliderItem) => {
     setForm({
-      title: slide.title,
+      title: slide.title || "",
       subtitle: slide.subtitle || "",
       imageUrl: slide.imageUrl,
       linkUrl: slide.linkUrl || "",
@@ -176,29 +176,33 @@ export default function AdminSlider() {
   };
 
   const moveOrder = async (id: string, direction: "up" | "down") => {
-    const idx = slides.findIndex((s) => s.id === id);
+    const orderedSlides = [...slides].sort((a, b) => a.order - b.order);
+    const idx = orderedSlides.findIndex((s) => s.id === id);
     if (idx === -1) return;
     if (direction === "up" && idx === 0) return;
     if (direction === "down" && idx === slides.length - 1) return;
 
-    const newSlides = [...slides];
+    const newSlides = [...orderedSlides];
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const currentOrder = newSlides[idx].order;
+    const swapOrder = newSlides[swapIdx].order;
     [newSlides[idx], newSlides[swapIdx]] = [newSlides[swapIdx], newSlides[idx]];
 
     const token = getToken();
     try {
-      await Promise.all([
+      const responses = await Promise.all([
         fetch(`/api/slider/${newSlides[idx].id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ order: newSlides[idx].order }),
+          body: JSON.stringify({ order: currentOrder }),
         }),
         fetch(`/api/slider/${newSlides[swapIdx].id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ order: newSlides[swapIdx].order }),
+          body: JSON.stringify({ order: swapOrder }),
         }),
       ]);
+      if (responses.some((response) => !response.ok)) throw new Error("خطا در تغییر ترتیب");
       fetchSlides();
     } catch {
       toast.error("خطا در تغییر ترتیب");
@@ -208,7 +212,7 @@ export default function AdminSlider() {
   const sorted = [...slides].sort((a, b) => a.order - b.order);
   const filtered = sorted.filter(
     (s) =>
-      s.title.includes(search) ||
+      (s.title || "").includes(search) ||
       s.subtitle?.includes(search)
   );
 
@@ -271,7 +275,7 @@ export default function AdminSlider() {
                     <div className="w-16 h-10 rounded-lg bg-surface-variant overflow-hidden">
                       <img
                         src={slide.imageUrl}
-                        alt={slide.title}
+                        alt={slide.title || "تصویر اسلاید"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = "https://placehold.co/100x60/e2e1f0/777681?text=No+Image";
@@ -280,7 +284,7 @@ export default function AdminSlider() {
                     </div>
                   </td>
                   <td className="p-3">
-                    <div className="font-medium text-primary">{slide.title}</div>
+                    <div className="font-medium text-primary">{slide.title || "بدون عنوان"}</div>
                   </td>
                   <td className="p-3 text-outline hidden md:table-cell">{slide.subtitle || "—"}</td>
                   <td className="p-3 text-center">

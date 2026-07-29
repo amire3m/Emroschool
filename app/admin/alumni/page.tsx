@@ -29,6 +29,8 @@ interface AlumniItem {
   order: number;
   showOnSite: boolean;
   createdAt: string;
+  userId: string | null;
+  user?: { id: string; name: string } | null;
 }
 
 export default function AdminAlumni() {
@@ -40,6 +42,7 @@ export default function AdminAlumni() {
   const [editingItem, setEditingItem] = useState<AlumniItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AlumniItem | null>(null);
   const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -49,16 +52,20 @@ export default function AdminAlumni() {
     imageUrl: "",
     achievements: "",
     showOnSite: true,
+    userId: "",
   });
 
   const getToken = () => getCookie("token") || "";
 
   const fetchData = () => {
     const token = getToken();
-    fetch("/api/alumni", { headers: { authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/alumni", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch("/api/users", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json()),
+    ])
+      .then(([data, usersData]) => {
         setAlumni(data.alumni || []);
+        setUsers(usersData.users || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -70,7 +77,7 @@ export default function AdminAlumni() {
   useEffect(() => { fetchData(); }, []);
 
   const resetForm = () => {
-    setForm({ name: "", field: "", batch: "", quote: "", imageUrl: "", achievements: "", showOnSite: true });
+    setForm({ name: "", field: "", batch: "", quote: "", imageUrl: "", achievements: "", showOnSite: true, userId: "" });
     setEditingItem(null);
   };
 
@@ -85,6 +92,7 @@ export default function AdminAlumni() {
       imageUrl: item.imageUrl || "",
       achievements: item.achievements || "",
       showOnSite: item.showOnSite,
+      userId: item.userId || "",
     });
     setEditingItem(item);
     setShowModal(true);
@@ -104,6 +112,7 @@ export default function AdminAlumni() {
       imageUrl: form.imageUrl || null,
       achievements: form.achievements || null,
       showOnSite: form.showOnSite,
+      userId: form.userId || null,
     };
 
     try {
@@ -266,6 +275,20 @@ export default function AdminAlumni() {
               <button onClick={() => setShowModal(false)} className="text-outline hover:text-primary p-1"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">اتصال به حساب کاربری (اختیاری)</label>
+                <select
+                  value={form.userId}
+                  onChange={(e) => {
+                    const selected = users.find((user) => user.id === e.target.value);
+                    setForm((previous) => ({ ...previous, userId: e.target.value, name: previous.name || selected?.name || "" }));
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed"
+                >
+                  <option value="">بدون حساب کاربری</option>
+                  {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">نام *</label>

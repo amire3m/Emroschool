@@ -31,12 +31,15 @@ export default function ImageUpload({ value, onChange, label, sizeHint, aspectRa
         headers: { authorization: `Bearer ${getCookie("token") || ""}` },
         body: formData,
       });
-      if (!res.ok) throw new Error("خطا در آپلود");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "خطا در آپلود");
+      }
       const data = await res.json();
       onChange(data.url);
       toast.success("تصویر با موفقیت آپلود شد");
-    } catch {
-      toast.error("خطا در آپلود تصویر");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "خطا در آپلود تصویر");
     } finally {
       setUploading(false);
     }

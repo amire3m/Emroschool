@@ -4,6 +4,10 @@ import bcrypt from "bcryptjs";
 
 const SECRET = process.env.JWT_SECRET || "honar-media-secret-key-1405";
 
+export function isAdminRole(role?: string | null) {
+  return role === "admin" || role === "superadmin";
+}
+
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
 }
@@ -31,6 +35,6 @@ export async function getUserFromToken(token: string) {
   if (!payload) return null;
   return prisma.user.findUnique({
     where: { id: payload.id },
-    select: { id: true, email: true, name: true, role: true, phone: true, avatar: true },
+    select: { id: true, email: true, name: true, role: true, userType: true, profileVisible: true, permissions: true, phone: true, avatar: true, bio: true, expertise: true, socialLinks: true },
   });
 }

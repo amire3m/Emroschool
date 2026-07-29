@@ -229,10 +229,10 @@ export default function Navbar() {
                   )}
                 </div>
                 <Link
-                  href={userRole === "admin" ? "/admin" : "/dashboard"}
+                  href={userRole === "admin" || userRole === "superadmin" ? "/admin" : "/dashboard"}
                   className="bg-secondary text-white px-5 py-2 rounded-lg font-bold hover:bg-secondary-container transition-all active:scale-95 text-sm"
                 >
-                  {userRole === "admin" ? "پنل مدیریت" : "داشبورد"}
+                  {userRole === "admin" || userRole === "superadmin" ? "پنل مدیریت" : "داشبورد"}
                 </Link>
               </>
             ) : (

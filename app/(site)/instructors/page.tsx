@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Loader2, User, AlertCircle, Award, BookOpen } from "lucide-react";
+import Link from "next/link";
 
 interface InstructorUser {
   id: string;
@@ -73,7 +74,8 @@ export default function InstructorsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {instructors.map((instructor) => (
+            {instructors.map((instructor) => {
+              const card = (
               <div
                 key={instructor.id}
                 className="bg-white rounded-2xl overflow-hidden shadow-sm border border-outline-variant/30 hover:shadow-xl transition-all group"
@@ -125,7 +127,9 @@ export default function InstructorsPage() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+              return instructor.user?.id ? <Link key={instructor.id} href={`/profile/${instructor.user.id}`}>{card}</Link> : card;
+            })}
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import Link from "next/link";
+import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections";
 import {
   Film,
   Palette,
@@ -35,6 +36,7 @@ interface HomeInstructor {
   avatar: string | null;
   expertise: string | null;
   user: {
+    id: string;
     name: string;
     avatar: string | null;
   } | null;
@@ -57,6 +59,8 @@ interface Course {
 interface PageSection {
   slug: string;
   content: string;
+  order: number;
+  visible: boolean;
 }
 
 interface GalleryItem {
@@ -105,14 +109,17 @@ function useScrollReveal() {
 function AnimatedSection({
   children,
   className = "",
+  order,
 }: {
   children: ReactNode;
   className?: string;
+  order?: number;
 }) {
   const { ref, visible } = useScrollReveal();
   return (
     <div
       ref={ref}
+      style={{ order }}
       className={`${className} transition-all duration-700 ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
       }`}
@@ -150,6 +157,8 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const slideInterval = useRef<ReturnType<typeof setInterval>>();
   const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({});
+  const [sectionOrder, setSectionOrder] = useState<Record<string, number>>({});
+  const [sectionContent, setSectionContent] = useState<Record<string, HomeSectionContent>>({});
   const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
 
   const scrollRefs = {
@@ -206,10 +215,16 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((data) => {
         const vis: Record<string, boolean> = {};
-        (data.sections || []).forEach((s: { slug: string; visible: boolean }) => {
+        const orders: Record<string, number> = {};
+        const contents: Record<string, HomeSectionContent> = {};
+        (data.sections || []).forEach((s: PageSection) => {
           vis[s.slug] = s.visible;
+          orders[s.slug] = s.order;
+          contents[s.slug] = parseHomeSectionContent(s.slug, s.content);
         });
         setSectionVisibility(vis);
+        setSectionOrder(orders);
+        setSectionContent(contents);
       })
       .catch(() => {});
   }, []);
@@ -227,7 +242,7 @@ export default function HomePage() {
       .then((data) => {
         const all = data.instructors || [];
         const visible = all.filter((i: { showOnSite: boolean }) => i.showOnSite !== false);
-        setHomeInstructors(visible.slice(0, 4));
+        setHomeInstructors(visible);
       })
       .catch(() => {});
   }, []);
@@ -257,11 +272,31 @@ export default function HomePage() {
     };
   }, [lightbox]);
 
-  const featured = courses.filter((c) => c.featured).slice(0, 4);
-  const displayCourses = featured.length > 0 ? featured : courses.slice(0, 4);
+  const contentFor = (slug: string) => sectionContent[slug] || parseHomeSectionContent(slug);
+  const orderFor = (slug: string, fallback: number) => sectionOrder[slug] ?? fallback;
+  const numberValue = (value: string | number, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+
+  const heroContent = contentFor("hero");
+  const departmentsContent = contentFor("departments");
+  const coursesContent = contentFor("courses");
+  const instructorsContent = contentFor("instructors");
+  const galleryContent = contentFor("gallery");
+  const partnersContent = contentFor("partners");
+  const ctaContent = contentFor("cta");
+  const courseLimit = numberValue(coursesContent.limit, 4) || 4;
+  const instructorLimit = numberValue(instructorsContent.limit, 0);
+  const galleryLimit = numberValue(galleryContent.limit, 0);
+  const featured = courses.filter((c) => c.featured).slice(0, courseLimit);
+  const displayCourses = featured.length > 0 ? featured : courses.slice(0, courseLimit);
+  const displayInstructors = instructorLimit > 0 ? homeInstructors.slice(0, instructorLimit) : homeInstructors;
+  const displayGallery = galleryLimit > 0 ? galleryItems.slice(0, galleryLimit) : galleryItems;
 
   return (
-    <div>
+    <div className="flex flex-col">
+      <div style={{ order: orderFor("hero", 1) }}>
       {sectionVisibility.hero !== false && (
         slidersLoading ? (
         <div className="min-h-screen flex items-center justify-center bg-primary">
@@ -349,8 +384,7 @@ export default function HomePage() {
             <div
               className="w-full h-full bg-cover bg-center scale-105"
               style={{
-                backgroundImage:
-                  'url("https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=2000&auto=format&fit=crop")',
+                backgroundImage: `url("${String(heroContent.imageUrl)}")`,
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-l from-primary via-primary/80 to-primary/60" />
@@ -360,31 +394,29 @@ export default function HomePage() {
           <div className="relative z-10 w-full max-w-[1280px] mx-auto px-5 md:px-8 text-right">
             <div className="max-w-3xl animate-fade-in-up">
               <span className="inline-block px-4 py-1.5 bg-secondary/20 text-secondary-fixed border border-secondary/30 rounded-full text-sm font-bold mb-6">
-                هنر متعالی، رسانه انقلابی
+                {heroContent.badge}
               </span>
 
               <h1 className="font-playfair text-4xl md:text-5xl lg:text-6xl text-secondary-fixed mb-6 leading-tight">
-                آموزش هنر و رسانه در تراز انقلاب اسلامی
+                {heroContent.title}
               </h1>
 
               <p className="text-surface-variant text-base md:text-lg max-w-xl mb-8 leading-relaxed">
-                آکادمی امام روح‌الله (ره)، بستری برای شکوفایی استعدادهای مومن و هنرمند
-                است. ما در این مسیر با بهره‌گیری از اساتید مبرز، تخصص و تعهد را در
-                هم می‌آمیزیم.
+                {heroContent.description}
               </p>
 
               <div className="flex flex-wrap gap-4">
                 <Link
-                  href="/courses"
+                  href={String(heroContent.primaryUrl)}
                   className="bg-gradient-to-l from-secondary to-secondary/90 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-secondary/20 transition-all active:scale-95"
                 >
-                  مشاهده دوره‌ها
+                  {heroContent.primaryText}
                 </Link>
                 <a
-                  href="#about"
+                  href={String(heroContent.secondaryUrl)}
                   className="border border-secondary-fixed text-secondary-fixed px-8 py-4 rounded-xl font-bold text-lg hover:bg-secondary-fixed/10 transition-all"
                 >
-                  مشاوره رایگان
+                  {heroContent.secondaryText}
                 </a>
               </div>
             </div>
@@ -395,14 +427,16 @@ export default function HomePage() {
           </div>
         </header>
       ))}
+      </div>
 
       {sectionVisibility.departments !== false && (
-      <AnimatedSection className="py-20 md:py-24">
+      <AnimatedSection order={orderFor("departments", 2)} className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
-              دپارتمان‌های تخصصی
+              {departmentsContent.title}
             </h2>
+            {departmentsContent.description && <p className="text-outline mt-2">{departmentsContent.description}</p>}
             <div className="w-24 h-1 bg-secondary mx-auto rounded-full" />
           </div>
 
@@ -411,18 +445,19 @@ export default function HomePage() {
               ref={scrollRefs.departments}
               className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
             >
-              {departments.map((dept) => {
+                  {departments.map((dept) => {
                 const Icon = dept.icon;
                 return (
-                  <div
+                  <Link
                     key={dept.name}
-                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px]"
+                    href={`/courses?category=${dept.name}`}
+                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px] block"
                   >
                     <div className="mb-4 text-secondary flex justify-center">
                       <Icon size={40} className="group-hover:scale-110 transition-transform" />
                     </div>
                     <h3 className="font-bold text-base text-primary">{dept.name}</h3>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -444,20 +479,20 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.courses !== false && (
-      <AnimatedSection className="py-20 md:py-24 bg-surface-low">
+      <AnimatedSection order={orderFor("courses", 3)} className="py-20 md:py-24 bg-surface-low">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="flex justify-between items-end mb-10">
             <div>
               <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
-                دوره‌های منتخب
+                {coursesContent.title}
               </h2>
-              <p className="text-outline">پرطرفدارترین آموزش‌های ماه اخیر</p>
+              <p className="text-outline">{coursesContent.description}</p>
             </div>
             <Link
               href="/courses"
               className="text-secondary font-bold flex items-center gap-1 hover:gap-2 transition-all text-sm"
             >
-              مشاهده همه
+              {coursesContent.linkText}
               <ChevronLeft size={18} />
             </Link>
           </div>
@@ -548,28 +583,30 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.instructors !== false && (
-      <AnimatedSection className="py-20 md:py-24">
+      <AnimatedSection order={orderFor("instructors", 4)} className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
-          <div className="text-center mb-12">
-            <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
-              اساتید مدرسه
-            </h2>
-            <p className="text-outline">
-              پیشکسوتان و متخصصان تراز اول هنر انقلاب
-            </p>
+          <div className="flex justify-between items-end mb-10">
+            <div>
+              <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
+                {instructorsContent.title}
+              </h2>
+              <p className="text-outline">{instructorsContent.description}</p>
+            </div>
+            <Link href="/instructors" className="text-secondary font-bold flex items-center gap-1 hover:gap-2 transition-all text-sm">
+              {instructorsContent.linkText} <ChevronLeft size={18} />
+            </Link>
           </div>
-
-          {homeInstructors.length > 0 ? (
+          {displayInstructors.length > 0 ? (
             <div className="relative group/scroll">
               <div
                 ref={scrollRefs.instructors}
                 className="flex gap-8 md:gap-12 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
               >
-                {homeInstructors.map((instructor) => {
+                {displayInstructors.map((instructor) => {
                   const instName = instructor.name || instructor.user?.name || "";
                   const instAvatar = instructor.avatar || instructor.user?.avatar || null;
                   return (
-                  <div key={instructor.id} className="text-center group shrink-0 w-[200px]">
+                  <Link key={instructor.id} href={instructor.user?.id ? `/profile/${instructor.user.id}` : "/instructors"} className="text-center group shrink-0 w-[200px]">
                     <div
                       className="relative w-36 h-36 mx-auto mb-5"
                       style={{
@@ -591,7 +628,7 @@ export default function HomePage() {
                     </div>
                     <h4 className="font-bold text-lg text-primary mb-1">{instName}</h4>
                     <p className="text-secondary text-sm">{instructor.expertise || "مدرس آکادمی"}</p>
-                  </div>
+                  </Link>
                 )})}
               </div>
               <button
@@ -615,14 +652,14 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.gallery !== false && (
-      <AnimatedSection className="py-20 md:py-24 bg-surface-low">
+      <AnimatedSection order={orderFor("gallery", 5)} className="py-20 md:py-24 bg-surface-low">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
-              گالری تصاویر
+              {galleryContent.title}
             </h2>
             <p className="text-outline">
-              نمایی از فعالیت‌های آکادمی هنر و رسانه امام روح‌الله (ره)
+              {galleryContent.description}
             </p>
           </div>
 
@@ -644,7 +681,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {galleryItems.map((item) => (
+              {displayGallery.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => setLightbox(item.imageUrl)}
@@ -677,10 +714,10 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.partners !== false && partners.length > 0 && (
-        <section className="mx-5 md:mx-auto my-20 max-w-[1280px] overflow-hidden">
+        <section style={{ order: orderFor("partners", 6) }} className="mx-5 md:mx-auto my-20 w-[calc(100%-2.5rem)] max-w-[1280px] overflow-hidden">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">همراهان ما</h2>
-            <p className="text-outline max-w-lg mx-auto">موسسات و سازمان‌های همکار با آکادمی هنر و رسانه امام روح‌الله (ره)</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">{partnersContent.title}</h2>
+            <p className="text-outline max-w-lg mx-auto">{partnersContent.description}</p>
           </div>
           <div className="relative overflow-hidden">
             <div className="flex items-center gap-10 md:gap-16 marquee-right" style={{ animationDuration: "30s" }}>
@@ -700,7 +737,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.cta !== false && (
-      <AnimatedSection className="mx-5 md:mx-auto my-16 max-w-[1280px]">
+      <AnimatedSection order={orderFor("cta", 7)} className="mx-5 md:mx-auto my-16 w-[calc(100%-2.5rem)] max-w-[1280px]">
         <div
           id="about"
           className="relative rounded-3xl overflow-hidden py-16 px-8 text-center border border-secondary/20"
@@ -720,12 +757,10 @@ export default function HomePage() {
 
           <div className="relative z-10 max-w-xl mx-auto">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
-              به جامعه هنرمندان متعهد بپیوندید
+              {ctaContent.title}
             </h2>
             <p className="text-outline leading-relaxed mb-8">
-              با عضویت در خبرنامه مدرسه، از جدیدترین دوره‌ها، رویدادها و
-              تخفیف‌های ویژه باخبر شوید. گامی بلند در مسیر رشد هنری خود
-              بردارید.
+              {ctaContent.description}
             </p>
             <form
               onSubmit={(e) => {
@@ -739,14 +774,14 @@ export default function HomePage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="ایمیل شما..."
+                placeholder={String(ctaContent.placeholder)}
                 className="flex-1 bg-white border border-outline-variant rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
               />
               <button
                 type="submit"
                 className="bg-primary text-white px-8 py-3.5 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-95"
               >
-                عضویت
+                {ctaContent.buttonText}
               </button>
             </form>
           </div>

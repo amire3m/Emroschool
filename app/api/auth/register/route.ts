@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
         password: hashed,
         phone: phone || null,
         role: "user",
+        userType: "student",
+        profileVisible: false,
       },
     });
 
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        userType: user.userType,
         phone: user.phone,
       },
     });

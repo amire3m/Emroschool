@@ -1,33 +1,28 @@
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const payload = verifyToken(authHeader.slice(7));
-  if (!payload || payload.role !== "admin") return null;
+  if (!payload || !isAdminRole(payload.role)) return null;
   return payload;
 }
 
 export async function GET() {
   try {
     const sections = await prisma.pageSection.findMany({
-      orderBy: { updatedAt: "desc" },
+      orderBy: { order: "asc" },
     });
 
-    const map: Record<string, string> = {};
-    for (const section of sections) {
-      map[section.slug] = section.content;
-    }
-
-    return NextResponse.json({ sections: map });
+    return NextResponse.json({ sections });
   } catch (error) {
     return NextResponse.json({ error: "خطا در دریافت بخش‌ها" }, { status: 500 });
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const admin = await getAdminUser(req);
   if (!admin) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
@@ -56,3 +51,5 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "خطا در ذخیره بخش" }, { status: 500 });
   }
 }
+
+export const PUT = POST;

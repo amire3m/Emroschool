@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 function getTokenUser(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
     }
 
-    if (tokenUser.role === "admin") {
+    if (isAdminRole(tokenUser.role)) {
       const notifications = await prisma.notification.findMany({
         orderBy: { createdAt: "desc" },
         include: {
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const tokenUser = getTokenUser(req);
-  if (!tokenUser || tokenUser.role !== "admin") {
+  if (!tokenUser || !isAdminRole(tokenUser.role)) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 

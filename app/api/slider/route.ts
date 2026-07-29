@@ -1,12 +1,12 @@
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const payload = verifyToken(authHeader.slice(7));
-  if (!payload || payload.role !== "admin") return null;
+  if (!payload || !isAdminRole(payload.role)) return null;
   return payload;
 }
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const user = token ? verifyToken(token) : null;
-    const isAdmin = user && user.role === "admin";
+    const isAdmin = Boolean(user && isAdminRole(user.role));
 
     const slides = await prisma.slider.findMany({
       where: isAdmin ? {} : { published: true },

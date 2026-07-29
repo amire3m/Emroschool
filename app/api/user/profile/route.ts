@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
         expertise: true,
         socialLinks: true,
         role: true,
+        userType: true,
+        profileVisible: true,
+        permissions: true,
         createdAt: true,
       },
     });
@@ -58,7 +61,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, password, avatar, bio, expertise, socialLinks } = body;
+    const { name, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
@@ -66,6 +69,7 @@ export async function PUT(req: NextRequest) {
     if (bio !== undefined) data.bio = bio;
     if (expertise !== undefined) data.expertise = expertise;
     if (socialLinks !== undefined) data.socialLinks = socialLinks;
+    if (profileVisible !== undefined && typeof profileVisible === "boolean") data.profileVisible = profileVisible;
     if (password !== undefined) {
       data.password = await hashPassword(password);
     }
@@ -83,6 +87,9 @@ export async function PUT(req: NextRequest) {
         expertise: true,
         socialLinks: true,
         role: true,
+        userType: true,
+        profileVisible: true,
+        permissions: true,
       },
     });
 

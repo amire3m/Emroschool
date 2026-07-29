@@ -22,21 +22,20 @@ import {
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 
-const menuItems = [
-  { href: "/admin", label: "داشبورد", icon: LayoutDashboard },
-  { href: "/admin/slider", label: "اسلایدر", icon: Image },
-  { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen },
-  { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen },
-  { href: "/admin/events", label: "رویدادها", icon: Calendar },
-  { href: "/admin/instructors", label: "اساتید", icon: GraduationCap },
-  { href: "/admin/gallery", label: "گالری", icon: Image },
-  { href: "/admin/users", label: "کاربران", icon: Users },
-  { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell },
-  { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap },
-  { href: "/admin/partners", label: "همراهان", icon: Users },
-  { href: "/admin/pagebuilder", label: "صفحه اصلی", icon: Edit },
-  { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings },
-  { href: "/", label: "بازگشت به سایت", icon: ArrowLeft },
+const allMenuItems = [
+  { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
+  { href: "/admin/slider", label: "اسلایدر", icon: Image, permission: "slider" },
+  { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
+  { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
+  { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
+  { href: "/admin/instructors", label: "اساتید", icon: GraduationCap, permission: "instructors" },
+  { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
+  { href: "/admin/users", label: "کاربران", icon: Users, permission: "users" },
+  { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
+  { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: "instructors" },
+  { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
+  { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: "settings" },
+  { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -49,7 +48,6 @@ const pageTitles: Record<string, string> = {
   "/admin/gallery": "گالری تصاویر",
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
-  "/admin/pagebuilder": "ویرایش صفحه اصلی",
   "/admin/partners": "مدیریت همراهان",
   "/admin/settings": "تنظیمات سایت",
 };
@@ -59,6 +57,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [settings, setSettings] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
@@ -74,7 +74,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
       })
-      .then((data) => setUserName(data.user?.name || "کاربر"))
+      .then((data) => {
+        const u = data.user;
+        if (!u || (u.role !== "admin" && u.role !== "superadmin")) {
+          router.push("/");
+          return;
+        }
+        setUserName(u.name || "کاربر");
+        setUserRole(u.role);
+        try { setUserPermissions(JSON.parse(u.permissions || "[]")); } catch { setUserPermissions([]); }
+      })
       .catch(() => router.push("/login"));
 
     fetch("/api/site-settings")
@@ -137,7 +146,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {menuItems.map((item) => {
+          {allMenuItems
+            .filter((item) => {
+              if (userRole === "superadmin") return true;
+              if (item.href === "/admin" || item.href === "/") return true;
+              if (!item.permission) return userRole === "admin";
+              return userPermissions.includes(item.permission);
+            })
+            .map((item) => {
             const Icon = item.icon;
             const isActive =
               item.href === "/admin"

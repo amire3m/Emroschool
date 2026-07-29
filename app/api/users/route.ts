@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   }
 
   const payload = verifyToken(authHeader.slice(7));
-  if (!payload || payload.role !== "admin") {
+  if (!payload || !isAdminRole(payload.role)) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 
@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
         email: true,
         name: true,
         role: true,
+        userType: true,
+        permissions: true,
+        profileVisible: true,
         createdAt: true,
         _count: { select: { enrollments: true } },
       },
@@ -31,6 +34,9 @@ export async function GET(req: NextRequest) {
       email: user.email,
       name: user.name,
       role: user.role,
+      userType: user.userType,
+      permissions: user.permissions,
+      profileVisible: user.profileVisible,
       createdAt: user.createdAt,
       enrollmentCount: user._count.enrollments,
     }));

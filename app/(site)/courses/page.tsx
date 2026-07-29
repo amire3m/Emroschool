@@ -39,6 +39,9 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    const category = new URLSearchParams(window.location.search).get("category");
+    if (category) setActiveCategory(category);
+
     async function fetchData() {
       try {
         const [coursesRes, categoriesRes] = await Promise.all([

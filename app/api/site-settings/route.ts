@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const token = auth.replace("Bearer ", "");
     if (!token) return NextResponse.json({ error: "ورود الزامی است" }, { status: 401 });
     const user = verifyToken(token);
-    if (!user || user.role !== "admin")
+    if (!user || !isAdminRole(user.role))
       return NextResponse.json({ error: "دسترسی محدود" }, { status: 403 });
 
     const { id, updatedAt, createdAt, ...clean } = body;

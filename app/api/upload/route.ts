@@ -1,6 +1,6 @@
-import { verifyToken } from "@/lib/auth";
+import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
-import { writeFile } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = verifyToken(authHeader.slice(7));
-  if (!payload || payload.role !== "admin") {
+  if (!payload || !isAdminRole(payload.role)) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
     const filePath = path.join(uploadDir, uniqueName);
     await writeFile(filePath, buffer);
 
