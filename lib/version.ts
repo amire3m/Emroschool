@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "news-site-editor-and-interactions",
+    title: "تحریریه داخل مجله و موشن‌های تعاملی",
+    summary: "مدیران اکنون از خود صفحه اخبار خبر منتشر می‌کنند و آرشیو و صفحه مطالعه با نور دنبال‌کننده موس، عمق سه‌بعدی و پارالاکس چندلایه واکنش نشان می‌دهند.",
+    publishedAt: "2026-07-30T03:09:00+03:30",
+    type: "feature",
+  },
+  {
     id: "news-magazine-and-global-search",
     title: "مجله خبری و جستجوی سراسری",
     summary: "بخش کامل اخبار با مدیریت انتشار، آرشیو متحرک و صفحه روایت اضافه شد و جستجوی هدر اکنون دوره‌ها، رویدادها، اساتید، هنرآموختگان و اخبار را پوشش می‌دهد.",
