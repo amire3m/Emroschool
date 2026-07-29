@@ -93,9 +93,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <div className="flex items-center justify-between p-5 border-b border-white/10">
-          <div>
-            <h2 className="text-lg font-black text-[#ffdeab]">مدرسه هنر و رسانه</h2>
-            <p className="text-xs text-white/50 mt-0.5">امام روح‌الله</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden shrink-0">
+              <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-[#ffdeab]">آکادمی هنر و رسانه</h2>
+              <p className="text-xs text-white/50 mt-0.5">امام روح‌الله (ره)</p>
+            </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}

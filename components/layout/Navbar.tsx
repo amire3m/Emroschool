@@ -10,6 +10,7 @@ const navLinks = [
   { label: "دوره‌ها", href: "/courses" },
   { label: "رویدادها", href: "/events" },
   { label: "اساتید", href: "/instructors" },
+  { label: "هنر آموختگان", href: "/honar-amooztegan" },
   { label: "درباره ما", href: "/#about" },
 ];
 
@@ -101,11 +102,11 @@ export default function Navbar() {
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center">
-                <span className="text-primary font-bold text-lg">ه</span>
+              <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
               </div>
               <span className="text-secondary-fixed font-bold hidden sm:block text-sm">
-                مدرسه هنر و رسانه امام روح‌الله
+                آکادمی هنر و رسانه امام روح‌الله (ره)
               </span>
             </Link>
             <div className="relative hidden lg:block">

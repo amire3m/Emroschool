@@ -359,7 +359,7 @@ export default function HomePage() {
               </h1>
 
               <p className="text-surface-variant text-base md:text-lg max-w-xl mb-8 leading-relaxed">
-                مدرسه امام روح‌الله، بستری برای شکوفایی استعدادهای مومن و هنرمند
+                آکادمی امام روح‌الله (ره)، بستری برای شکوفایی استعدادهای مومن و هنرمند
                 است. ما در این مسیر با بهره‌گیری از اساتید مبرز، تخصص و تعهد را در
                 هم می‌آمیزیم.
               </p>
@@ -579,7 +579,7 @@ export default function HomePage() {
               گالری تصاویر
             </h2>
             <p className="text-outline">
-              نمایی از فعالیت‌های مدرسه هنر و رسانه
+              نمایی از فعالیت‌های آکادمی هنر و رسانه امام روح‌الله (ره)
             </p>
           </div>
 

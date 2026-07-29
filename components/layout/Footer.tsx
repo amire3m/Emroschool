@@ -10,12 +10,12 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="text-right">
             <div className="flex items-center gap-3 mb-6 justify-end">
-              <div className="w-14 h-14 rounded-full bg-secondary-fixed flex items-center justify-center">
-                <span className="text-primary font-bold text-2xl">ه</span>
+              <div className="w-14 h-14 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
               </div>
             </div>
             <p className="text-sm leading-loose opacity-80 mb-8">
-              مدرسه هنر و رسانه امام روح‌الله، نهادی تخصصی برای تربیت نیروی
+              آکادمی هنر و رسانه امام روح‌الله (ره)، نهادی تخصصی برای تربیت نیروی
               انسانی متعهد و متخصص در حوزه‌های مختلف هنری و رسانه‌ای است. ما به
               دنبال تلفیق هنر اصیل و تکنولوژی روز هستیم.
             </p>
@@ -136,7 +136,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
-          <p>© ۱۴۰۵ تمامی حقوق برای مدرسه هنر و رسانه محفوظ است.</p>
+          <p>© ۱۴۰۵ تمامی حقوق برای آکادمی هنر و رسانه امام روح‌الله (ره) محفوظ است.</p>
           <div className="flex gap-6">
             <Link href="#">اینستاگرام</Link>
             <Link href="#">بله</Link>
