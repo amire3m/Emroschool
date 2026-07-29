@@ -7,12 +7,12 @@ import {
   Loader2,
   AlertCircle,
   X,
-  Upload,
   FolderOpen,
   ImageIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface GalleryImage {
   id: string;
@@ -36,8 +36,6 @@ export default function AdminGallery() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-
   const [form, setForm] = useState({
     courseId: "",
     imageUrl: "",
@@ -73,35 +71,6 @@ export default function AdminGallery() {
 
   const getCourseTitle = (courseId: string) =>
     courses.find((c) => c.id === courseId)?.title || "نامشخص";
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const token = getToken();
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.url) {
-        setForm((prev) => ({ ...prev, imageUrl: data.url }));
-        toast.success("تصویر با موفقیت آپلود شد");
-      } else {
-        toast.error("خطا در آپلود");
-      }
-    } catch {
-      toast.error("خطا در آپلود فایل");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,31 +259,13 @@ export default function AdminGallery() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">آدرس تصویر</label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={form.imageUrl}
-                  onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                />
-              </div>
-
-              <div className="border-t border-surface-variant pt-4">
-                <p className="text-sm text-outline mb-3">یا آپلود کنید:</p>
-                <label className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border-2 border-dashed border-surface-variant text-outline hover:border-[#03004b] hover:text-[#03004b] cursor-pointer transition-colors">
-                  <Upload size={20} />
-                  <span className="text-sm">{uploading ? "در حال آپلود..." : "انتخاب فایل"}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                </label>
-              </div>
+              <ImageUpload
+                value={form.imageUrl}
+                onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+                label="تصویر گالری"
+                sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل"
+                aspectRatio="16:9"
+              />
 
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">پوشه</label>

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface Course {
   id: string;
@@ -484,16 +485,13 @@ export default function AdminCourses() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آدرس تصویر شاخص</label>
-                  <input
-                    type="text"
-                    value={form.thumbnail}
-                    onChange={(e) => setForm((p) => ({ ...p, thumbnail: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                    dir="ltr"
-                  />
-                </div>
+                <ImageUpload
+                  value={form.thumbnail}
+                  onChange={(url) => setForm((p) => ({ ...p, thumbnail: url }))}
+                  label="تصویر شاخص دوره"
+                  sizeHint="۸۰۰ × ۶۰۰ پیکسل"
+                  aspectRatio="4:3"
+                />
               </div>
 
               <div>
