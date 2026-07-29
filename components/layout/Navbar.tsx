@@ -35,6 +35,8 @@ export default function Navbar() {
   const notifRef = useRef<HTMLDivElement>(null);
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
   const [siteLogo, setSiteLogo] = useState("/logo.png");
+  const [sidebarColor, setSidebarColor] = useState("#03004b");
+  const [sidebarLayout, setSidebarLayout] = useState("default");
 
   useEffect(() => {
     const token = getCookie("token");
@@ -54,6 +56,8 @@ export default function Navbar() {
         if (!d.error) {
           if (d.siteName) setSiteName(d.siteName);
           if (d.siteLogo) setSiteLogo(d.siteLogo);
+          if (d.sidebarColor) setSidebarColor(d.sidebarColor);
+          if (d.sidebarLayout) setSidebarLayout(d.sidebarLayout);
         }
       })
       .catch(() => {});
@@ -107,9 +111,10 @@ export default function Navbar() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-primary/95 backdrop-blur-md py-2 shadow-sm"
-            : "bg-primary py-4"
-        }`}
+            ? "backdrop-blur-md shadow-sm"
+            : ""
+        } ${sidebarLayout === "compact" ? "py-1" : scrolled ? "py-2" : "py-4"}`}
+        style={{ backgroundColor: scrolled ? `${sidebarColor}dd` : sidebarColor }}
       >
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
