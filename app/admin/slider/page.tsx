@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface SliderItem {
   id: string;
@@ -383,29 +384,13 @@ export default function AdminSlider() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">آدرس تصویر</label>
-                <input
-                  type="text"
-                  required
-                  dir="ltr"
-                  value={form.imageUrl}
-                  onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                />
-                {form.imageUrl && (
-                  <div className="mt-2 w-32 h-20 rounded-lg bg-surface-variant overflow-hidden border border-surface-variant">
-                    <img
-                      src={form.imageUrl}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+              <ImageUpload
+                value={form.imageUrl}
+                onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+                label="تصویر اسلاید"
+                sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل"
+                aspectRatio="16:9"
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

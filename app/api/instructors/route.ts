@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, bio, expertise, specialties } = body;
+    const { userId, bio, expertise, specialties, showOnSite } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "شناسه کاربر الزامی است" }, { status: 400 });
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
         bio: bio ?? null,
         expertise: expertise ?? null,
         specialties: specialties ?? null,
+        showOnSite: showOnSite ?? true,
       },
       include: {
         user: {

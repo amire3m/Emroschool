@@ -29,32 +29,14 @@ const departments = [
   { name: "عکاسی", icon: Camera },
 ];
 
-const staticInstructors = [
-  {
-    name: "دکتر محمدرضا حسینی",
-    title: "متخصص فلسفه هنر",
-    image:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&h=300&auto=format&fit=crop&crop=face",
-  },
-  {
-    name: "استاد سارا امینی",
-    title: "مدیر دپارتمان گرافیک",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=300&auto=format&fit=crop&crop=face",
-  },
-  {
-    name: "مهندس جواد منتظری",
-    title: "استاد پیشکسوت عکاسی",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&h=300&auto=format&fit=crop&crop=face",
-  },
-  {
-    name: "استاد آرش رستمی",
-    title: "کارگردان و مستندساز",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&h=300&auto=format&fit=crop&crop=face",
-  },
-];
+interface HomeInstructor {
+  id: string;
+  expertise: string | null;
+  user: {
+    name: string;
+    avatar: string | null;
+  };
+}
 
 interface Course {
   id: string;
@@ -154,6 +136,7 @@ function formatPrice(price: number) {
 export default function HomePage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [homeInstructors, setHomeInstructors] = useState<HomeInstructor[]>([]);
   const [email, setEmail] = useState("");
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(true);
@@ -219,6 +202,17 @@ export default function HomePage() {
           vis[s.slug] = s.visible;
         });
         setSectionVisibility(vis);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/instructors")
+      .then((r) => r.json())
+      .then((data) => {
+        const all = data.instructors || [];
+        const visible = all.filter((i: { showOnSite: boolean }) => i.showOnSite !== false);
+        setHomeInstructors(visible.slice(0, 4));
       })
       .catch(() => {});
   }, []);
@@ -539,8 +533,8 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
-            {staticInstructors.map((instructor) => (
-              <div key={instructor.name} className="text-center group">
+            {homeInstructors.length > 0 ? homeInstructors.map((instructor) => (
+              <div key={instructor.id} className="text-center group">
                 <div
                   className="relative w-40 h-40 mx-auto mb-5"
                   style={{
@@ -551,7 +545,7 @@ export default function HomePage() {
                   <div
                     className="w-full h-full bg-cover bg-center"
                     style={{
-                      backgroundImage: `url(${instructor.image})`,
+                      backgroundImage: `url(${instructor.user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&h=300&auto=format&fit=crop&crop=face"})`,
                     }}
                   />
                   <div className="absolute inset-0 bg-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -561,11 +555,17 @@ export default function HomePage() {
                   </div>
                 </div>
                 <h4 className="font-bold text-lg text-primary mb-1">
-                  {instructor.name}
+                  {instructor.user.name}
                 </h4>
-                <p className="text-secondary text-sm">{instructor.title}</p>
+                <p className="text-secondary text-sm">
+                  {instructor.expertise || "مدرس آکادمی"}
+                </p>
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full text-center text-outline py-8">
+                هنوز استادی ثبت نشده است
+              </div>
+            )}
           </div>
         </div>
       </AnimatedSection>

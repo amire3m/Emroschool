@@ -11,6 +11,11 @@ import {
   X,
   Check,
   Calendar,
+  Eye,
+  EyeOff,
+  Upload,
+  Link,
+  ImageIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -21,10 +26,12 @@ interface Instructor {
   bio: string | null;
   expertise: string | null;
   specialties: string | null;
+  showOnSite: boolean;
   user: {
     id: string;
     name: string;
     email: string;
+    avatar: string | null;
   };
   createdAt: string;
 }
@@ -54,12 +61,15 @@ export default function AdminInstructors() {
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Instructor | null>(null);
   const [saving, setSaving] = useState(false);
+  const [avatarMode, setAvatarMode] = useState<"file" | "url">("url");
 
   const [form, setForm] = useState({
     userId: "",
     bio: "",
     expertise: "",
     specialties: "",
+    showOnSite: true,
+    avatar: "",
   });
 
   const getToken = () => getCookie("token") || "";
@@ -90,8 +100,9 @@ export default function AdminInstructors() {
   const availableUsers = users.filter((u) => !instructorUserIds.has(u.id));
 
   const resetForm = () => {
-    setForm({ userId: "", bio: "", expertise: "", specialties: "" });
+    setForm({ userId: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "" });
     setEditingInstructor(null);
+    setAvatarMode("url");
   };
 
   const openCreateModal = () => {
@@ -105,9 +116,33 @@ export default function AdminInstructors() {
       bio: instructor.bio || "",
       expertise: instructor.expertise || "",
       specialties: instructor.specialties || "",
+      showOnSite: instructor.showOnSite,
+      avatar: instructor.user.avatar || "",
     });
     setEditingInstructor(instructor);
     setShowModal(true);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("خطا در آپلود");
+      const data = await res.json();
+      setForm((p) => ({ ...p, avatar: data.url }));
+      toast.success("تصویر با موفقیت آپلود شد");
+    } catch {
+      toast.error("خطا در آپلود تصویر");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,11 +154,12 @@ export default function AdminInstructors() {
     setSaving(true);
     const token = getToken();
 
-    const body = {
+    const body: Record<string, unknown> = {
       userId: form.userId,
       bio: form.bio || null,
       expertise: form.expertise || null,
       specialties: form.specialties || null,
+      showOnSite: form.showOnSite,
     };
 
     try {
@@ -137,6 +173,15 @@ export default function AdminInstructors() {
           const err = await res.json();
           throw new Error(err.error || "خطا در بروزرسانی");
         }
+
+        if (form.avatar && form.avatar !== editingInstructor.user.avatar) {
+          await fetch("/api/user/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+            body: JSON.stringify({ avatar: form.avatar, userId: editingInstructor.userId }),
+          });
+        }
+
         toast.success("استاد با موفقیت بروزرسانی شد");
       } else {
         const res = await fetch("/api/instructors", {
@@ -148,6 +193,16 @@ export default function AdminInstructors() {
           const err = await res.json();
           throw new Error(err.error || "خطا در ایجاد استاد");
         }
+
+        if (form.avatar) {
+          const created = await res.json();
+          await fetch("/api/user/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
+            body: JSON.stringify({ avatar: form.avatar, userId: form.userId }),
+          });
+        }
+
         toast.success("استاد با موفقیت ایجاد شد");
       }
       setShowModal(false);
@@ -239,7 +294,7 @@ export default function AdminInstructors() {
                 <th className="text-right p-3 font-medium text-outline">نام</th>
                 <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">ایمیل</th>
                 <th className="text-right p-3 font-medium text-outline hidden md:table-cell">خلاصه بیو</th>
-                <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">تخصص</th>
+                <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">نمایش در سایت</th>
                 <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">تاریخ ثبت</th>
                 <th className="text-left p-3 font-medium text-outline">عملیات</th>
               </tr>
@@ -249,8 +304,14 @@ export default function AdminInstructors() {
                 <tr key={instructor.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#eeecfc] flex items-center justify-center text-[#03004b] font-bold text-sm shrink-0">
-                        {instructor.user.name.charAt(0)}
+                      <div className="w-9 h-9 rounded-full bg-[#eeecfc] flex items-center justify-center overflow-hidden shrink-0">
+                        {instructor.user.avatar ? (
+                          <img src={instructor.user.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[#03004b] font-bold text-sm">
+                            {instructor.user.name.charAt(0)}
+                          </span>
+                        )}
                       </div>
                       <div className="font-medium text-primary">{instructor.user.name}</div>
                     </div>
@@ -259,8 +320,18 @@ export default function AdminInstructors() {
                   <td className="p-3 text-outline hidden md:table-cell max-w-[200px] truncate">
                     {instructor.bio || "—"}
                   </td>
-                  <td className="p-3 text-outline hidden lg:table-cell max-w-[150px] truncate">
-                    {instructor.expertise || "—"}
+                  <td className="p-3 hidden lg:table-cell">
+                    {instructor.showOnSite ? (
+                      <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-lg text-xs">
+                        <Eye size={12} />
+                        فعال
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-outline bg-surface-low px-2 py-0.5 rounded-lg text-xs">
+                        <EyeOff size={12} />
+                        مخفی
+                      </span>
+                    )}
                   </td>
                   <td className="p-3 text-outline hidden lg:table-cell">
                     <div className="flex items-center gap-1.5">
@@ -336,6 +407,69 @@ export default function AdminInstructors() {
               )}
 
               <div>
+                <label className="block text-sm font-medium text-primary mb-2">تصویر پروفایل</label>
+                <p className="text-xs text-outline mb-2">سایز توصیه شده: ۳۰۰ × ۳۰۰ پیکسل</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarMode("url")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      avatarMode === "url"
+                        ? "bg-[#03004b] text-white"
+                        : "bg-surface-variant text-outline"
+                    }`}
+                  >
+                    <Link size={12} />
+                    لینک خارجی
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarMode("file")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      avatarMode === "file"
+                        ? "bg-[#03004b] text-white"
+                        : "bg-surface-variant text-outline"
+                    }`}
+                  >
+                    <Upload size={12} />
+                    آپلود فایل
+                  </button>
+                </div>
+                {avatarMode === "url" ? (
+                  <input
+                    type="text"
+                    placeholder="https://example.com/image.jpg"
+                    value={form.avatar}
+                    onChange={(e) => setForm((p) => ({ ...p, avatar: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                  />
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-surface-variant text-sm cursor-pointer hover:bg-surface-low transition-colors">
+                      <Upload size={16} className="text-outline" />
+                      <span className="text-outline">انتخاب فایل...</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
+                  </div>
+                )}
+                {form.avatar && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={form.avatar}
+                      alt="پیش‌نمایش"
+                      className="w-10 h-10 rounded-full object-cover border border-surface-variant"
+                    />
+                    <span className="text-xs text-outline truncate">{form.avatar}</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-primary mb-1">بیوگرافی</label>
                 <textarea
                   rows={3}
@@ -363,6 +497,26 @@ export default function AdminInstructors() {
                   onChange={(e) => setForm((p) => ({ ...p, specialties: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none"
                 />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
+                <div>
+                  <label className="text-sm font-medium text-primary">نمایش در سایت</label>
+                  <p className="text-xs text-outline mt-0.5">در صورت غیرفعال بودن، استاد در سایت نمایش داده نمی‌شود</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, showOnSite: !p.showOnSite }))}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    form.showOnSite ? "bg-green-500" : "bg-surface-variant"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      form.showOnSite ? "translate-x-6" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
               </div>
 
               <div className="flex items-center gap-3 pt-2">

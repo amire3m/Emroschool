@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface EventItem {
   id: string;
@@ -469,16 +470,13 @@ export default function AdminEvents() {
                     className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آدرس تصویر</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={form.imageUrl}
-                    onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
+                <ImageUpload
+                  value={form.imageUrl}
+                  onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+                  label="تصویر رویداد"
+                  sizeHint="۱۲۰۰ × ۶۳۰ پیکسل"
+                  aspectRatio="16:9"
+                />
               </div>
 
               <div>

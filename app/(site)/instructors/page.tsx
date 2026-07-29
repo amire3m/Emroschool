@@ -18,6 +18,7 @@ interface Instructor {
   expertise?: string;
   specialties?: string;
   socialLinks?: string;
+  showOnSite: boolean;
   eventCount: number;
   user: InstructorUser;
 }
@@ -33,7 +34,8 @@ export default function InstructorsPage() {
         const res = await fetch("/api/instructors");
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
-        setInstructors(data.instructors || []);
+        const all = data.instructors || [];
+        setInstructors(all.filter((i: Instructor) => i.showOnSite !== false));
       } catch {
         setError(true);
       } finally {
