@@ -187,7 +187,7 @@ export default function AdminPartners() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-2">لوگو</label>
-                <ImageUpload value={form.logoUrl} onChange={(url) => setForm(p => ({ ...p, logoUrl: url }))} label="آپلود لوگو" />
+                <ImageUpload value={form.logoUrl} onChange={(url) => setForm(p => ({ ...p, logoUrl: url }))} label="آپلود لوگو" sizeHint="۶۰۰ × ۴۰۰ پیکسل" aspectRatio="3:2" />
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={form.showOnSite} onChange={(e) => setForm(p => ({ ...p, showOnSite: e.target.checked }))}

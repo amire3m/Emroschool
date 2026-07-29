@@ -87,14 +87,14 @@ export default function EventsPage() {
             <p className="text-outline-variant text-sm mt-1">به زودی...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {events.map((event) => (
               <Link
                 key={event.id}
                 href={`/events/${event.id}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-outline-variant/30"
               >
-                <div className="relative aspect-video overflow-hidden">
+                <div className="relative aspect-[9/16] overflow-hidden">
                   {event.imageUrl ? (
                     <div
                       className="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700"

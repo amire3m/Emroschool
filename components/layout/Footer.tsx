@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Globe, Share2, AtSign } from "lucide-react";
+import { APP_VERSION } from "@/lib/version";
 
 export default function Footer() {
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
@@ -150,6 +151,7 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
           <div className="flex gap-6">
+            <span>نسخه {APP_VERSION}</span>
             <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank">اینستاگرام</Link>
             <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank">بله</Link>
           </div>

@@ -1,6 +1,6 @@
 {
   "name": "honar-media-platform",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -25,6 +25,7 @@
     "next-cloudinary": "^6.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-easy-crop": "^6.2.3",
     "react-hot-toast": "^2.4.1",
     "react-multi-date-picker": "^4.5.2",
     "react-player": "^2.15.0",

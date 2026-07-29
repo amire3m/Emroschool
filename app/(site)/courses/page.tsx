@@ -144,7 +144,7 @@ export default function CoursesPage() {
                 href={`/courses/${course.slug}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-outline-variant/30"
               >
-                <div className="relative aspect-video overflow-hidden">
+                <div className="relative aspect-[9/16] overflow-hidden">
                   {course.thumbnail ? (
                     <div
                       className="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700"

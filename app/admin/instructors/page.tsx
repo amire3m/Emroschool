@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import {
   Plus, Pencil, Trash2, Loader2, AlertCircle, Search, X, Check,
-  Calendar, Eye, EyeOff, Upload, Link, ImageIcon, Merge, AlertTriangle,
+  Calendar, Eye, EyeOff, ImageIcon, Merge, AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface Instructor {
   id: string;
@@ -43,7 +44,6 @@ export default function AdminInstructors() {
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Instructor | null>(null);
   const [saving, setSaving] = useState(false);
-  const [avatarMode, setAvatarMode] = useState<"file" | "url">("url");
 
   const [form, setForm] = useState({
     userId: "", name: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "",
@@ -78,7 +78,6 @@ export default function AdminInstructors() {
   const resetForm = () => {
     setForm({ userId: "", name: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "" });
     setEditingInstructor(null);
-    setAvatarMode("url");
     setManualMode(false);
     setMergeDialog(null);
   };
@@ -101,32 +100,6 @@ export default function AdminInstructors() {
     setEditingInstructor(instructor);
     setManualMode(!instructor.userId);
     setShowModal(true);
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("حداکثر حجم تصویر ۱۰ مگابایت است");
-      e.target.value = "";
-      return;
-    }
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { authorization: `Bearer ${getToken()}` },
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "خطا در آپلود");
-      }
-      const data = await res.json();
-      setForm((p) => ({ ...p, avatar: data.url }));
-      toast.success("تصویر با موفقیت آپلود شد");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در آپلود تصویر"); }
   };
 
   // Check for duplicate users when manually entering a name
@@ -353,37 +326,7 @@ export default function AdminInstructors() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">تصویر پروفایل</label>
-                <p className="text-xs text-outline mb-2">سایز توصیه شده: ۳۰۰ × ۳۰۰ پیکسل</p>
-                <p className="text-xs text-outline mb-2">حداکثر حجم تصویر: ۱۰ مگابایت</p>
-                <div className="flex items-center gap-2 mb-2">
-                  <button type="button" onClick={() => setAvatarMode("url")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${avatarMode === "url" ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}>
-                    <Link size={12} /> لینک خارجی
-                  </button>
-                  <button type="button" onClick={() => setAvatarMode("file")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${avatarMode === "file" ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}>
-                    <Upload size={12} /> آپلود فایل
-                  </button>
-                </div>
-                {avatarMode === "url" ? (
-                  <input type="text" placeholder="https://example.com/image.jpg" value={form.avatar}
-                    onChange={(e) => setForm((p) => ({ ...p, avatar: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
-                ) : (
-                  <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-surface-variant text-sm cursor-pointer hover:bg-surface-low transition-colors">
-                    <Upload size={16} className="text-outline" /> <span className="text-outline">انتخاب فایل...</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                  </label>
-                )}
-                {form.avatar && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <img src={form.avatar} alt="پیش‌نمایش" className="w-10 h-10 rounded-full object-cover border border-surface-variant" />
-                    <span className="text-xs text-outline truncate">{form.avatar}</span>
-                  </div>
-                )}
-              </div>
+              <ImageUpload value={form.avatar} onChange={(url) => setForm((previous) => ({ ...previous, avatar: url }))} label="تصویر پروفایل" sizeHint="۶۰۰ × ۶۰۰ پیکسل" aspectRatio="1:1" />
 
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">بیوگرافی</label>

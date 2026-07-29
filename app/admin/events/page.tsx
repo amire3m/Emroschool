@@ -502,8 +502,8 @@ export default function AdminEvents() {
                   value={form.imageUrl}
                   onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
                   label="تصویر رویداد"
-                  sizeHint="۱۲۰۰ × ۶۳۰ پیکسل"
-                  aspectRatio="16:9"
+                  sizeHint="۹۰۰ × ۱۶۰۰ پیکسل"
+                  aspectRatio="9:16"
                 />
               </div>
 

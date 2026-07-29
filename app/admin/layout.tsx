@@ -20,8 +20,10 @@ import {
   Bell,
   Settings,
   HardDrive,
+  History,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
+import { APP_VERSION } from "@/lib/version";
 
 const allMenuItems = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
@@ -34,6 +36,7 @@ const allMenuItems = [
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/users", label: "کاربران", icon: Users, permission: "users" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
+  { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
   { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: "instructors" },
   { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
   { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: "settings" },
@@ -51,6 +54,7 @@ const pageTitles: Record<string, string> = {
   "/admin/files": "مدیریت فایل‌ها",
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
+  "/admin/updates": "بروزرسانی‌ها",
   "/admin/partners": "مدیریت همراهان",
   "/admin/settings": "تنظیمات سایت",
 };
@@ -180,7 +184,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-3 border-t border-white/10">
           <div className="sidebar-link text-white/50 text-sm">
-            <span>نسخه ۱.۰</span>
+            <span>نسخه {APP_VERSION}</span>
           </div>
         </div>
       </aside>

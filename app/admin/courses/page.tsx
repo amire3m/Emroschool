@@ -484,8 +484,8 @@ export default function AdminCourses() {
                   value={form.thumbnail}
                   onChange={(url) => setForm((p) => ({ ...p, thumbnail: url }))}
                   label="تصویر شاخص دوره"
-                  sizeHint="۸۰۰ × ۶۰۰ پیکسل"
-                  aspectRatio="4:3"
+                  sizeHint="۹۰۰ × ۱۶۰۰ پیکسل"
+                  aspectRatio="9:16"
                 />
               </div>
 

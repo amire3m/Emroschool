@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Users, GraduationCap, Image, Loader2, AlertCircle } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
+import Link from "next/link";
+import { APP_VERSION, releaseNotes } from "@/lib/version";
 
 interface Stat {
   label: string;
@@ -106,6 +108,11 @@ export default function AdminDashboard() {
           به پنل مدیریت مدرسه هنر و رسانه امام روح‌الله خوش آمدید. از منوی سمت راست می‌توانید
           بخش‌های مختلف سایت را مدیریت کنید.
         </p>
+      </div>
+
+      <div className="mt-8 bg-white rounded-2xl border border-surface-variant shadow-sm p-6">
+        <div className="flex items-center justify-between gap-4 mb-5"><div><h2 className="text-lg font-bold text-primary">آخرین بروزرسانی‌ها</h2><p className="text-xs text-outline mt-1">سامانه در حال حاضر روی نسخه {APP_VERSION} است</p></div><Link href="/admin/updates" className="text-sm font-bold text-secondary hover:text-primary transition-colors">مشاهده همه</Link></div>
+        <div className="space-y-3">{releaseNotes.slice(0, 3).map((note) => <div key={note.id} className="flex items-start justify-between gap-4 rounded-xl bg-surface-low p-4"><div><p className="font-bold text-primary text-sm">{note.title}</p><p className="text-xs text-outline mt-1 line-clamp-1">{note.summary}</p></div><time className="text-[11px] text-outline whitespace-nowrap">{new Date(note.publishedAt).toLocaleDateString("fa-IR")}</time></div>)}</div>
       </div>
     </div>
   );

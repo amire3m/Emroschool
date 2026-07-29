@@ -1,0 +1,60 @@
+export const APP_VERSION = "2.0.0";
+
+export interface ReleaseNote {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: string;
+  version?: string;
+  type: "release" | "feature" | "improvement" | "fix";
+}
+
+const unsortedReleaseNotes: ReleaseNote[] = [
+  {
+    id: "version-2",
+    title: "ارتقای سامانه به نسخه ۲",
+    summary: "نسخه دوم سامانه با مدیریت یکپارچه صفحه اصلی، کاربران، رسانه‌ها و تجربه کاربری بهبودیافته منتشر شد.",
+    publishedAt: "2026-07-30T18:00:00+03:30",
+    version: APP_VERSION,
+    type: "release",
+  },
+  {
+    id: "image-editor",
+    title: "ادیتور سبک تصاویر",
+    summary: "کراپ، زوم و چرخش تصویر متناسب با قاب هر بخش به ورودی‌های تصویری پنل افزوده شد.",
+    publishedAt: "2026-07-30T17:50:00+03:30",
+    type: "feature",
+  },
+  {
+    id: "homepage-carousels",
+    title: "بازطراحی اسلایدرهای صفحه اصلی",
+    summary: "نمایش دپارتمان‌ها، اساتید، همراهان و گالری برای حرکت روان، لوپ کامل و استفاده بهتر از فضا بازطراحی شد.",
+    publishedAt: "2026-07-30T17:40:00+03:30",
+    type: "improvement",
+  },
+  {
+    id: "file-manager",
+    title: "مدیریت فایل‌های سامانه",
+    summary: "فایل‌منیجر با نمایش فضای دیسک، پیش‌نمایش، جستجو، آپلود چندفایلی و حذف امن فایل‌ها اضافه شد.",
+    publishedAt: "2026-07-30T16:30:00+03:30",
+    type: "feature",
+  },
+  {
+    id: "course-categories",
+    title: "دسته‌بندی‌های جدید دوره‌ها",
+    summary: "۱۴ دسته‌بندی اصلی با آیکون‌های هماهنگ تعریف و فرم دوره‌ها به دسته‌های واقعی دیتابیس متصل شد.",
+    publishedAt: "2026-07-30T15:20:00+03:30",
+    type: "improvement",
+  },
+  {
+    id: "profiles-and-settings",
+    title: "تنظیمات یکپارچه و پروفایل عمومی",
+    summary: "ویرایش محتوای صفحه اصلی، حریم خصوصی هنرجویان و پروفایل‌های اختصاصی استاد و هنرآموخته تکمیل شد.",
+    publishedAt: "2026-07-30T14:00:00+03:30",
+    type: "feature",
+  },
+];
+
+export const releaseNotes = unsortedReleaseNotes.sort(
+  (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+);

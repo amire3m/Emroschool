@@ -6,6 +6,7 @@ import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections
 import CategoryIcon from "@/components/CategoryIcon";
 import AutoScrollSlider from "@/components/ui/autoscroll-slider";
 import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
+import AutoLoopRow from "@/components/ui/auto-loop-row";
 import {
   Star,
   ChevronLeft,
@@ -14,7 +15,6 @@ import {
   Image as ImageIcon,
   X,
   AlertCircle,
-  ChevronRight,
 } from "lucide-react";
 
 interface HomeCategory {
@@ -156,11 +156,6 @@ export default function HomePage() {
   const [sectionContent, setSectionContent] = useState<Record<string, HomeSectionContent>>({});
   const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
   const [categories, setCategories] = useState<HomeCategory[]>([]);
-
-  const scrollRefs = {
-    departments: useRef<HTMLDivElement>(null),
-    instructors: useRef<HTMLDivElement>(null),
-  };
 
   useEffect(() => {
     fetch("/api/categories")
@@ -441,40 +436,25 @@ export default function HomePage() {
             <div className="w-24 h-1 bg-secondary mx-auto rounded-full" />
           </div>
 
-          <div className="relative group/scroll">
-            <div
-              ref={scrollRefs.departments}
-              className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
-            >
-                  {categories.map((category) => {
+          <AutoLoopRow slideClassName="basis-[46%] sm:basis-[28%] lg:basis-[16%]" speed={0.75}>
+              {categories.map((category) => {
                 return (
                   <Link
                     key={category.id}
                     href={`/courses?category=${encodeURIComponent(category.name)}`}
                     title={category.description || category.name}
-                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[170px] md:w-[190px] block"
+                    className="group relative block h-full min-h-40 overflow-hidden rounded-3xl border border-outline-variant/60 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-secondary hover:shadow-lg"
                   >
-                    <div className="mb-4 text-secondary flex justify-center">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-primary via-secondary to-secondary-fixed opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed/40 text-secondary transition-all group-hover:rotate-3 group-hover:bg-secondary-fixed">
                       <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />
                     </div>
                     <h3 className="font-bold text-base text-primary">{category.name}</h3>
+                    {category.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-outline">{category.description}</p>}
                   </Link>
                 );
               })}
-            </div>
-            <button
-              onClick={() => { const el = scrollRefs.departments.current; if (el) el.scrollBy({ left: -300, behavior: "smooth" }); }}
-              className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
-            >
-              <ChevronRight size={20} />
-            </button>
-            <button
-              onClick={() => { const el = scrollRefs.departments.current; if (el) el.scrollBy({ left: 300, behavior: "smooth" }); }}
-              className="absolute left-0 top-1/2 -translate-y-1/2 translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          </div>
+          </AutoLoopRow>
         </div>
       </AnimatedSection>
       )}
@@ -599,22 +579,14 @@ export default function HomePage() {
             </Link>
           </div>
           {displayInstructors.length > 0 ? (
-            <div className="relative group/scroll">
-              <div
-                ref={scrollRefs.instructors}
-                className="flex gap-8 md:gap-12 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
-              >
+            <AutoLoopRow slideClassName="basis-[68%] sm:basis-[38%] lg:basis-[24%]" speed={0.65}>
                 {displayInstructors.map((instructor) => {
                   const instName = instructor.name || instructor.user?.name || "";
                   const instAvatar = instructor.avatar || instructor.user?.avatar || null;
                   return (
-                  <Link key={instructor.id} href={instructor.user?.id ? `/profile/${instructor.user.id}` : "/instructors"} className="text-center group shrink-0 w-[200px]">
+                  <Link key={instructor.id} href={instructor.user?.id ? `/profile/${instructor.user.id}` : "/instructors"} className="group block h-full rounded-3xl border border-outline-variant/50 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-secondary/50 hover:shadow-xl">
                     <div
-                      className="relative w-36 h-36 mx-auto mb-5"
-                      style={{
-                        clipPath:
-                          "polygon(0% 15%, 50% 0%, 100% 15%, 100% 100%, 0% 100%)",
-                      }}
+                      className="relative mx-auto mb-5 aspect-[4/5] w-full overflow-hidden rounded-2xl"
                     >
                       <div
                         className="w-full h-full bg-cover bg-center"
@@ -628,24 +600,11 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
-                    <h4 className="font-bold text-lg text-primary mb-1">{instName}</h4>
+                    <h4 className="font-bold text-lg text-primary mb-1 line-clamp-1">{instName}</h4>
                     <p className="text-secondary text-sm">{instructor.expertise || "مدرس آکادمی"}</p>
                   </Link>
                 )})}
-              </div>
-              <button
-                onClick={() => { const el = scrollRefs.instructors.current; if (el) el.scrollBy({ left: -300, behavior: "smooth" }); }}
-                className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
-              >
-                <ChevronRight size={20} />
-              </button>
-              <button
-                onClick={() => { const el = scrollRefs.instructors.current; if (el) el.scrollBy({ left: 300, behavior: "smooth" }); }}
-                className="absolute left-0 top-1/2 -translate-y-1/2 translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            </div>
+            </AutoLoopRow>
           ) : (
             <div className="text-center text-outline py-8">هنوز استادی ثبت نشده است</div>
           )}
@@ -697,20 +656,18 @@ export default function HomePage() {
             <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">{partnersContent.title}</h2>
             <p className="text-outline max-w-lg mx-auto">{partnersContent.description}</p>
           </div>
-          <div className="relative overflow-hidden">
-            <div className="flex items-center gap-10 md:gap-16 marquee-right" style={{ animationDuration: "30s" }}>
-              {[...partners, ...partners, ...partners].map((partner, idx) => (
-                <div key={`${partner.id}-${idx}`} className="group shrink-0">
+          <AutoLoopRow slideClassName="basis-[42%] sm:basis-[25%] lg:basis-[16%]" speed={0.55}>
+              {partners.map((partner) => (
+                <div key={partner.id} className="group flex h-28 items-center justify-center rounded-2xl border border-outline-variant/40 bg-white p-5 shadow-sm transition hover:border-secondary/40 hover:shadow-md">
                   <img
                     src={partner.logoUrl}
                     alt={partner.name}
-                    className="h-16 md:h-20 w-auto grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                    className="max-h-16 w-auto max-w-full grayscale opacity-55 transition-all duration-300 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100"
                     title={partner.name}
                   />
                 </div>
               ))}
-            </div>
-          </div>
+          </AutoLoopRow>
         </section>
       )}
 

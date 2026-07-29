@@ -226,7 +226,7 @@ export default function AdminSettings() {
             </div>
             <div>
               <label className="block text-sm font-medium text-primary mb-2">لوگوی سایت</label>
-              <ImageUpload value={settings.siteLogo || ""} onChange={(url) => updateField("siteLogo", url)} label="آپلود لوگو" />
+              <ImageUpload value={settings.siteLogo || ""} onChange={(url) => updateField("siteLogo", url)} label="آپلود لوگو" sizeHint="۵۱۲ × ۵۱۲ پیکسل" aspectRatio="1:1" />
             </div>
             <div>
               <label className="block text-sm font-medium text-primary mb-2">رنگ پس زمینه سایت</label>
@@ -238,7 +238,7 @@ export default function AdminSettings() {
             </div>
             <div>
               <label className="block text-sm font-medium text-primary mb-2">تصویر پس زمینه (اختیاری)</label>
-              <ImageUpload value={settings.bgPattern || ""} onChange={(url) => updateField("bgPattern", url)} label="آپلود تصویر پس زمینه" />
+              <ImageUpload value={settings.bgPattern || ""} onChange={(url) => updateField("bgPattern", url)} label="آپلود تصویر پس زمینه" sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل" aspectRatio="16:9" />
             </div>
           </div>
 
