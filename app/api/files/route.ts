@@ -51,7 +51,7 @@ async function listFiles(directory: string, prefix = "") {
 }
 
 async function getReferences() {
-  const [courses, courseImages, galleries, sliders, users, instructors, alumni, events, partners, settings, sections] = await Promise.all([
+  const [courses, courseImages, galleries, sliders, users, instructors, alumni, events, partners, settings, sections, news] = await Promise.all([
     prisma.course.findMany({ select: { title: true, thumbnail: true, videoUrl: true } }),
     prisma.courseImage.findMany({ select: { url: true, course: { select: { title: true } } } }),
     prisma.gallery.findMany({ select: { imageUrl: true, altText: true } }),
@@ -63,6 +63,7 @@ async function getReferences() {
     prisma.partner.findMany({ select: { logoUrl: true, name: true } }),
     prisma.siteSetting.findMany({ select: { siteLogo: true, bgPattern: true } }),
     prisma.pageSection.findMany({ select: { content: true, slug: true } }),
+    prisma.newsPost.findMany({ select: { coverImage: true, title: true } }),
   ]);
 
   const references = new Map<string, Set<string>>();
@@ -85,6 +86,7 @@ async function getReferences() {
   sections.forEach((item) => {
     for (const match of item.content.matchAll(/\/uploads\/[A-Za-z0-9._%/-]+/g)) add(match[0], `صفحه اصلی: ${item.slug}`);
   });
+  news.forEach((item) => add(item.coverImage, `خبر: ${item.title}`));
 
   return references;
 }
@@ -224,6 +226,7 @@ export async function PATCH(req: NextRequest) {
       prisma.partner.updateMany({ where: { logoUrl: oldUrl }, data: { logoUrl: newUrl } }),
       prisma.siteSetting.updateMany({ where: { siteLogo: oldUrl }, data: { siteLogo: newUrl } }),
       prisma.siteSetting.updateMany({ where: { bgPattern: oldUrl }, data: { bgPattern: newUrl } }),
+      prisma.newsPost.updateMany({ where: { coverImage: oldUrl }, data: { coverImage: newUrl } }),
       ...sections.map((section) => prisma.pageSection.update({ where: { id: section.id }, data: { content: section.content.split(oldUrl).join(newUrl) } })),
     ]);
 

@@ -10,6 +10,7 @@ const navLinks = [
   { label: "صفحه اصلی", href: "/" },
   { label: "دوره‌ها", href: "/courses" },
   { label: "رویدادها", href: "/events" },
+  { label: "اخبار", href: "/news" },
   { label: "اساتید", href: "/instructors" },
   { label: "هنر آموختگان", href: "/honar-amooztegan" },
   { label: "درباره ما", href: "/#about" },

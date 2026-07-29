@@ -37,7 +37,7 @@ export default function AnimatedSearchBar({ expanded = false, autoFocus = false,
       inputRef.current?.focus();
       return;
     }
-    router.push(`/courses?q=${encodeURIComponent(normalizedQuery)}`);
+    router.push(`/search?q=${encodeURIComponent(normalizedQuery)}`);
     onSubmit?.();
   }
 

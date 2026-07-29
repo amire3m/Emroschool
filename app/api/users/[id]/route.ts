@@ -10,7 +10,7 @@ function getAdmin(token: string | null) {
 
 const roles = ["user", "admin", "superadmin"];
 const userTypes = ["student", "instructor", "alumni", "admin"];
-const allowedPermissions = ["courses", "events", "instructors", "gallery", "files", "slider", "notifications", "users", "settings"];
+const allowedPermissions = ["courses", "events", "news", "instructors", "gallery", "files", "slider", "notifications", "users", "settings"];
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = req.headers.get("authorization");

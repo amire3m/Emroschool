@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "news-magazine-and-global-search",
+    title: "مجله خبری و جستجوی سراسری",
+    summary: "بخش کامل اخبار با مدیریت انتشار، آرشیو متحرک و صفحه روایت اضافه شد و جستجوی هدر اکنون دوره‌ها، رویدادها، اساتید، هنرآموختگان و اخبار را پوشش می‌دهد.",
+    publishedAt: "2026-07-30T02:50:03+03:30",
+    type: "feature",
+  },
+  {
     id: "animated-header-search",
     title: "جستجوی متحرک بالای سایت",
     summary: "نوار جستجوی هدر با بازشدن نرم، هاله متحرک و پیشنهادهای چرخشی بازطراحی شد و جستجو مستقیماً نتایج دوره‌ها را فیلتر می‌کند.",
