@@ -19,6 +19,7 @@ import {
   GraduationCap,
   Bell,
   Settings,
+  HardDrive,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 
@@ -30,6 +31,7 @@ const allMenuItems = [
   { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
   { href: "/admin/instructors", label: "اساتید", icon: GraduationCap, permission: "instructors" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
+  { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/users", label: "کاربران", icon: Users, permission: "users" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
   { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: "instructors" },
@@ -46,6 +48,7 @@ const pageTitles: Record<string, string> = {
   "/admin/events": "مدیریت رویدادها",
   "/admin/instructors": "مدیریت اساتید",
   "/admin/gallery": "گالری تصاویر",
+  "/admin/files": "مدیریت فایل‌ها",
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
   "/admin/partners": "مدیریت همراهان",

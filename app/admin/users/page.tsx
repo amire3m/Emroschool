@@ -244,7 +244,7 @@ export default function AdminUsers() {
                 <input type="text" value={editForm.permissions} onChange={(e) => setEditForm(p => ({ ...p, permissions: e.target.value }))}
                   placeholder='["courses", "events"]'
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed font-mono" />
-                <p className="text-xs text-outline mt-1">مقادیر مجاز: courses, events, instructors, gallery, slider, notifications, users, settings</p>
+                <p className="text-xs text-outline mt-1">مقادیر مجاز: courses, events, instructors, gallery, files, slider, notifications, users, settings</p>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
                 <div>

@@ -4,6 +4,15 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
+export const runtime = "nodejs";
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const allowedExtensions = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif",
+  ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg", ".m4a",
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".zip", ".rar",
+]);
+
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -23,8 +32,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "فایلی ارسال نشده است" }, { status: 400 });
     }
 
-    const ext = path.extname(file.name) || ".bin";
-    const uniqueName = `${crypto.randomUUID()}${ext}`;
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "حداکثر حجم هر فایل ۵۰ مگابایت است" }, { status: 413 });
+    }
+
+    const ext = path.extname(file.name).toLowerCase();
+    if (!allowedExtensions.has(ext)) {
+      return NextResponse.json({ error: "فرمت این فایل مجاز نیست" }, { status: 400 });
+    }
+    const originalBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "file";
+    const uniqueName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${originalBase}${ext}`;
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
