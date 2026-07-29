@@ -201,7 +201,7 @@ export default function AdminFilesPage() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary"><Upload size={22} /></div>
-            <div><p className="font-bold text-primary">فایل‌ها را اینجا رها کنید</p><p className="text-xs text-outline mt-1">تصویر، ویدئو، صدا، سند یا فایل فشرده تا ۵۰ مگابایت</p></div>
+            <div><p className="font-bold text-primary">فایل‌ها را اینجا رها کنید</p><p className="text-xs text-outline mt-1">تصاویر تا ۱۰ مگابایت؛ ویدئو، صدا، سند و فایل فشرده تا ۵۰ مگابایت</p></div>
           </div>
           <button onClick={() => inputRef.current?.click()} disabled={uploading} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
             {uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}

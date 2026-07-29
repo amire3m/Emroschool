@@ -11,15 +11,22 @@ interface ImageUploadProps {
   label?: string;
   sizeHint?: string;
   aspectRatio?: string;
+  maxSizeMB?: number;
 }
 
-export default function ImageUpload({ value, onChange, label, sizeHint, aspectRatio }: ImageUploadProps) {
+export default function ImageUpload({ value, onChange, label, sizeHint, aspectRatio, maxSizeMB = 10 }: ImageUploadProps) {
   const [mode, setMode] = useState<"url" | "file">(value && !value.startsWith("blob:") ? "url" : "file");
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`حداکثر حجم تصویر ${maxSizeMB.toLocaleString("fa-IR")} مگابایت است`);
+      e.target.value = "";
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -50,6 +57,7 @@ export default function ImageUpload({ value, onChange, label, sizeHint, aspectRa
       {label && <label className="block text-sm font-medium text-primary mb-1">{label}</label>}
       {sizeHint && <p className="text-xs text-outline mb-2">سایز توصیه شده: {sizeHint}</p>}
       {aspectRatio && <p className="text-xs text-outline mb-2">نسبت تصویر: {aspectRatio}</p>}
+      <p className="text-xs text-outline mb-2">حداکثر حجم تصویر: {maxSizeMB.toLocaleString("fa-IR")} مگابایت</p>
       <div className="flex items-center gap-2 mb-2">
         <button
           type="button"

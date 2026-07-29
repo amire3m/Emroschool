@@ -7,6 +7,7 @@ import crypto from "crypto";
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const allowedExtensions = new Set([
   ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif",
   ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg", ".m4a",
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: "حداکثر حجم هر فایل ۵۰ مگابایت است" }, { status: 413 });
+    }
+
+    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: "حداکثر حجم هر تصویر ۱۰ مگابایت است" }, { status: 413 });
     }
 
     const ext = path.extname(file.name).toLowerCase();

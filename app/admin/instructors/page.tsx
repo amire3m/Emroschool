@@ -106,6 +106,11 @@ export default function AdminInstructors() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("حداکثر حجم تصویر ۱۰ مگابایت است");
+      e.target.value = "";
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     try {
@@ -114,11 +119,14 @@ export default function AdminInstructors() {
         headers: { authorization: `Bearer ${getToken()}` },
         body: formData,
       });
-      if (!res.ok) throw new Error("خطا در آپلود");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "خطا در آپلود");
+      }
       const data = await res.json();
       setForm((p) => ({ ...p, avatar: data.url }));
       toast.success("تصویر با موفقیت آپلود شد");
-    } catch { toast.error("خطا در آپلود تصویر"); }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در آپلود تصویر"); }
   };
 
   // Check for duplicate users when manually entering a name
@@ -348,6 +356,7 @@ export default function AdminInstructors() {
               <div>
                 <label className="block text-sm font-medium text-primary mb-2">تصویر پروفایل</label>
                 <p className="text-xs text-outline mb-2">سایز توصیه شده: ۳۰۰ × ۳۰۰ پیکسل</p>
+                <p className="text-xs text-outline mb-2">حداکثر حجم تصویر: ۱۰ مگابایت</p>
                 <div className="flex items-center gap-2 mb-2">
                   <button type="button" onClick={() => setAvatarMode("url")}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${avatarMode === "url" ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}>
