@@ -4,13 +4,13 @@ import { useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import Link from "next/link";
 import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections";
 import CategoryIcon from "@/components/CategoryIcon";
+import AutoScrollSlider from "@/components/ui/autoscroll-slider";
 import {
   Star,
   ChevronLeft,
   ChevronDown,
   Loader2,
   Image as ImageIcon,
-  FolderOpen,
   X,
   AlertCircle,
   ChevronRight,
@@ -682,34 +682,10 @@ export default function HomePage() {
               <p className="text-outline text-lg">هنوز تصویری ثبت نشده است</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {displayGallery.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setLightbox(item.imageUrl)}
-                  className="relative group rounded-2xl overflow-hidden cursor-pointer aspect-square"
-                >
-                  <img
-                    src={item.imageUrl}
-                    alt={item.altText || ""}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  {item.folder && (
-                    <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1 z-10">
-                      <FolderOpen size={12} />
-                      {item.folder}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    {item.altText && (
-                      <p className="text-white text-sm font-medium">
-                        {item.altText}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AutoScrollSlider
+              items={displayGallery}
+              onSelect={(item) => setLightbox(item.imageUrl)}
+            />
           )}
         </div>
       </AnimatedSection>
