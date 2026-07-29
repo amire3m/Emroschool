@@ -21,7 +21,7 @@ const config: Config = {
         "error-container": "#ffdad6",
       },
       fontFamily: {
-        vazir: ["Vazirmatn", "sans-serif"],
+        doran: ["Doran", "sans-serif"],
         playfair: ["Playfair Display", "serif"],
       },
     },

@@ -1,23 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;400;700;900&family=Playfair+Display:wght@700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 100;
+  src: url('/fonts/woff/Doran-Thin.woff') format('woff'),
+       url('/fonts/woff2/Doran-Thin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 300;
+  src: url('/fonts/woff/Doran-Light.woff') format('woff'),
+       url('/fonts/woff2/Doran-Light.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/woff/Doran-Regular.woff') format('woff'),
+       url('/fonts/woff2/Doran-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/woff/Doran-Medium.woff') format('woff'),
+       url('/fonts/woff2/Doran-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/woff/Doran-Bold.woff') format('woff'),
+       url('/fonts/woff2/Doran-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Doran;
+  font-style: normal;
+  font-weight: 800;
+  src: url('/fonts/woff/Doran-ExtraBold.woff') format('woff'),
+       url('/fonts/woff2/Doran-ExtraBold.woff2') format('woff2');
+}
+
 :root {
-  --vazir: 'Vazirmatn', sans-serif;
+  --doran: 'Doran', sans-serif;
   --playfair: 'Playfair Display', serif;
 }
 
 body {
-  font-family: var(--vazir);
+  font-family: var(--doran);
   background-color: #fbf8ff;
   overflow-x: hidden;
   direction: rtl;
 }
 
 .font-playfair { font-family: var(--playfair); }
-.font-vazir { font-family: var(--vazir); }
+.font-doran { font-family: var(--doran); }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.8);
