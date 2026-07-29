@@ -83,11 +83,10 @@ export const homeSectionDefinitions: HomeSectionDefinition[] = [
     label: "گالری تصاویر",
     icon: "Camera",
     order: 5,
-    defaults: { title: "گالری تصاویر", description: "نمایی از فعالیت‌های آکادمی هنر و رسانه امام روح‌الله (ره)", limit: 0 },
+    defaults: { title: "گالری تصاویر", description: "نمایی از فعالیت‌های آکادمی هنر و رسانه امام روح‌الله (ره)" },
     fields: [
       { key: "title", label: "عنوان" },
       { key: "description", label: "توضیحات", type: "textarea" },
-      { key: "limit", label: "تعداد تصاویر (صفر یعنی همه)", type: "number" },
     ],
   },
   {

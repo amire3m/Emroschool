@@ -290,11 +290,9 @@ export default function HomePage() {
   const ctaContent = contentFor("cta");
   const courseLimit = numberValue(coursesContent.limit, 4) || 4;
   const instructorLimit = numberValue(instructorsContent.limit, 0);
-  const galleryLimit = numberValue(galleryContent.limit, 0);
   const featured = courses.filter((c) => c.featured).slice(0, courseLimit);
   const displayCourses = featured.length > 0 ? featured : courses.slice(0, courseLimit);
   const displayInstructors = instructorLimit > 0 ? homeInstructors.slice(0, instructorLimit) : homeInstructors;
-  const displayGallery = galleryLimit > 0 ? galleryItems.slice(0, galleryLimit) : galleryItems;
 
   return (
     <div className="flex flex-col">
@@ -683,7 +681,7 @@ export default function HomePage() {
             </div>
           ) : (
             <AutoScrollSlider
-              items={displayGallery}
+              items={galleryItems}
               onSelect={(item) => setLightbox(item.imageUrl)}
             />
           )}
