@@ -61,6 +61,32 @@ const filters = [
   { value: "document", label: "اسناد" },
 ];
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const imageExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg", "avif"]);
+const allowedExtensions = new Set([
+  ...imageExtensions,
+  "mp4", "webm", "mov", "mkv", "avi", "mp3", "wav", "ogg", "m4a", "aac",
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip", "rar", "7z",
+]);
+
+function validateUpload(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  if (!allowedExtensions.has(extension)) return "فرمت این فایل مجاز نیست";
+  if (imageExtensions.has(extension) && file.size > MAX_IMAGE_SIZE) return "حداکثر حجم هر تصویر ۱۰ مگابایت است";
+  if (file.size > MAX_FILE_SIZE) return "حداکثر حجم هر فایل ۵۰ مگابایت است";
+  return "";
+}
+
+function uploadHttpError(status: number, serverMessage: string | undefined, filename: string) {
+  if (serverMessage) return serverMessage;
+  if (status === 401) return "نشست شما منقضی شده است؛ دوباره وارد شوید";
+  if (status === 403) return "اجازه آپلود فایل را ندارید";
+  if (status === 413) return "حجم فایل از محدودیت سرور بیشتر است";
+  if (status === 502 || status === 504) return "سرور هنگام دریافت فایل پاسخ نداد؛ دوباره تلاش کنید";
+  return `آپلود ${filename} ناموفق بود (خطای ${status.toLocaleString("fa-IR")})`;
+}
+
 function formatBytes(bytes: number) {
   if (!bytes) return "۰ بایت";
   const units = ["بایت", "کیلوبایت", "مگابایت", "گیگابایت", "ترابایت"];
@@ -116,18 +142,28 @@ export default function AdminFilesPage() {
   async function uploadFiles(selectedFiles: FileList | File[]) {
     const items = Array.from(selectedFiles);
     if (items.length === 0 || uploading) return;
-    const queue = items.map((file, index) => ({
-      id: `${Date.now()}-${index}-${file.name}`,
-      file,
-      loaded: 0,
-      progress: 0,
-      status: "queued" as const,
-    }));
+    const queue: UploadItem[] = items.map((file, index) => {
+      const validationError = validateUpload(file);
+      return {
+        id: `${Date.now()}-${index}-${file.name}`,
+        file,
+        loaded: 0,
+        progress: 0,
+        status: validationError ? "error" : "queued",
+        error: validationError || undefined,
+      };
+    });
+    const validQueue = queue.filter((item) => item.status === "queued");
     setUploadItems(queue);
+    if (validQueue.length === 0) {
+      toast.error("هیچ‌کدام از فایل‌های انتخاب‌شده قابل آپلود نیستند");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     let uploaded = 0;
 
-    for (const queueItem of queue) {
+    for (const queueItem of validQueue) {
       const item = queueItem.file;
       setUploadItems((current) => current.map((entry) => entry.id === queueItem.id ? { ...entry, status: "uploading" } : entry));
       const formData = new FormData();
@@ -148,7 +184,7 @@ export default function AdminFilesPage() {
           request.addEventListener("load", () => {
             const data = (() => { try { return JSON.parse(request.responseText); } catch { return null; } })();
             if (request.status >= 200 && request.status < 300) resolve();
-            else reject(new Error(data?.error || `آپلود ${item.name} ناموفق بود`));
+            else reject(new Error(uploadHttpError(request.status, data?.error, item.name)));
           });
           request.addEventListener("error", () => reject(new Error(`ارتباط هنگام آپلود ${item.name} قطع شد`)));
           request.addEventListener("abort", () => reject(new Error(`آپلود ${item.name} لغو شد`)));
@@ -201,8 +237,9 @@ export default function AdminFilesPage() {
     return matchesFilter && (!normalizedSearch || file.name.toLowerCase().includes(normalizedSearch) || file.extension.toLowerCase().includes(normalizedSearch));
   });
   const diskUsagePercent = storage?.totalBytes ? Math.min(100, (storage.usedBytes / storage.totalBytes) * 100) : 0;
-  const totalUploadBytes = uploadItems.reduce((sum, item) => sum + item.file.size, 0);
-  const loadedUploadBytes = uploadItems.reduce((sum, item) => sum + item.loaded, 0);
+  const measurableUploadItems = uploadItems.filter((item) => item.status !== "error");
+  const totalUploadBytes = measurableUploadItems.reduce((sum, item) => sum + item.file.size, 0);
+  const loadedUploadBytes = measurableUploadItems.reduce((sum, item) => sum + item.loaded, 0);
   const totalUploadProgress = totalUploadBytes ? Math.round((loadedUploadBytes / totalUploadBytes) * 100) : 0;
   const activeUploadIndex = uploadItems.findIndex((item) => item.status === "uploading");
 

@@ -8,10 +8,11 @@ export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif"]);
 const allowedExtensions = new Set([
-  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif",
-  ".mp4", ".webm", ".mov", ".mp3", ".wav", ".ogg", ".m4a",
-  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".zip", ".rar",
+  ...imageExtensions,
+  ".mp4", ".webm", ".mov", ".mkv", ".avi", ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip", ".rar", ".7z",
 ]);
 
 export async function POST(req: NextRequest) {
@@ -37,13 +38,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "حداکثر حجم هر فایل ۵۰ مگابایت است" }, { status: 413 });
     }
 
-    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
-      return NextResponse.json({ error: "حداکثر حجم هر تصویر ۱۰ مگابایت است" }, { status: 413 });
-    }
-
     const ext = path.extname(file.name).toLowerCase();
     if (!allowedExtensions.has(ext)) {
       return NextResponse.json({ error: "فرمت این فایل مجاز نیست" }, { status: 400 });
+    }
+    if (imageExtensions.has(ext) && file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: "حداکثر حجم هر تصویر ۱۰ مگابایت است" }, { status: 413 });
     }
     const originalBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "file";
     const uniqueName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${originalBase}${ext}`;

@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "upload-errors-and-formats",
+    title: "خطاهای دقیق‌تر و فرمت‌های بیشتر آپلود",
+    summary: "پیام خطاهای حجم، دسترسی و پاسخ سرور شفاف شد و فرمت‌های MKV، AVI، AAC، CSV و 7Z به فایل‌منیجر اضافه شدند.",
+    publishedAt: "2026-07-30T02:09:41+03:30",
+    type: "fix",
+  },
+  {
     id: "file-upload-progress",
     title: "نمایش پیشرفت آپلود فایل‌ها",
     summary: "فایل‌منیجر اکنون درصد واقعی، حجم ارسال‌شده و وضعیت جداگانه هر فایل را هنگام آپلود نمایش می‌دهد.",

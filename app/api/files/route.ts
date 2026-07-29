@@ -20,7 +20,7 @@ function fileType(filename: string) {
   if ([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif"].includes(ext)) return "image";
   if ([".mp4", ".webm", ".mov", ".mkv", ".avi"].includes(ext)) return "video";
   if ([".mp3", ".wav", ".ogg", ".m4a", ".aac"].includes(ext)) return "audio";
-  if ([".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".zip", ".rar"].includes(ext)) return "document";
+  if ([".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip", ".rar", ".7z"].includes(ext)) return "document";
   return "other";
 }
 
