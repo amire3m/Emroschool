@@ -392,7 +392,7 @@ export default function HomePage() {
       ))}
 
       {sectionVisibility.departments !== false && (
-      <AnimatedSection className="py-20 md:py-24">
+      <AnimatedSection className="py-20 md:py-24 overflow-hidden">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
@@ -401,26 +401,23 @@ export default function HomePage() {
             <div className="w-24 h-1 bg-secondary mx-auto rounded-full" />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-            {departments.map((dept) => {
-              const Icon = dept.icon;
-              return (
-                <div
-                  key={dept.name}
-                  className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer"
-                >
-                  <div className="mb-4 text-secondary flex justify-center">
-                    <Icon
-                      size={40}
-                      className="group-hover:scale-110 transition-transform"
-                    />
+          <div className="relative overflow-hidden">
+            <div className="flex gap-4 md:gap-6 marquee-right" style={{ animationDuration: "25s" }}>
+              {[...departments, ...departments, ...departments].map((dept, idx) => {
+                const Icon = dept.icon;
+                return (
+                  <div
+                    key={`${dept.name}-${idx}`}
+                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px]"
+                  >
+                    <div className="mb-4 text-secondary flex justify-center">
+                      <Icon size={40} className="group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h3 className="font-bold text-base text-primary">{dept.name}</h3>
                   </div>
-                  <h3 className="font-bold text-base text-primary">
-                    {dept.name}
-                  </h3>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </AnimatedSection>
@@ -464,7 +461,7 @@ export default function HomePage() {
                   href={`/courses/${course.slug}`}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-outline-variant/30"
                 >
-                  <div className="relative aspect-video overflow-hidden">
+                  <div className="relative aspect-[9/16] overflow-hidden">
                     {course.thumbnail ? (
                       <div
                         className="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
@@ -531,7 +528,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.instructors !== false && (
-      <AnimatedSection className="py-20 md:py-24">
+      <AnimatedSection className="py-20 md:py-24 overflow-hidden">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
@@ -542,44 +539,42 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
-            {homeInstructors.length > 0 ? homeInstructors.map((instructor) => {
-              const instName = instructor.name || instructor.user?.name || "";
-              const instAvatar = instructor.avatar || instructor.user?.avatar || null;
-              return (
-              <div key={instructor.id} className="text-center group">
-                <div
-                  className="relative w-40 h-40 mx-auto mb-5"
-                  style={{
-                    clipPath:
-                      "polygon(0% 15%, 50% 0%, 100% 15%, 100% 100%, 0% 100%)",
-                  }}
-                >
-                  <div
-                    className="w-full h-full bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url(${instAvatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&h=300&auto=format&fit=crop&crop=face"})`,
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-primary">
-                      <span className="text-xs font-bold">پروفایل</span>
+          {homeInstructors.length > 0 ? (
+            <div className="relative overflow-hidden">
+              <div className="flex gap-8 md:gap-12 marquee-left" style={{ animationDuration: "35s" }}>
+                {[...homeInstructors, ...homeInstructors, ...homeInstructors].map((instructor, idx) => {
+                  const instName = instructor.name || instructor.user?.name || "";
+                  const instAvatar = instructor.avatar || instructor.user?.avatar || null;
+                  return (
+                  <div key={`${instructor.id}-${idx}`} className="text-center group shrink-0 w-[200px]">
+                    <div
+                      className="relative w-36 h-36 mx-auto mb-5"
+                      style={{
+                        clipPath:
+                          "polygon(0% 15%, 50% 0%, 100% 15%, 100% 100%, 0% 100%)",
+                      }}
+                    >
+                      <div
+                        className="w-full h-full bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url(${instAvatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&h=300&auto=format&fit=crop&crop=face"})`,
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-primary">
+                          <span className="text-xs font-bold">پروفایل</span>
+                        </div>
+                      </div>
                     </div>
+                    <h4 className="font-bold text-lg text-primary mb-1">{instName}</h4>
+                    <p className="text-secondary text-sm">{instructor.expertise || "مدرس آکادمی"}</p>
                   </div>
-                </div>
-                <h4 className="font-bold text-lg text-primary mb-1">
-                  {instName}
-                </h4>
-                <p className="text-secondary text-sm">
-                  {instructor.expertise || "مدرس آکادمی"}
-                </p>
+                )})}
               </div>
-            )}) : (
-              <div className="col-span-full text-center text-outline py-8">
-                هنوز استادی ثبت نشده است
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center text-outline py-8">هنوز استادی ثبت نشده است</div>
+          )}
         </div>
       </AnimatedSection>
       )}
@@ -647,22 +642,24 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.partners !== false && partners.length > 0 && (
-        <section className="mx-5 md:mx-auto my-20 max-w-[1280px]">
+        <section className="mx-5 md:mx-auto my-20 max-w-[1280px] overflow-hidden">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">همراهان ما</h2>
             <p className="text-outline max-w-lg mx-auto">موسسات و سازمان‌های همکار با آکادمی هنر و رسانه امام روح‌الله (ره)</p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16">
-            {partners.map((partner) => (
-              <div key={partner.id} className="group">
-                <img
-                  src={partner.logoUrl}
-                  alt={partner.name}
-                  className="h-16 md:h-20 w-auto grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
-                  title={partner.name}
-                />
-              </div>
-            ))}
+          <div className="relative overflow-hidden">
+            <div className="flex items-center gap-10 md:gap-16 marquee-right" style={{ animationDuration: "30s" }}>
+              {[...partners, ...partners, ...partners].map((partner, idx) => (
+                <div key={`${partner.id}-${idx}`} className="group shrink-0">
+                  <img
+                    src={partner.logoUrl}
+                    alt={partner.name}
+                    className="h-16 md:h-20 w-auto grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                    title={partner.name}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}

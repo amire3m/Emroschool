@@ -35,16 +35,20 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { slug, content } = body;
+    const { slug, content, order, visible } = body;
 
     if (!slug || content === undefined) {
       return NextResponse.json({ error: "اسلاگ و محتوا الزامی است" }, { status: 400 });
     }
 
+    const data: Record<string, unknown> = { content };
+    if (order !== undefined) data.order = order;
+    if (visible !== undefined) data.visible = visible;
+
     const section = await prisma.pageSection.upsert({
       where: { slug },
-      update: { content },
-      create: { slug, content },
+      update: data,
+      create: { slug, content, ...(order !== undefined && { order }), ...(visible !== undefined && { visible }) },
     });
 
     return NextResponse.json({ section });

@@ -420,14 +420,21 @@ export default function AdminEvents() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">اسلاگ</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.slug}
-                    onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
+                  <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
+                  <div className="flex items-stretch gap-0">
+                    <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
+                      https://imamruhollahschool.com/
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={form.slug}
+                      onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-l-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] [direction:ltr]"
+                      style={{ fontFamily: "'Courier New', monospace" }}
+                    />
+                  </div>
+                  <p className="text-xs text-outline mt-1 flex items-center gap-1">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
                 </div>
               </div>
 

@@ -10,10 +10,15 @@ async function getAdminUser(req: NextRequest) {
   return payload;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const user = token ? verifyToken(token) : null;
+    const isAdmin = user && user.role === "admin";
+
     const slides = await prisma.slider.findMany({
-      where: { published: true },
+      where: isAdmin ? {} : { published: true },
       orderBy: { order: "asc" },
     });
     return NextResponse.json({ slides });
