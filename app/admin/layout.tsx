@@ -18,6 +18,7 @@ import {
   Calendar,
   GraduationCap,
   Bell,
+  Settings,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 
@@ -33,6 +34,7 @@ const menuItems = [
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell },
   { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap },
   { href: "/admin/pagebuilder", label: "صفحه اصلی", icon: Edit },
+  { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings },
   { href: "/", label: "بازگشت به سایت", icon: ArrowLeft },
 ];
 
@@ -47,6 +49,7 @@ const pageTitles: Record<string, string> = {
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
   "/admin/pagebuilder": "ویرایش صفحه اصلی",
+  "/admin/settings": "تنظیمات سایت",
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -54,6 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("");
+  const [settings, setSettings] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     const token = getCookie("token");
@@ -70,6 +74,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .then((data) => setUserName(data.user?.name || "کاربر"))
       .catch(() => router.push("/login"));
+
+    fetch("/api/site-settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) {
+          setSettings(data);
+          document.documentElement.style.setProperty("--site-font", `'${data.siteFont === "kay" ? "Kay" : "Foran"}', sans-serif`);
+          if (data.bgColor) document.body.style.backgroundColor = data.bgColor;
+        }
+      })
+      .catch(() => {});
   }, [router]);
 
   const handleLogout = () => {
@@ -80,7 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pageTitle = pageTitles[pathname] || "داشبورد";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface font-dopink" dir="rtl">
+    <div className="flex h-screen overflow-hidden bg-surface font-site" dir="rtl">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-20 lg:hidden"
@@ -89,19 +104,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       <aside
-        className={`fixed top-0 right-0 z-30 h-full w-[280px] bg-[#03004b] text-white flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed top-0 right-0 z-30 h-full text-white flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${
+          settings?.sidebarLayout === "compact" ? "w-[72px]" : "w-[280px]"
+        } ${
           sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         }`}
+        style={{ backgroundColor: settings?.sidebarColor || "#03004b" }}
       >
         <div className="flex items-center justify-between p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden shrink-0">
-              <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
+              <img src={settings?.siteLogo || "/logo.png"} alt="لوگو" className="w-full h-full object-cover" />
             </div>
-            <div>
-              <h2 className="text-sm font-black text-[#ffdeab]">آکادمی هنر و رسانه</h2>
-              <p className="text-xs text-white/50 mt-0.5">امام روح‌الله (ره)</p>
-            </div>
+            {settings?.sidebarLayout !== "compact" && (
+              <div>
+                <h2 className="text-sm font-black text-[#ffdeab]">{settings?.siteName?.split(" ").slice(0, 2).join(" ") || "آکادمی هنر و رسانه"}</h2>
+                <p className="text-xs text-white/50 mt-0.5">امام روح‌الله (ره)</p>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -123,12 +143,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`sidebar-link ${
-                  isActive ? "!bg-[rgba(255,222,171,0.1)] !text-[#ffdeab]" : "text-white/70"
-                }`}
+                className={`sidebar-link ${isActive ? "!bg-[rgba(255,222,171,0.1)] !text-[#ffdeab]" : "text-white/70"}`}
+                title={settings?.sidebarLayout === "compact" ? item.label : undefined}
               >
-                <Icon size={20} />
-                <span>{item.label}</span>
+                <Icon size={settings?.sidebarLayout === "compact" ? 22 : 20} />
+                {settings?.sidebarLayout !== "compact" && <span>{item.label}</span>}
               </Link>
             );
           })}
@@ -170,7 +189,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main
+          className="flex-1 overflow-y-auto p-4 lg:p-6"
+          style={{
+            backgroundColor: settings?.bgColor || undefined,
+            backgroundImage: settings?.bgPattern ? `url(${settings.bgPattern})` : undefined,
+          }}
+        >{children}</main>
       </div>
     </div>
   );

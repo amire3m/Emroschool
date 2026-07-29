@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Globe, Share2, AtSign } from "lucide-react";
 
 export default function Footer() {
+  const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
+  const [siteLogo, setSiteLogo] = useState("/logo.png");
+
+  useEffect(() => {
+    fetch("/api/site-settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) {
+          if (d.siteName) setSiteName(d.siteName);
+          if (d.siteLogo) setSiteLogo(d.siteLogo);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <footer className="bg-primary text-surface-variant border-t border-secondary/20">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-16">
@@ -11,11 +27,11 @@ export default function Footer() {
           <div className="text-right">
             <div className="flex items-center gap-3 mb-6 justify-end">
               <div className="w-14 h-14 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
-                <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
+                <img src={siteLogo} alt="لوگو" className="w-full h-full object-cover" />
               </div>
             </div>
             <p className="text-sm leading-loose opacity-80 mb-8">
-              آکادمی هنر و رسانه امام روح‌الله (ره)، نهادی تخصصی برای تربیت نیروی
+              {siteName}، نهادی تخصصی برای تربیت نیروی
               انسانی متعهد و متخصص در حوزه‌های مختلف هنری و رسانه‌ای است. ما به
               دنبال تلفیق هنر اصیل و تکنولوژی روز هستیم.
             </p>
@@ -132,7 +148,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
-          <p>© ۱۴۰۵ تمامی حقوق برای آکادمی هنر و رسانه امام روح‌الله (ره) محفوظ است.</p>
+          <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
           <div className="flex gap-6">
             <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank">اینستاگرام</Link>
             <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank">بله</Link>

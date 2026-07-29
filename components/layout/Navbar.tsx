@@ -33,6 +33,8 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
+  const [siteLogo, setSiteLogo] = useState("/logo.png");
 
   useEffect(() => {
     const token = getCookie("token");
@@ -45,6 +47,16 @@ export default function Navbar() {
         .then((d) => setUserRole(d.user?.role || ""))
         .catch(() => {});
     }
+
+    fetch("/api/site-settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) {
+          if (d.siteName) setSiteName(d.siteName);
+          if (d.siteLogo) setSiteLogo(d.siteLogo);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -103,10 +115,10 @@ export default function Navbar() {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-3 shrink-0">
               <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
-                <img src="/logo.png" alt="لوگو" className="w-full h-full object-cover" />
+                <img src={siteLogo} alt="لوگو" className="w-full h-full object-cover" />
               </div>
               <span className="text-secondary-fixed font-bold hidden sm:block text-sm">
-                آکادمی هنر و رسانه امام روح‌الله (ره)
+                {siteName}
               </span>
             </Link>
             <div className="relative hidden lg:block">

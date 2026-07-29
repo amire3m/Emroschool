@@ -209,6 +209,18 @@ model Notification {
   users UserNotification[]
 }
 
+model SiteSetting {
+  id            Int      @id @default(autoincrement())
+  siteName      String   @default("آکادمی هنر و رسانه امام روح‌الله (ره)")
+  siteLogo      String?
+  siteFont      String   @default("foran")
+  sidebarColor  String   @default("#03004b")
+  sidebarLayout String   @default("default")
+  bgColor       String   @default("#fbf8ff")
+  bgPattern     String?
+  updatedAt     DateTime @updatedAt
+}
+
 model UserNotification {
   id             String       @id @default(cuid())
   read           Boolean      @default(false)

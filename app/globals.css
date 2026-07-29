@@ -5,66 +5,102 @@
 @tailwind utilities;
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 100;
-  src: url('/fonts/woff/Dopink-Thin.woff') format('woff'),
-       url('/fonts/woff2/Dopink-Thin.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-Thin.woff') format('woff'),
+       url('/fonts/woff2/Foran-Thin.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 300;
-  src: url('/fonts/woff/Dopink-Light.woff') format('woff'),
-       url('/fonts/woff2/Dopink-Light.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-Light.woff') format('woff'),
+       url('/fonts/woff2/Foran-Light.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 400;
-  src: url('/fonts/woff/Dopink-Regular.woff') format('woff'),
-       url('/fonts/woff2/Dopink-Regular.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-Regular.woff') format('woff'),
+       url('/fonts/woff2/Foran-Regular.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 500;
-  src: url('/fonts/woff/Dopink-Medium.woff') format('woff'),
-       url('/fonts/woff2/Dopink-Medium.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-Medium.woff') format('woff'),
+       url('/fonts/woff2/Foran-Medium.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 700;
-  src: url('/fonts/woff/Dopink-Bold.woff') format('woff'),
-       url('/fonts/woff2/Dopink-Bold.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-Bold.woff') format('woff'),
+       url('/fonts/woff2/Foran-Bold.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: Dopink;
+  font-family: Foran;
   font-style: normal;
   font-weight: 800;
-  src: url('/fonts/woff/Dopink-ExtraBold.woff') format('woff'),
-       url('/fonts/woff2/Dopink-ExtraBold.woff2') format('woff2');
+  src: url('/fonts/woff/Foran-ExtraBold.woff') format('woff'),
+       url('/fonts/woff2/Foran-ExtraBold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 300;
+  src: url('/fonts/ttf/Kay-Light.ttf') format('truetype');
+}
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/ttf/Kay-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/ttf/Kay-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 800;
+  src: url('/fonts/ttf/Kay-ExtraBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 900;
+  src: url('/fonts/ttf/Kay-Black.ttf') format('truetype');
+}
+@font-face {
+  font-family: Kay;
+  font-style: normal;
+  font-weight: 950;
+  src: url('/fonts/ttf/Kay-ExtraBlack.ttf') format('truetype');
 }
 
 :root {
-  --dopink: 'Dopink', sans-serif;
+  --site-font: 'Foran', sans-serif;
 }
 
 body {
-  font-family: var(--dopink);
+  font-family: var(--site-font);
   background-color: #fbf8ff;
   overflow-x: hidden;
   direction: rtl;
 }
 
-.font-playfair { font-family: var(--dopink); font-weight: 800; }
-.font-dopink { font-family: var(--dopink); }
+.font-site { font-family: var(--site-font); }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.8);
