@@ -80,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pageTitle = pageTitles[pathname] || "داشبورد";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface font-doran" dir="rtl">
+    <div className="flex h-screen overflow-hidden bg-surface font-dopink" dir="rtl">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-20 lg:hidden"

@@ -21,7 +21,7 @@ const config: Config = {
         "error-container": "#ffdad6",
       },
       fontFamily: {
-        doran: ["Doran", "sans-serif"],
+        dopink: ["Dopink", "sans-serif"],
       },
     },
   },
