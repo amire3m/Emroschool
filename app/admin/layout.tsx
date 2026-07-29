@@ -149,6 +149,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {allMenuItems
             .filter((item) => {
               if (userRole === "superadmin") return true;
+              if (userRole === "admin" && userPermissions.length === 0) return true;
               if (item.href === "/admin" || item.href === "/") return true;
               if (!item.permission) return userRole === "admin";
               return userPermissions.includes(item.permission);
