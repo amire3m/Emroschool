@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "admin-navigation-groups",
+    title: "گروه‌بندی منوی مدیریت",
+    summary: "اساتید و هنرآموختگان زیرمجموعه کاربران و اسلایدر زیرمجموعه تنظیمات سایت قرار گرفتند تا ساختار پنل منسجم‌تر شود.",
+    publishedAt: "2026-07-30T18:40:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "department-glow-readability",
     title: "بهبود خوانایی کارت‌های دپارتمان",
     summary: "Glow رنگی به پشت باکس‌ها منتقل شد و محتوای کارت روی زمینه سفید مات و خوانا قرار گرفت؛ رنگ‌ها نیز به طیف سرمه‌ای و طلایی محدود شدند.",
