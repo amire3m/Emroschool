@@ -16,6 +16,9 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 interface EventItem {
   id: string;
@@ -441,21 +444,38 @@ export default function AdminEvents() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">تاریخ شروع</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={form.startDate}
-                    onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                  <DatePicker
+                    calendar={persian}
+                    locale={persian_fa}
+                    timePicker
+                    format="YYYY/MM/DD HH:mm:ss"
+                    value={form.startDate ? new Date(form.startDate) : undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        const d = date.toDate();
+                        setForm((p) => ({ ...p, startDate: d.toISOString().slice(0, 16) }));
+                      }
+                    }}
+                    inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    containerClassName="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">تاریخ پایان</label>
-                  <input
-                    type="datetime-local"
-                    value={form.endDate}
-                    onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                  <DatePicker
+                    calendar={persian}
+                    locale={persian_fa}
+                    timePicker
+                    format="YYYY/MM/DD HH:mm:ss"
+                    value={form.endDate ? new Date(form.endDate) : undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        const d = date.toDate();
+                        setForm((p) => ({ ...p, endDate: d.toISOString().slice(0, 16) }));
+                      }
+                    }}
+                    inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    containerClassName="w-full"
                   />
                 </div>
               </div>

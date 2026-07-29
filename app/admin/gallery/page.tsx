@@ -19,7 +19,7 @@ interface GalleryImage {
   imageUrl: string;
   altText: string | null;
   folder: string | null;
-  courseId: string;
+  courseId: string | null;
   createdAt: string;
 }
 
@@ -69,13 +69,15 @@ export default function AdminGallery() {
   const folders = [...new Set(images.map((img) => img.folder).filter(Boolean))] as string[];
   const filtered = activeFolder ? images.filter((img) => img.folder === activeFolder) : images;
 
-  const getCourseTitle = (courseId: string) =>
-    courses.find((c) => c.id === courseId)?.title || "نامشخص";
+  const getCourseTitle = (courseId: string | null) => {
+    if (!courseId) return "آلبوم آزاد";
+    return courses.find((c) => c.id === courseId)?.title || "نامشخص";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.imageUrl || !form.courseId) {
-      toast.error("آدرس تصویر و دوره الزامی است");
+    if (!form.imageUrl) {
+      toast.error("آدرس تصویر الزامی است");
       return;
     }
     setSaving(true);
@@ -245,14 +247,13 @@ export default function AdminGallery() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">دوره</label>
+                <label className="block text-sm font-medium text-primary mb-1">دوره (اختیاری)</label>
                 <select
-                  required
                   value={form.courseId}
                   onChange={(e) => setForm((p) => ({ ...p, courseId: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                 >
-                  <option value="">انتخاب دوره</option>
+                  <option value="">آلبوم آزاد (بدون دوره)</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>{c.title}</option>
                   ))}

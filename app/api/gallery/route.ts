@@ -40,13 +40,15 @@ export async function POST(req: NextRequest) {
   try {
     const { imageUrl, altText, folder, courseId } = await req.json();
 
-    if (!imageUrl || !courseId) {
-      return NextResponse.json({ error: "آدرس تصویر و شناسه دوره الزامی است" }, { status: 400 });
+    if (!imageUrl) {
+      return NextResponse.json({ error: "آدرس تصویر الزامی است" }, { status: 400 });
     }
 
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) {
-      return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
+    if (courseId) {
+      const course = await prisma.course.findUnique({ where: { id: courseId } });
+      if (!course) {
+        return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
+      }
     }
 
     const image = await prisma.gallery.create({
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
         imageUrl,
         altText: altText || null,
         folder: folder || null,
-        courseId,
+        courseId: courseId || null,
       },
     });
 

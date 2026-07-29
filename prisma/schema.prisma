@@ -105,8 +105,8 @@ model Gallery {
   folder    String?
   createdAt DateTime @default(now())
 
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 }
 
 model Enrollment {
