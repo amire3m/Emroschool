@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Menu, X, Search, Bell, CheckCheck } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
+import AnimatedSearchBar from "@/components/ui/animated-search-bar";
 
 const navLinks = [
   { label: "صفحه اصلی", href: "/" },
@@ -124,17 +125,7 @@ export default function Navbar() {
                 {siteName}
               </span>
             </Link>
-            <div className="relative hidden lg:block">
-              <Search
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant"
-              />
-              <input
-                type="text"
-                placeholder="جستجوی دوره..."
-                className="bg-primary-container/40 border border-secondary/30 text-white rounded-full pr-10 pl-4 py-2 text-sm focus:ring-1 focus:ring-secondary focus:outline-none w-64 transition-all placeholder:text-white/40"
-              />
-            </div>
+            <div className="hidden lg:block"><AnimatedSearchBar /></div>
           </div>
 
           <div className="hidden md:flex items-center gap-6">
@@ -252,17 +243,7 @@ export default function Navbar() {
 
         {searchOpen && (
           <div className="lg:hidden px-5 pb-3 pt-2">
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant"
-              />
-              <input
-                type="text"
-                placeholder="جستجوی دوره..."
-                className="w-full bg-primary-container/40 border border-secondary/30 text-white rounded-full pr-10 pl-4 py-2 text-sm focus:ring-1 focus:ring-secondary focus:outline-none placeholder:text-white/40"
-              />
-            </div>
+            <AnimatedSearchBar expanded autoFocus onSubmit={() => setSearchOpen(false)} />
           </div>
         )}
       </nav>

@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "animated-header-search",
+    title: "جستجوی متحرک بالای سایت",
+    summary: "نوار جستجوی هدر با بازشدن نرم، هاله متحرک و پیشنهادهای چرخشی بازطراحی شد و جستجو مستقیماً نتایج دوره‌ها را فیلتر می‌کند.",
+    publishedAt: "2026-07-30T02:33:50+03:30",
+    type: "feature",
+  },
+  {
     id: "safe-file-renaming-and-header-logo",
     title: "تغییر نام امن فایل‌ها و لوگوی جدید هدر",
     summary: "تغییر نام انگلیسی فایل با بروزرسانی خودکار لینک‌های قبلی اضافه شد و لوگوی بالای سایت با نسخه اصلی و بدون قاب دایره‌ای جایگزین شد.",

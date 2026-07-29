@@ -39,8 +39,11 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const category = new URLSearchParams(window.location.search).get("category");
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get("category");
+    const query = params.get("q");
     if (category) setActiveCategory(category);
+    if (query) setSearchQuery(query);
 
     async function fetchData() {
       try {
