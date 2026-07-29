@@ -22,7 +22,9 @@ import { getCookie } from "@/lib/cookie";
 
 interface Instructor {
   id: string;
-  userId: string;
+  userId: string | null;
+  name: string | null;
+  avatar: string | null;
   bio: string | null;
   expertise: string | null;
   specialties: string | null;
@@ -32,7 +34,7 @@ interface Instructor {
     name: string;
     email: string;
     avatar: string | null;
-  };
+  } | null;
   createdAt: string;
 }
 
@@ -65,12 +67,14 @@ export default function AdminInstructors() {
 
   const [form, setForm] = useState({
     userId: "",
+    name: "",
     bio: "",
     expertise: "",
     specialties: "",
     showOnSite: true,
     avatar: "",
   });
+  const [manualMode, setManualMode] = useState(false);
 
   const getToken = () => getCookie("token") || "";
 
@@ -100,9 +104,10 @@ export default function AdminInstructors() {
   const availableUsers = users.filter((u) => !instructorUserIds.has(u.id));
 
   const resetForm = () => {
-    setForm({ userId: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "" });
+    setForm({ userId: "", name: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "" });
     setEditingInstructor(null);
     setAvatarMode("url");
+    setManualMode(false);
   };
 
   const openCreateModal = () => {
@@ -112,14 +117,16 @@ export default function AdminInstructors() {
 
   const openEditModal = (instructor: Instructor) => {
     setForm({
-      userId: instructor.userId,
+      userId: instructor.userId || "",
+      name: instructor.name || "",
       bio: instructor.bio || "",
       expertise: instructor.expertise || "",
       specialties: instructor.specialties || "",
       showOnSite: instructor.showOnSite,
-      avatar: instructor.user.avatar || "",
+      avatar: instructor.avatar || instructor.user?.avatar || "",
     });
     setEditingInstructor(instructor);
+    setManualMode(!instructor.userId);
     setShowModal(true);
   };
 
@@ -147,18 +154,23 @@ export default function AdminInstructors() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingInstructor && !form.userId) {
+    if (!manualMode && !editingInstructor && !form.userId) {
       toast.error("انتخاب کاربر الزامی است");
+      return;
+    }
+    if (manualMode && !form.name) {
+      toast.error("نام استاد الزامی است");
       return;
     }
     setSaving(true);
     const token = getToken();
 
     const body: Record<string, unknown> = {
-      userId: form.userId,
+      ...(manualMode ? { name: form.name } : { userId: form.userId }),
       bio: form.bio || null,
       expertise: form.expertise || null,
       specialties: form.specialties || null,
+      avatar: form.avatar || null,
       showOnSite: form.showOnSite,
     };
 
@@ -173,15 +185,6 @@ export default function AdminInstructors() {
           const err = await res.json();
           throw new Error(err.error || "خطا در بروزرسانی");
         }
-
-        if (form.avatar && form.avatar !== editingInstructor.user.avatar) {
-          await fetch("/api/user/profile", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-            body: JSON.stringify({ avatar: form.avatar, userId: editingInstructor.userId }),
-          });
-        }
-
         toast.success("استاد با موفقیت بروزرسانی شد");
       } else {
         const res = await fetch("/api/instructors", {
@@ -193,16 +196,6 @@ export default function AdminInstructors() {
           const err = await res.json();
           throw new Error(err.error || "خطا در ایجاد استاد");
         }
-
-        if (form.avatar) {
-          const created = await res.json();
-          await fetch("/api/user/profile", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-            body: JSON.stringify({ avatar: form.avatar, userId: form.userId }),
-          });
-        }
-
         toast.success("استاد با موفقیت ایجاد شد");
       }
       setShowModal(false);
@@ -239,10 +232,14 @@ export default function AdminInstructors() {
     }
   };
 
+  const getInstructorName = (i: Instructor) => i.name || i.user?.name || "";
+  const getInstructorEmail = (i: Instructor) => i.user?.email || "";
+  const getInstructorAvatar = (i: Instructor) => i.avatar || i.user?.avatar || null;
+
   const filtered = instructors.filter(
     (i) =>
-      i.user.name.includes(search) ||
-      i.user.email.includes(search) ||
+      getInstructorName(i).includes(search) ||
+      getInstructorEmail(i).includes(search) ||
       i.expertise?.includes(search) ||
       i.bio?.includes(search)
   );
@@ -305,18 +302,18 @@ export default function AdminInstructors() {
                   <td className="p-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-[#eeecfc] flex items-center justify-center overflow-hidden shrink-0">
-                        {instructor.user.avatar ? (
-                          <img src={instructor.user.avatar} alt="" className="w-full h-full object-cover" />
+                        {getInstructorAvatar(instructor) ? (
+                          <img src={getInstructorAvatar(instructor)!} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-[#03004b] font-bold text-sm">
-                            {instructor.user.name.charAt(0)}
+                            {getInstructorName(instructor).charAt(0)}
                           </span>
                         )}
                       </div>
-                      <div className="font-medium text-primary">{instructor.user.name}</div>
+                      <div className="font-medium text-primary">{getInstructorName(instructor)}</div>
                     </div>
                   </td>
-                  <td className="p-3 text-outline hidden sm:table-cell">{instructor.user.email}</td>
+                  <td className="p-3 text-outline hidden sm:table-cell">{getInstructorEmail(instructor) || "—"}</td>
                   <td className="p-3 text-outline hidden md:table-cell max-w-[200px] truncate">
                     {instructor.bio || "—"}
                   </td>
@@ -388,10 +385,29 @@ export default function AdminInstructors() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {!editingInstructor && (
+                <div className="flex items-center gap-3 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => { setManualMode(false); setForm(p => ({ ...p, userId: "", name: "" })); }}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${!manualMode ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}
+                  >
+                    انتخاب کاربر
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setManualMode(true); setForm(p => ({ ...p, userId: "", name: "" })); }}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${manualMode ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}
+                  >
+                    ورود دستی
+                  </button>
+                </div>
+              )}
+
+              {!editingInstructor && !manualMode && (
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">انتخاب کاربر</label>
                   <select
-                    required
+                    required={!manualMode}
                     value={form.userId}
                     onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
@@ -403,6 +419,19 @@ export default function AdminInstructors() {
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {(manualMode || editingInstructor?.name) && (
+                <div>
+                  <label className="block text-sm font-medium text-primary mb-1">نام استاد</label>
+                  <input
+                    type="text"
+                    required={manualMode}
+                    value={form.name}
+                    onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                  />
                 </div>
               )}
 
@@ -551,7 +580,7 @@ export default function AdminInstructors() {
               </div>
               <h3 className="text-lg font-bold text-primary mb-2">حذف استاد</h3>
               <p className="text-outline text-sm mb-1">
-                آیا از حذف استاد <span className="font-bold text-primary">"{deleteTarget.user.name}"</span> اطمینان دارید؟
+                آیا از حذف استاد <span className="font-bold text-primary">"{getInstructorName(deleteTarget)}"</span> اطمینان دارید؟
               </p>
               <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
               <div className="flex items-center justify-center gap-3 mt-6">

@@ -28,16 +28,18 @@ model User {
 
 model Instructor {
   id         String   @id @default(cuid())
+  name       String?
   bio        String?
   expertise  String?
   specialties String?
   socialLinks String?
+  avatar     String?
   showOnSite Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   events EventInstructor[]
 }

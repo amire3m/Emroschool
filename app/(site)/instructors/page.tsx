@@ -14,13 +14,15 @@ interface InstructorUser {
 
 interface Instructor {
   id: string;
+  name?: string;
+  avatar?: string;
   bio?: string;
   expertise?: string;
   specialties?: string;
   socialLinks?: string;
   showOnSite: boolean;
   eventCount: number;
-  user: InstructorUser;
+  user?: InstructorUser;
 }
 
 export default function InstructorsPage() {
@@ -77,10 +79,10 @@ export default function InstructorsPage() {
                 className="bg-white rounded-2xl overflow-hidden shadow-sm border border-outline-variant/30 hover:shadow-xl transition-all group"
               >
                 <div className="aspect-square overflow-hidden bg-surface-variant">
-                  {instructor.user.avatar ? (
+                  {(instructor.avatar || instructor.user?.avatar) ? (
                     <img
-                      src={instructor.user.avatar}
-                      alt={instructor.user.name}
+                      src={instructor.avatar || instructor.user?.avatar || ""}
+                      alt={instructor.name || instructor.user?.name || ""}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
                   ) : (
@@ -91,14 +93,14 @@ export default function InstructorsPage() {
                 </div>
                 <div className="p-5 text-right">
                   <h3 className="font-bold text-primary text-lg mb-1">
-                    {instructor.user.name}
+                    {instructor.name || instructor.user?.name || ""}
                   </h3>
                   {instructor.expertise && (
                     <p className="text-secondary text-sm mb-2">
                       {instructor.expertise}
                     </p>
                   )}
-                  {instructor.user.bio && (
+                  {instructor.user?.bio && (
                     <p className="text-outline text-xs leading-relaxed line-clamp-3 mb-3">
                       {instructor.user.bio}
                     </p>

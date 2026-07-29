@@ -26,15 +26,17 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { bio, expertise, specialties, socialLinks, showOnSite } = body;
+    const { name, bio, expertise, specialties, socialLinks, avatar, showOnSite } = body;
 
     const instructor = await prisma.instructor.update({
       where: { id: params.id },
       data: {
+        ...(name !== undefined && { name }),
         ...(bio !== undefined && { bio }),
         ...(expertise !== undefined && { expertise }),
         ...(specialties !== undefined && { specialties }),
         ...(socialLinks !== undefined && { socialLinks }),
+        ...(avatar !== undefined && { avatar }),
         ...(showOnSite !== undefined && { showOnSite }),
       },
       include: {

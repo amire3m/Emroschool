@@ -49,25 +49,25 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, bio, expertise, specialties, showOnSite } = body;
+    const { userId, name, bio, expertise, specialties, avatar, showOnSite } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: "شناسه کاربر الزامی است" }, { status: 400 });
+    if (!userId && !name) {
+      return NextResponse.json({ error: "نام استاد یا انتخاب کاربر الزامی است" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
-    }
+    if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
 
-    const existing = await prisma.instructor.findUnique({ where: { userId } });
-    if (existing) {
-      return NextResponse.json({ error: "این کاربر قبلاً به عنوان استاد ثبت شده است" }, { status: 409 });
+      const existing = await prisma.instructor.findUnique({ where: { userId } });
+      if (existing) return NextResponse.json({ error: "این کاربر قبلاً به عنوان استاد ثبت شده است" }, { status: 409 });
     }
 
     const instructor = await prisma.instructor.create({
       data: {
-        userId,
+        ...(userId ? { userId } : {}),
+        ...(name ? { name } : {}),
+        ...(avatar ? { avatar } : {}),
         bio: bio ?? null,
         expertise: expertise ?? null,
         specialties: specialties ?? null,
@@ -75,12 +75,7 @@ export async function POST(req: NextRequest) {
       },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
+          select: { id: true, name: true, email: true, avatar: true },
         },
       },
     });
