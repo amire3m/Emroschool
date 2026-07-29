@@ -5,6 +5,11 @@ import ToasterProvider from "@/components/ToasterProvider";
 export const metadata: Metadata = {
   title: "آکادمی هنر و رسانه امام روح‌الله (ره)",
   description: "آموزش هنر و رسانه در تراز انقلاب اسلامی - آکادمی امام روح‌الله",
+  icons: {
+    icon: "/api/favicon",
+    shortcut: "/api/favicon",
+    apple: "/api/favicon",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
