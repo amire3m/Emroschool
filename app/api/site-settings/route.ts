@@ -17,7 +17,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const text = await req.text();
     if (!text) return NextResponse.json({ error: "بدنه خالی است" }, { status: 400 });
