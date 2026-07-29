@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("user")
+  phone     String?
+  avatar    String?
+  bio       String?
+  expertise String?
+  socialLinks String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments   Enrollment[]
+  notifications UserNotification[]
+  instructor    Instructor?
+}
+
+model Instructor {
+  id         String   @id @default(cuid())
+  bio        String?
+  expertise  String?
+  specialties String?
+  socialLinks String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  events EventInstructor[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  courses Course[]
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  price       Int      @default(0)
+  oldPrice    Int?
+  instructor  String?
+  level       String?
+  thumbnail   String?
+  videoUrl    String?
+  duration    String?
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+  notifyOnPublish Boolean @default(false)
+  notifyChannel  String?  // email | sms | both
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gallery      Gallery[]
+  enrollments  Enrollment[]
+  images       CourseImage[]
+  categoryId   String?
+  category     Category?   @relation(fields: [categoryId], references: [id])
+  events       EventCourse[]
+  notifications Notification[]
+}
+
+model CourseImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Gallery {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  altText   String?
+  folder    String?
+  createdAt DateTime @default(now())
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  location    String?
+  imageUrl    String?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses     EventCourse[]
+  instructors EventInstructor[]
+}
+
+model EventCourse {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  courseId String
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, courseId])
+}
+
+model EventInstructor {
+  id           String     @id @default(cuid())
+  eventId      String
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, instructorId])
+}
+
+model Slider {
+  id        String   @id @default(cuid())
+  title     String?
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  linkText  String?
+  order     Int      @default(0)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PageSection {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  content   String
+  order     Int      @default(0)
+  visible   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  title      String
+  message    String
+  type       String   @default("in-app")
+  channel    String?  // email | sms | in-app | all
+  sendToAll  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  sentAt     DateTime?
+
+  courseId String?
+  course   Course?  @relation(fields: [courseId], references: [id])
+
+  users UserNotification[]
+}
+
+model UserNotification {
+  id             String       @id @default(cuid())
+  read           Boolean      @default(false)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+}
