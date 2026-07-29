@@ -14,6 +14,8 @@ const navLinks = [
   { label: "درباره ما", href: "/#about" },
 ];
 
+const HEADER_LOGO = "https://imamruhollahschool.com/uploads/1785365353558-5c082fe5-logo-main.png";
+
 interface NotificationItem {
   id: string;
   title: string;
@@ -34,7 +36,6 @@ export default function Navbar() {
   const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
-  const [siteLogo, setSiteLogo] = useState("/logo.png");
   const [sidebarColor, setSidebarColor] = useState("#03004b");
   const [sidebarLayout, setSidebarLayout] = useState("default");
 
@@ -55,7 +56,6 @@ export default function Navbar() {
       .then((d) => {
         if (!d.error) {
           if (d.siteName) setSiteName(d.siteName);
-          if (d.siteLogo) setSiteLogo(d.siteLogo);
           if (d.sidebarColor) setSidebarColor(d.sidebarColor);
           if (d.sidebarLayout) setSidebarLayout(d.sidebarLayout);
         }
@@ -119,9 +119,7 @@ export default function Navbar() {
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
-                <img src={siteLogo} alt="لوگو" className="w-full h-full object-cover" />
-              </div>
+              <img src={HEADER_LOGO} alt="لوگوی آکادمی امام روح‌الله" className="h-11 w-auto max-w-[116px] object-contain" />
               <span className="text-secondary-fixed font-bold hidden sm:block text-sm">
                 {siteName}
               </span>

@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "safe-file-renaming-and-header-logo",
+    title: "تغییر نام امن فایل‌ها و لوگوی جدید هدر",
+    summary: "تغییر نام انگلیسی فایل با بروزرسانی خودکار لینک‌های قبلی اضافه شد و لوگوی بالای سایت با نسخه اصلی و بدون قاب دایره‌ای جایگزین شد.",
+    publishedAt: "2026-07-30T02:22:51+03:30",
+    type: "feature",
+  },
+  {
     id: "upload-errors-and-formats",
     title: "خطاهای دقیق‌تر و فرمت‌های بیشتر آپلود",
     summary: "پیام خطاهای حجم، دسترسی و پاسخ سرور شفاف شد و فرمت‌های MKV، AVI، AAC، CSV و 7Z به فایل‌منیجر اضافه شدند.",

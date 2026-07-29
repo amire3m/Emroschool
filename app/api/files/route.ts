@@ -1,7 +1,7 @@
 import { isAdminRole, verifyToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { lstat, mkdir, readdir, statfs, unlink } from "fs/promises";
+import { lstat, mkdir, readdir, rename, statfs, unlink } from "fs/promises";
 import path from "path";
 
 export const runtime = "nodejs";
@@ -153,5 +153,89 @@ export async function DELETE(req: NextRequest) {
     }
     console.error("File manager DELETE error:", error);
     return NextResponse.json({ error: "خطا در حذف فایل" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  if (!isAdmin(req)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+
+  let oldAbsolutePath = "";
+  let newAbsolutePath = "";
+  let fileRenamed = false;
+
+  try {
+    const body = await req.json();
+    const requestedPath = typeof body.path === "string" ? body.path.replace(/\\/g, "/").replace(/^\/+/, "") : "";
+    const requestedName = typeof body.name === "string" ? body.name.trim() : "";
+    if (!requestedPath || requestedPath.split("/").includes("..")) {
+      return NextResponse.json({ error: "مسیر فایل نامعتبر است" }, { status: 400 });
+    }
+
+    const oldExtension = path.extname(requestedPath).toLowerCase();
+    const suppliedExtension = path.extname(requestedName).toLowerCase();
+    const newBaseName = suppliedExtension ? path.basename(requestedName, suppliedExtension) : requestedName;
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(newBaseName)) {
+      return NextResponse.json({ error: "نام باید ۲ تا ۸۰ نویسه و فقط شامل حروف انگلیسی، عدد، خط تیره یا زیرخط باشد" }, { status: 400 });
+    }
+    if (suppliedExtension && suppliedExtension !== oldExtension) {
+      return NextResponse.json({ error: "پسوند فایل قابل تغییر نیست" }, { status: 400 });
+    }
+
+    const directory = path.posix.dirname(requestedPath);
+    const newFileName = `${newBaseName}${oldExtension}`;
+    const newPath = directory === "." ? newFileName : `${directory}/${newFileName}`;
+    oldAbsolutePath = path.resolve(uploadDir, requestedPath);
+    newAbsolutePath = path.resolve(uploadDir, newPath);
+    const uploadRoot = `${path.resolve(uploadDir)}${path.sep}`;
+    if (!oldAbsolutePath.startsWith(uploadRoot) || !newAbsolutePath.startsWith(uploadRoot)) {
+      return NextResponse.json({ error: "مسیر فایل نامعتبر است" }, { status: 400 });
+    }
+
+    const stats = await lstat(oldAbsolutePath);
+    if (!stats.isFile() || stats.isSymbolicLink()) {
+      return NextResponse.json({ error: "فایل معتبر نیست" }, { status: 400 });
+    }
+    if (oldAbsolutePath === newAbsolutePath) {
+      return NextResponse.json({ path: newPath, url: `/uploads/${newPath}`, name: newFileName });
+    }
+    try {
+      await lstat(newAbsolutePath);
+      return NextResponse.json({ error: "فایلی با این نام وجود دارد" }, { status: 409 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+
+    const oldUrl = `/uploads/${requestedPath}`;
+    const newUrl = `/uploads/${newPath}`;
+    const sections = await prisma.pageSection.findMany({ where: { content: { contains: oldUrl } }, select: { id: true, content: true } });
+
+    await rename(oldAbsolutePath, newAbsolutePath);
+    fileRenamed = true;
+    await prisma.$transaction([
+      prisma.course.updateMany({ where: { thumbnail: oldUrl }, data: { thumbnail: newUrl } }),
+      prisma.course.updateMany({ where: { videoUrl: oldUrl }, data: { videoUrl: newUrl } }),
+      prisma.courseImage.updateMany({ where: { url: oldUrl }, data: { url: newUrl } }),
+      prisma.gallery.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
+      prisma.slider.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
+      prisma.user.updateMany({ where: { avatar: oldUrl }, data: { avatar: newUrl } }),
+      prisma.instructor.updateMany({ where: { avatar: oldUrl }, data: { avatar: newUrl } }),
+      prisma.alumni.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
+      prisma.event.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
+      prisma.partner.updateMany({ where: { logoUrl: oldUrl }, data: { logoUrl: newUrl } }),
+      prisma.siteSetting.updateMany({ where: { siteLogo: oldUrl }, data: { siteLogo: newUrl } }),
+      prisma.siteSetting.updateMany({ where: { bgPattern: oldUrl }, data: { bgPattern: newUrl } }),
+      ...sections.map((section) => prisma.pageSection.update({ where: { id: section.id }, data: { content: section.content.split(oldUrl).join(newUrl) } })),
+    ]);
+
+    return NextResponse.json({ path: newPath, url: newUrl, name: newFileName });
+  } catch (error) {
+    if (fileRenamed) {
+      try { await rename(newAbsolutePath, oldAbsolutePath); } catch (rollbackError) { console.error("File rename rollback error:", rollbackError); }
+    }
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return NextResponse.json({ error: "فایل پیدا نشد" }, { status: 404 });
+    }
+    console.error("File manager PATCH error:", error);
+    return NextResponse.json({ error: "خطا در تغییر نام فایل" }, { status: 500 });
   }
 }
