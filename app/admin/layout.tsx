@@ -78,7 +78,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch(() => router.push("/login"));
 
     fetch("/api/site-settings")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const text = await r.text();
+        try { return JSON.parse(text); } catch { return {}; }
+      })
       .then((data) => {
         if (!data.error) {
           setSettings(data);

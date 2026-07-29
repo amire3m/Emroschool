@@ -26,10 +26,15 @@ export default function AdminSettings() {
 
   const fetchSettings = () => {
     setLoading(true);
-    fetch("/api/site-settings", {
-      headers: { authorization: `Bearer ${getToken()}` },
-    })
-      .then((r) => r.json())
+    fetch("/api/site-settings")
+      .then(async (r) => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error("پاسخ سرور نامعتبر است (لطفا از اجرای npx prisma db push و npm run build اطمینان حاصل کنید)");
+        }
+      })
       .then((data) => {
         if (data.error) throw new Error(data.error);
         setSettings(data);
@@ -59,7 +64,13 @@ export default function AdminSettings() {
         },
         body: JSON.stringify(settings),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("پاسخ سرور نامعتبر است (HTML). لطفا کنسول سرور را بررسی کنید.");
+      }
       if (!res.ok || data.error) throw new Error(data.error || "خطا در ذخیره");
       setSettings(data);
       toast.success("تنظیمات ذخیره شد");

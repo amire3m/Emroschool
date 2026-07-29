@@ -5,7 +5,10 @@ import { useEffect } from "react";
 export default function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetch("/api/site-settings")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const text = await r.text();
+        try { return JSON.parse(text); } catch { return {}; }
+      })
       .then((data) => {
         if (!data.error) {
           const fontName = data.siteFont === "kay" ? "Kay" : "Foran";
