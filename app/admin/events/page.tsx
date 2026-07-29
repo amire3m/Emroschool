@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
 import DatePicker from "react-multi-date-picker";
+import TimePicker from "react-multi-date-picker/plugins/time_picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 
@@ -447,8 +448,8 @@ export default function AdminEvents() {
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
-                    timePicker
                     format="YYYY/MM/DD HH:mm:ss"
+                    plugins={[<TimePicker position="bottom" />]}
                     value={form.startDate ? new Date(form.startDate) : undefined}
                     onChange={(date) => {
                       if (date) {
@@ -465,8 +466,8 @@ export default function AdminEvents() {
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
-                    timePicker
                     format="YYYY/MM/DD HH:mm:ss"
+                    plugins={[<TimePicker position="bottom" />]}
                     value={form.endDate ? new Date(form.endDate) : undefined}
                     onChange={(date) => {
                       if (date) {
