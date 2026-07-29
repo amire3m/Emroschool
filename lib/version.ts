@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "department-glow-readability",
+    title: "بهبود خوانایی کارت‌های دپارتمان",
+    summary: "Glow رنگی به پشت باکس‌ها منتقل شد و محتوای کارت روی زمینه سفید مات و خوانا قرار گرفت؛ رنگ‌ها نیز به طیف سرمه‌ای و طلایی محدود شدند.",
+    publishedAt: "2026-07-30T18:30:00+03:30",
+    type: "fix",
+  },
+  {
     id: "department-glow-effect",
     title: "افکت نورپردازی دپارتمان‌ها",
     summary: "نوار گرادینت کارت‌های دپارتمان حذف و با Glow متحرک سرمه‌ای و طلایی در تمام لبه‌های کارت جایگزین شد.",

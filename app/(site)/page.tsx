@@ -444,14 +444,16 @@ export default function HomePage() {
                     key={category.id}
                     href={`/courses?category=${encodeURIComponent(category.name)}`}
                     title={category.description || category.name}
-                    className="group relative isolate block h-full min-h-40 rounded-3xl border border-outline-variant/60 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-transparent hover:shadow-lg"
+                    className="group relative isolate block h-full rounded-3xl p-[2px] text-center transition-all duration-500 hover:-translate-y-1"
                   >
-                    <GlowEffect colors={["#03004b", "#7b5814", "#ffdeab", "#56589b"]} mode="colorShift" blur="soft" duration={4.5} scale={1.025} className="-z-10 rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-75" />
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed/40 text-secondary transition-all group-hover:rotate-3 group-hover:bg-secondary-fixed">
-                      <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />
+                    <GlowEffect colors={["#03004b", "#7b5814", "#ffdeab", "#7b5814", "#03004b"]} mode="rotate" blur="softest" duration={5.5} scale={1.035} className="z-0 rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-60" />
+                    <div className="relative z-10 flex h-full min-h-40 flex-col rounded-[22px] border border-outline-variant/60 bg-white p-5 shadow-sm transition-all duration-500 group-hover:border-transparent group-hover:shadow-xl">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed/40 text-secondary transition-all group-hover:rotate-3 group-hover:bg-secondary-fixed">
+                        <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />
+                      </div>
+                      <h3 className="font-bold text-base text-primary">{category.name}</h3>
+                      {category.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-outline">{category.description}</p>}
                     </div>
-                    <h3 className="font-bold text-base text-primary">{category.name}</h3>
-                    {category.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-outline">{category.description}</p>}
                   </Link>
                 );
               })}
