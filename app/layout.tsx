@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   title: "آکادمی هنر و رسانه امام روح‌الله (ره)",
   description: "آموزش هنر و رسانه در تراز انقلاب اسلامی - آکادمی امام روح‌الله",
   icons: {
-    icon: "/api/favicon",
-    shortcut: "/api/favicon",
-    apple: "/api/favicon",
+    icon: "/api/favicon?v=3",
+    shortcut: "/api/favicon?v=3",
+    apple: "/api/favicon?v=3",
   },
 };
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections";
 import CategoryIcon from "@/components/CategoryIcon";
 import AutoScrollSlider from "@/components/ui/autoscroll-slider";
+import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 import {
   Star,
   ChevronLeft,
@@ -511,10 +512,10 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {displayCourses.map((course) => (
+                <GlowingEdgeCard key={course.id} className="h-full">
                 <Link
-                  key={course.id}
                   href={`/courses/${course.slug}`}
-                  className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-outline-variant/30"
+                  className="group block h-full bg-white overflow-hidden"
                 >
                   <div className="relative aspect-[9/16] overflow-hidden">
                     {course.thumbnail ? (
@@ -575,6 +576,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 </Link>
+                </GlowingEdgeCard>
               ))}
             </div>
           )}
