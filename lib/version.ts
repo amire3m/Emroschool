@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "department-glow-effect",
+    title: "افکت نورپردازی دپارتمان‌ها",
+    summary: "نوار گرادینت کارت‌های دپارتمان حذف و با Glow متحرک سرمه‌ای و طلایی در تمام لبه‌های کارت جایگزین شد.",
+    publishedAt: "2026-07-30T18:20:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "version-2",
     title: "ارتقای سامانه به نسخه ۲",
     summary: "نسخه دوم سامانه با مدیریت یکپارچه صفحه اصلی، کاربران، رسانه‌ها و تجربه کاربری بهبودیافته منتشر شد.",

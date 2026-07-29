@@ -7,6 +7,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import AutoScrollSlider from "@/components/ui/autoscroll-slider";
 import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 import AutoLoopRow from "@/components/ui/auto-loop-row";
+import { GlowEffect } from "@/components/ui/glow-effect";
 import {
   Star,
   ChevronLeft,
@@ -443,9 +444,9 @@ export default function HomePage() {
                     key={category.id}
                     href={`/courses?category=${encodeURIComponent(category.name)}`}
                     title={category.description || category.name}
-                    className="group relative block h-full min-h-40 overflow-hidden rounded-3xl border border-outline-variant/60 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-secondary hover:shadow-lg"
+                    className="group relative isolate block h-full min-h-40 rounded-3xl border border-outline-variant/60 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-transparent hover:shadow-lg"
                   >
-                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-primary via-secondary to-secondary-fixed opacity-0 transition-opacity group-hover:opacity-100" />
+                    <GlowEffect colors={["#03004b", "#7b5814", "#ffdeab", "#56589b"]} mode="colorShift" blur="soft" duration={4.5} scale={1.025} className="-z-10 rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-75" />
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed/40 text-secondary transition-all group-hover:rotate-3 group-hover:bg-secondary-fixed">
                       <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />
                     </div>
