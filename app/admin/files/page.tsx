@@ -44,6 +44,15 @@ interface StorageInfo {
   usedBytes: number;
 }
 
+interface UploadItem {
+  id: string;
+  file: File;
+  loaded: number;
+  progress: number;
+  status: "queued" | "uploading" | "success" | "error";
+  error?: string;
+}
+
 const filters = [
   { value: "all", label: "همه فایل‌ها" },
   { value: "image", label: "تصاویر" },
@@ -77,7 +86,7 @@ export default function AdminFilesPage() {
   const [filter, setFilter] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState("");
+  const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<ManagedFile | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ManagedFile | null>(null);
@@ -106,31 +115,55 @@ export default function AdminFilesPage() {
 
   async function uploadFiles(selectedFiles: FileList | File[]) {
     const items = Array.from(selectedFiles);
-    if (items.length === 0) return;
+    if (items.length === 0 || uploading) return;
+    const queue = items.map((file, index) => ({
+      id: `${Date.now()}-${index}-${file.name}`,
+      file,
+      loaded: 0,
+      progress: 0,
+      status: "queued" as const,
+    }));
+    setUploadItems(queue);
     setUploading(true);
     let uploaded = 0;
 
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
-      setUploadProgress(`${(index + 1).toLocaleString("fa-IR")} از ${items.length.toLocaleString("fa-IR")}`);
+    for (const queueItem of queue) {
+      const item = queueItem.file;
+      setUploadItems((current) => current.map((entry) => entry.id === queueItem.id ? { ...entry, status: "uploading" } : entry));
       const formData = new FormData();
       formData.append("file", item);
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          headers: { authorization: `Bearer ${token()}` },
-          body: formData,
+        await new Promise<void>((resolve, reject) => {
+          const request = new XMLHttpRequest();
+          request.open("POST", "/api/upload");
+          request.setRequestHeader("authorization", `Bearer ${token()}`);
+          request.upload.addEventListener("progress", (event) => {
+            if (!event.lengthComputable) return;
+            setUploadItems((current) => current.map((entry) => entry.id === queueItem.id ? {
+              ...entry,
+              loaded: Math.min(event.loaded, item.size),
+              progress: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+            } : entry));
+          });
+          request.addEventListener("load", () => {
+            const data = (() => { try { return JSON.parse(request.responseText); } catch { return null; } })();
+            if (request.status >= 200 && request.status < 300) resolve();
+            else reject(new Error(data?.error || `آپلود ${item.name} ناموفق بود`));
+          });
+          request.addEventListener("error", () => reject(new Error(`ارتباط هنگام آپلود ${item.name} قطع شد`)));
+          request.addEventListener("abort", () => reject(new Error(`آپلود ${item.name} لغو شد`)));
+          request.send(formData);
         });
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(data?.error || `آپلود ${item.name} ناموفق بود`);
+        setUploadItems((current) => current.map((entry) => entry.id === queueItem.id ? { ...entry, loaded: item.size, progress: 100, status: "success" } : entry));
         uploaded += 1;
       } catch (uploadError) {
-        toast.error(uploadError instanceof Error ? uploadError.message : "خطا در آپلود");
+        const message = uploadError instanceof Error ? uploadError.message : "خطا در آپلود";
+        setUploadItems((current) => current.map((entry) => entry.id === queueItem.id ? { ...entry, status: "error", error: message } : entry));
+        toast.error(message);
       }
     }
 
     setUploading(false);
-    setUploadProgress("");
     if (uploaded > 0) toast.success(`${uploaded.toLocaleString("fa-IR")} فایل آپلود شد`);
     if (inputRef.current) inputRef.current.value = "";
     await fetchFiles();
@@ -168,6 +201,10 @@ export default function AdminFilesPage() {
     return matchesFilter && (!normalizedSearch || file.name.toLowerCase().includes(normalizedSearch) || file.extension.toLowerCase().includes(normalizedSearch));
   });
   const diskUsagePercent = storage?.totalBytes ? Math.min(100, (storage.usedBytes / storage.totalBytes) * 100) : 0;
+  const totalUploadBytes = uploadItems.reduce((sum, item) => sum + item.file.size, 0);
+  const loadedUploadBytes = uploadItems.reduce((sum, item) => sum + item.loaded, 0);
+  const totalUploadProgress = totalUploadBytes ? Math.round((loadedUploadBytes / totalUploadBytes) * 100) : 0;
+  const activeUploadIndex = uploadItems.findIndex((item) => item.status === "uploading");
 
   return (
     <div className="space-y-6">
@@ -195,7 +232,7 @@ export default function AdminFilesPage() {
         onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
         onDragOver={(event) => event.preventDefault()}
         onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }}
-        onDrop={(event) => { event.preventDefault(); setDragging(false); uploadFiles(event.dataTransfer.files); }}
+        onDrop={(event) => { event.preventDefault(); setDragging(false); if (!uploading) uploadFiles(event.dataTransfer.files); }}
         className={`rounded-2xl border-2 border-dashed p-5 transition-colors ${dragging ? "border-secondary bg-secondary-fixed/20" : "border-outline-variant bg-white"}`}
       >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -204,12 +241,34 @@ export default function AdminFilesPage() {
             <div><p className="font-bold text-primary">فایل‌ها را اینجا رها کنید</p><p className="text-xs text-outline mt-1">تصاویر تا ۱۰ مگابایت؛ ویدئو، صدا، سند و فایل فشرده تا ۵۰ مگابایت</p></div>
           </div>
           <button onClick={() => inputRef.current?.click()} disabled={uploading} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
-            {uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
-            {uploading ? `در حال آپلود ${uploadProgress}` : "انتخاب فایل"}
-          </button>
-          <input ref={inputRef} type="file" multiple className="hidden" onChange={(event) => event.target.files && uploadFiles(event.target.files)} />
-        </div>
-      </div>
+             {uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
+             {uploading ? `در حال آپلود ${(activeUploadIndex + 1).toLocaleString("fa-IR")} از ${uploadItems.length.toLocaleString("fa-IR")}` : "انتخاب فایل"}
+           </button>
+           <input ref={inputRef} type="file" multiple className="hidden" onChange={(event) => event.target.files && uploadFiles(event.target.files)} />
+         </div>
+         {uploadItems.length > 0 && <div className="mt-5 border-t border-surface-variant pt-4">
+           <div className="flex items-center justify-between gap-3 mb-2 text-xs">
+             <span className="font-bold text-primary">پیشرفت کل: {totalUploadProgress.toLocaleString("fa-IR")}٪</span>
+             <span className="text-outline">{formatBytes(loadedUploadBytes)} از {formatBytes(totalUploadBytes)}</span>
+           </div>
+           <div className="h-2 rounded-full bg-surface-low overflow-hidden" dir="ltr"><div className="h-full bg-secondary transition-[width] duration-200" style={{ width: `${totalUploadProgress}%` }} /></div>
+           <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pl-1">
+             {uploadItems.map((item) => <div key={item.id} className="rounded-xl border border-surface-variant bg-surface-low/40 p-3">
+               <div className="flex items-center gap-3">
+                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.status === "success" ? "bg-green-100 text-green-700" : item.status === "error" ? "bg-error-container text-error" : "bg-secondary-fixed text-secondary"}`}>
+                   {item.status === "uploading" ? <Loader2 size={18} className="animate-spin" /> : item.status === "success" ? <Check size={18} /> : item.status === "error" ? <AlertCircle size={18} /> : <File size={18} />}
+                 </div>
+                 <div className="min-w-0 flex-1">
+                   <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold text-primary truncate" dir="ltr" title={item.file.name}>{item.file.name}</p><span className="text-xs font-bold text-outline shrink-0">{item.progress.toLocaleString("fa-IR")}٪</span></div>
+                   <div className="flex items-center justify-between gap-2 mt-1"><span className={`text-[11px] ${item.status === "error" ? "text-error" : "text-outline"}`}>{item.error || (item.status === "queued" ? "در صف انتظار" : item.status === "success" ? "آپلود کامل شد" : item.progress === 100 ? "در حال ذخیره روی سرور" : "در حال ارسال")}</span><span className="text-[10px] text-outline shrink-0">{formatBytes(item.loaded)} / {formatBytes(item.file.size)}</span></div>
+                   <div className="h-1.5 rounded-full bg-white mt-2 overflow-hidden" dir="ltr"><div className={`h-full transition-[width] duration-200 ${item.status === "error" ? "bg-error" : item.status === "success" ? "bg-green-600" : "bg-secondary"}`} style={{ width: `${item.progress}%` }} /></div>
+                 </div>
+               </div>
+             </div>)}
+           </div>
+           {!uploading && <div className="flex justify-end mt-3"><button type="button" onClick={() => setUploadItems([])} className="text-xs text-outline hover:text-primary">پاک کردن فهرست</button></div>}
+         </div>}
+       </div>
 
       <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
         <div className="p-4 border-b border-surface-variant flex flex-col lg:flex-row gap-3 lg:items-center justify-between">

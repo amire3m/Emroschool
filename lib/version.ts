@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "file-upload-progress",
+    title: "نمایش پیشرفت آپلود فایل‌ها",
+    summary: "فایل‌منیجر اکنون درصد واقعی، حجم ارسال‌شده و وضعیت جداگانه هر فایل را هنگام آپلود نمایش می‌دهد.",
+    publishedAt: "2026-07-30T02:04:02+03:30",
+    type: "improvement",
+  },
+  {
     id: "admin-navigation-groups",
     title: "گروه‌بندی منوی مدیریت",
     summary: "اساتید و هنرآموختگان زیرمجموعه کاربران و اسلایدر زیرمجموعه تنظیمات سایت قرار گرفتند تا ساختار پنل منسجم‌تر شود.",
