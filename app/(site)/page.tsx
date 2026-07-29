@@ -152,6 +152,11 @@ export default function HomePage() {
   const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({});
   const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
 
+  const scrollRefs = {
+    departments: useRef<HTMLDivElement>(null),
+    instructors: useRef<HTMLDivElement>(null),
+  };
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -392,7 +397,7 @@ export default function HomePage() {
       ))}
 
       {sectionVisibility.departments !== false && (
-      <AnimatedSection className="py-20 md:py-24 overflow-hidden">
+      <AnimatedSection className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
@@ -401,14 +406,17 @@ export default function HomePage() {
             <div className="w-24 h-1 bg-secondary mx-auto rounded-full" />
           </div>
 
-          <div className="relative overflow-hidden">
-            <div className="flex gap-4 md:gap-6 marquee-right" style={{ animationDuration: "25s" }}>
-              {[...departments, ...departments, ...departments].map((dept, idx) => {
+          <div className="relative group/scroll">
+            <div
+              ref={scrollRefs.departments}
+              className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
+            >
+              {departments.map((dept) => {
                 const Icon = dept.icon;
                 return (
                   <div
-                    key={`${dept.name}-${idx}`}
-                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px]"
+                    key={dept.name}
+                    className="group bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-outline-variant hover:border-secondary hover:-translate-y-1 transition-all text-center cursor-pointer shrink-0 w-[160px] md:w-[180px]"
                   >
                     <div className="mb-4 text-secondary flex justify-center">
                       <Icon size={40} className="group-hover:scale-110 transition-transform" />
@@ -418,6 +426,18 @@ export default function HomePage() {
                 );
               })}
             </div>
+            <button
+              onClick={() => { const el = scrollRefs.departments.current; if (el) el.scrollBy({ left: -300, behavior: "smooth" }); }}
+              className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
+            >
+              <ChevronRight size={20} />
+            </button>
+            <button
+              onClick={() => { const el = scrollRefs.departments.current; if (el) el.scrollBy({ left: 300, behavior: "smooth" }); }}
+              className="absolute left-0 top-1/2 -translate-y-1/2 translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
+            >
+              <ChevronLeft size={20} />
+            </button>
           </div>
         </div>
       </AnimatedSection>
@@ -528,7 +548,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.instructors !== false && (
-      <AnimatedSection className="py-20 md:py-24 overflow-hidden">
+      <AnimatedSection className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
@@ -540,13 +560,16 @@ export default function HomePage() {
           </div>
 
           {homeInstructors.length > 0 ? (
-            <div className="relative overflow-hidden">
-              <div className="flex gap-8 md:gap-12 marquee-left" style={{ animationDuration: "35s" }}>
-                {[...homeInstructors, ...homeInstructors, ...homeInstructors].map((instructor, idx) => {
+            <div className="relative group/scroll">
+              <div
+                ref={scrollRefs.instructors}
+                className="flex gap-8 md:gap-12 overflow-x-auto pb-4 scroll-smooth hide-scrollbar"
+              >
+                {homeInstructors.map((instructor) => {
                   const instName = instructor.name || instructor.user?.name || "";
                   const instAvatar = instructor.avatar || instructor.user?.avatar || null;
                   return (
-                  <div key={`${instructor.id}-${idx}`} className="text-center group shrink-0 w-[200px]">
+                  <div key={instructor.id} className="text-center group shrink-0 w-[200px]">
                     <div
                       className="relative w-36 h-36 mx-auto mb-5"
                       style={{
@@ -571,6 +594,18 @@ export default function HomePage() {
                   </div>
                 )})}
               </div>
+              <button
+                onClick={() => { const el = scrollRefs.instructors.current; if (el) el.scrollBy({ left: -300, behavior: "smooth" }); }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
+              >
+                <ChevronRight size={20} />
+              </button>
+              <button
+                onClick={() => { const el = scrollRefs.instructors.current; if (el) el.scrollBy({ left: 300, behavior: "smooth" }); }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 translate-x-2 w-10 h-10 rounded-full bg-white shadow-md border border-surface-variant flex items-center justify-center text-primary opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-surface-low z-10"
+              >
+                <ChevronLeft size={20} />
+              </button>
             </div>
           ) : (
             <div className="text-center text-outline py-8">هنوز استادی ثبت نشده است</div>

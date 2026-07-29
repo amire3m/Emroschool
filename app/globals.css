@@ -155,18 +155,17 @@ body {
 .animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
 .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
 
-/* Marquee animations */
+/* Marquee animation for partners */
 @keyframes marquee-right {
   from { transform: translateX(0); }
   to { transform: translateX(-33.33%); }
 }
-@keyframes marquee-left {
-  from { transform: translateX(-33.33%); }
-  to { transform: translateX(0); }
-}
 .marquee-right { animation: marquee-right linear infinite; }
-.marquee-left { animation: marquee-left linear infinite; }
-.marquee-right:hover, .marquee-left:hover { animation-play-state: paused; }
+.marquee-right:hover { animation-play-state: paused; }
+
+/* Hide scrollbar */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* RTL scrollbar */
 ::-webkit-scrollbar { width: 6px; }
