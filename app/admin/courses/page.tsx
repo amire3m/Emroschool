@@ -24,6 +24,7 @@ interface Course {
   oldPrice: number | null;
   instructor: string | null;
   categoryName: string | null;
+  categoryId: string | null;
   level: string | null;
   thumbnail: string | null;
   videoUrl: string | null;
@@ -32,31 +33,12 @@ interface Course {
   createdAt: string;
 }
 
-const categories = ["سینما", "گرافیک", "رسانه", "فلسفه هنر", "انیمیشن", "عکاسی"];
 const levels = ["مبتدی", "متوسط", "پیشرفته"];
-
-const categoryMap: Record<string, string> = {
-  سینما: "cinema",
-  گرافیک: "graphics",
-  رسانه: "media",
-  "فلسفه هنر": "philosophy",
-  انیمیشن: "animation",
-  عکاسی: "photography",
-};
 
 const levelMap: Record<string, string> = {
   مبتدی: "beginner",
   متوسط: "intermediate",
   پیشرفته: "advanced",
-};
-
-const reverseCategoryMap: Record<string, string> = {
-  cinema: "سینما",
-  graphics: "گرافیک",
-  media: "رسانه",
-  philosophy: "فلسفه هنر",
-  animation: "انیمیشن",
-  photography: "عکاسی",
 };
 
 const reverseLevelMap: Record<string, string> = {
@@ -86,6 +68,7 @@ function toSlug(str: string) {
 
 export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -113,10 +96,13 @@ export default function AdminCourses() {
 
   const fetchCourses = () => {
     const token = getToken();
-    fetch("/api/courses", { headers: { authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.courses) setCourses(data.courses);
+    Promise.all([
+      fetch("/api/courses", { headers: { authorization: `Bearer ${token}` } }).then((response) => response.json()),
+      fetch("/api/categories").then((response) => response.json()),
+    ])
+      .then(([courseData, categoryData]) => {
+        if (courseData.courses) setCourses(courseData.courses);
+        setCategories(categoryData.categories || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -160,7 +146,7 @@ export default function AdminCourses() {
       price: String(course.price),
       oldPrice: course.oldPrice ? String(course.oldPrice) : "",
       instructor: course.instructor || "",
-      category: reverseCategoryMap[course.categoryName || ""] || course.categoryName || "",
+      category: course.categoryId || categories.find((category) => category.name === course.categoryName)?.id || "",
       level: reverseLevelMap[course.level || ""] || course.level || "",
       thumbnail: course.thumbnail || "",
       videoUrl: course.videoUrl || "",
@@ -184,6 +170,7 @@ export default function AdminCourses() {
     setSaving(true);
     const token = getToken();
 
+    const selectedCategory = categories.find((category) => category.id === form.category);
     const body = {
       title: form.title,
       slug: form.slug,
@@ -191,7 +178,8 @@ export default function AdminCourses() {
       price: Number(form.price) || 0,
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       instructor: form.instructor || null,
-      categoryName: categoryMap[form.category] || form.category || null,
+      categoryId: selectedCategory?.id || null,
+      categoryName: selectedCategory?.name || null,
       level: levelMap[form.level] || form.level || null,
       thumbnail: form.thumbnail || null,
       videoUrl: form.videoUrl || null,
@@ -329,7 +317,7 @@ export default function AdminCourses() {
                     <span className="text-xs text-outline mr-1">تومان</span>
                   </td>
                   <td className="p-3 text-outline hidden lg:table-cell">
-                    {reverseCategoryMap[course.categoryName || ""] || course.categoryName || "—"}
+                    {course.categoryName || "—"}
                   </td>
                   <td className="p-3 text-center">
                     <span
@@ -471,8 +459,8 @@ export default function AdminCourses() {
                     className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                   >
                     <option value="">انتخاب کنید</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                 </div>

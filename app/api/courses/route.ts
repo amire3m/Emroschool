@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
       price,
       oldPrice,
       instructor,
+      categoryId,
       categoryName,
       level,
       thumbnail,
@@ -68,6 +69,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "عنوان، اسلاگ و توضیحات الزامی است" }, { status: 400 });
     }
 
+    const category = categoryId
+      ? await prisma.category.findUnique({ where: { id: categoryId } })
+      : null;
+    if (categoryId && !category) {
+      return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
+    }
+
     const course = await prisma.course.create({
       data: {
         title,
@@ -76,7 +84,8 @@ export async function POST(req: NextRequest) {
         price: price ?? 0,
         oldPrice: oldPrice ?? null,
         instructor: instructor ?? null,
-        categoryName: categoryName ?? null,
+        categoryId: category?.id ?? null,
+        categoryName: category?.name ?? categoryName ?? null,
         level: level ?? null,
         thumbnail: thumbnail ?? null,
         videoUrl: videoUrl ?? null,

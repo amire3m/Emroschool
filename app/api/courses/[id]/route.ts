@@ -56,6 +56,7 @@ export async function PUT(
       price,
       oldPrice,
       instructor,
+      categoryId,
       categoryName,
       level,
       thumbnail,
@@ -64,6 +65,13 @@ export async function PUT(
       published,
       featured,
     } = body;
+
+    const category = categoryId
+      ? await prisma.category.findUnique({ where: { id: categoryId } })
+      : null;
+    if (categoryId && !category) {
+      return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
+    }
 
     const course = await prisma.course.update({
       where: { id: params.id },
@@ -74,7 +82,10 @@ export async function PUT(
         ...(price !== undefined && { price }),
         ...(oldPrice !== undefined && { oldPrice }),
         ...(instructor !== undefined && { instructor }),
-        ...(categoryName !== undefined && { categoryName }),
+        ...(categoryId !== undefined && { categoryId: category?.id ?? null }),
+        ...(categoryId !== undefined
+          ? { categoryName: category?.name ?? null }
+          : categoryName !== undefined && { categoryName }),
         ...(level !== undefined && { level }),
         ...(thumbnail !== undefined && { thumbnail }),
         ...(videoUrl !== undefined && { videoUrl }),
