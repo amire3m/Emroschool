@@ -12,7 +12,7 @@ interface Course {
   price: number;
   oldPrice?: number;
   instructor?: string;
-  category?: string;
+  categoryName?: string;
   level?: string;
   thumbnail?: string;
   rating: number;
@@ -61,7 +61,7 @@ export default function CoursesPage() {
 
   const filtered = courses.filter((course) => {
     const matchCategory =
-      activeCategory === "همه" || course.category === activeCategory;
+      activeCategory === "همه" || course.categoryName === activeCategory;
     const matchSearch =
       !searchQuery ||
       course.title.includes(searchQuery) ||
@@ -154,9 +154,9 @@ export default function CoursesPage() {
                       </span>
                     </div>
                   )}
-                  {course.category && (
+                  {course.categoryName && (
                     <div className="absolute top-3 right-3 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold px-2 py-1 rounded">
-                      {course.category}
+                      {course.categoryName}
                     </div>
                   )}
                 </div>

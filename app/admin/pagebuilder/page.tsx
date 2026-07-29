@@ -37,7 +37,8 @@ const defaultSections: SectionMeta[] = [
   { id: "", slug: "courses", label: "دوره‌های منتخب", icon: "BookOpen", order: 3, visible: true },
   { id: "", slug: "instructors", label: "اساتید مدرسه", icon: "Users", order: 4, visible: true },
   { id: "", slug: "gallery", label: "گالری تصاویر", icon: "Camera", order: 5, visible: true },
-  { id: "", slug: "cta", label: "دعوت به اقدام (CTA)", icon: "Megaphone", order: 6, visible: true },
+  { id: "", slug: "partners", label: "همراهان", icon: "Users", order: 6, visible: true },
+  { id: "", slug: "cta", label: "دعوت به اقدام (CTA)", icon: "Megaphone", order: 7, visible: true },
 ];
 
 const iconMap: Record<string, React.ReactNode> = {

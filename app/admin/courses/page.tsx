@@ -23,7 +23,7 @@ interface Course {
   price: number;
   oldPrice: number | null;
   instructor: string | null;
-  category: string | null;
+  categoryName: string | null;
   level: string | null;
   thumbnail: string | null;
   videoUrl: string | null;
@@ -160,7 +160,7 @@ export default function AdminCourses() {
       price: String(course.price),
       oldPrice: course.oldPrice ? String(course.oldPrice) : "",
       instructor: course.instructor || "",
-      category: reverseCategoryMap[course.category || ""] || course.category || "",
+      category: reverseCategoryMap[course.categoryName || ""] || course.categoryName || "",
       level: reverseLevelMap[course.level || ""] || course.level || "",
       thumbnail: course.thumbnail || "",
       videoUrl: course.videoUrl || "",
@@ -191,7 +191,7 @@ export default function AdminCourses() {
       price: Number(form.price) || 0,
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       instructor: form.instructor || null,
-      category: categoryMap[form.category] || form.category || null,
+      categoryName: categoryMap[form.category] || form.category || null,
       level: levelMap[form.level] || form.level || null,
       thumbnail: form.thumbnail || null,
       videoUrl: form.videoUrl || null,
@@ -261,7 +261,7 @@ export default function AdminCourses() {
     (c) =>
       c.title.includes(search) ||
       c.instructor?.includes(search) ||
-      c.category?.includes(search)
+      c.categoryName?.includes(search)
   );
 
   if (loading) {
@@ -329,7 +329,7 @@ export default function AdminCourses() {
                     <span className="text-xs text-outline mr-1">تومان</span>
                   </td>
                   <td className="p-3 text-outline hidden lg:table-cell">
-                    {reverseCategoryMap[course.category || ""] || course.category || "—"}
+                    {reverseCategoryMap[course.categoryName || ""] || course.categoryName || "—"}
                   </td>
                   <td className="p-3 text-center">
                     <span

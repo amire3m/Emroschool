@@ -13,11 +13,11 @@ async function getAdminUser(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const category = searchParams.get("category");
+    const categoryName = searchParams.get("categoryName");
     const level = searchParams.get("level");
 
     const where: Record<string, unknown> = {};
-    if (category) where.category = category;
+    if (categoryName) where.categoryName = categoryName;
     if (level) where.level = level;
 
     const courses = await prisma.course.findMany({
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       price,
       oldPrice,
       instructor,
-      category,
+      categoryName,
       level,
       thumbnail,
       videoUrl,
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         price: price ?? 0,
         oldPrice: oldPrice ?? null,
         instructor: instructor ?? null,
-        category: category ?? null,
+        categoryName: categoryName ?? null,
         level: level ?? null,
         thumbnail: thumbnail ?? null,
         videoUrl: videoUrl ?? null,

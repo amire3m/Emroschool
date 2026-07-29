@@ -45,7 +45,7 @@ interface Course {
   price: number;
   oldPrice?: number;
   instructor?: string;
-  category?: string;
+  categoryName?: string;
   thumbnail?: string;
   rating: number;
   ratingCount: number;
@@ -148,6 +148,7 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const slideInterval = useRef<ReturnType<typeof setInterval>>();
   const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({});
+  const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -203,6 +204,13 @@ export default function HomePage() {
         });
         setSectionVisibility(vis);
       })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/partners")
+      .then((r) => r.json())
+      .then((data) => setPartners(data.partners || []))
       .catch(() => {});
   }, []);
 
@@ -469,9 +477,9 @@ export default function HomePage() {
                         </span>
                       </div>
                     )}
-                    {course.category && (
+                    {course.categoryName && (
                       <div className="absolute top-3 right-3 bg-secondary-fixed text-primary text-xs font-bold px-2 py-1 rounded">
-                        {course.category}
+                        {course.categoryName}
                       </div>
                     )}
                   </div>
@@ -631,6 +639,27 @@ export default function HomePage() {
           )}
         </div>
       </AnimatedSection>
+      )}
+
+      {sectionVisibility.partners !== false && partners.length > 0 && (
+        <section className="mx-5 md:mx-auto my-20 max-w-[1280px]">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">همراهان ما</h2>
+            <p className="text-outline max-w-lg mx-auto">موسسات و سازمان‌های همکار با آکادمی هنر و رسانه امام روح‌الله (ره)</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16">
+            {partners.map((partner) => (
+              <div key={partner.id} className="group">
+                <img
+                  src={partner.logoUrl}
+                  alt={partner.name}
+                  className="h-16 md:h-20 w-auto grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                  title={partner.name}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {sectionVisibility.cta !== false && (

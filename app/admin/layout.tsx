@@ -33,6 +33,7 @@ const menuItems = [
   { href: "/admin/users", label: "کاربران", icon: Users },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell },
   { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap },
+  { href: "/admin/partners", label: "همراهان", icon: Users },
   { href: "/admin/pagebuilder", label: "صفحه اصلی", icon: Edit },
   { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings },
   { href: "/", label: "بازگشت به سایت", icon: ArrowLeft },
@@ -49,6 +50,7 @@ const pageTitles: Record<string, string> = {
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
   "/admin/pagebuilder": "ویرایش صفحه اصلی",
+  "/admin/partners": "مدیریت همراهان",
   "/admin/settings": "تنظیمات سایت",
 };
 

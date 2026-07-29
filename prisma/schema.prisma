@@ -63,6 +63,7 @@ model Course {
   oldPrice    Int?
   instructor  String?
   level       String?
+  categoryName String?
   thumbnail   String?
   videoUrl    String?
   duration    String?
@@ -207,6 +208,16 @@ model Notification {
   course   Course?  @relation(fields: [courseId], references: [id])
 
   users UserNotification[]
+}
+
+model Partner {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String
+  order     Int      @default(0)
+  showOnSite Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SiteSetting {

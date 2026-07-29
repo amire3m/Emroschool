@@ -34,7 +34,7 @@ interface CourseDetail {
   price: number;
   oldPrice?: number;
   instructor?: string;
-  category?: string;
+  categoryName?: string;
   level?: string;
   thumbnail?: string;
   duration?: string;
@@ -193,9 +193,9 @@ export default function CourseDetailPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
-              {course.category && (
+              {course.categoryName && (
                 <span className="bg-secondary-fixed/30 text-secondary text-xs font-bold px-3 py-1 rounded-full">
-                  {course.category}
+                  {course.categoryName}
                 </span>
               )}
               {course.level && (
