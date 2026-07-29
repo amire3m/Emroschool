@@ -60,9 +60,11 @@ export default function AdminSettings() {
         body: JSON.stringify(settings),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) throw new Error(data.error || "خطا در ذخیره");
+      setSettings(data);
       toast.success("تنظیمات ذخیره شد");
     } catch (e: any) {
+      console.error("Settings save error:", e);
       toast.error(e.message || "خطا در ذخیره");
     } finally {
       setSaving(false);

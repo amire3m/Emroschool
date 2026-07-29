@@ -26,20 +26,23 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "دسترسی محدود" }, { status: 403 });
 
     const body = await req.json();
+    const { id, updatedAt, ...clean } = body;
+
     const existing = await prisma.siteSetting.findFirst();
     if (!existing) {
       await prisma.siteSetting.create({
-        data: { siteName: "آکادمی هنر و رسانه امام روح‌الله (ره)", ...body },
+        data: clean,
       });
     } else {
       await prisma.siteSetting.update({
         where: { id: existing.id },
-        data: body,
+        data: clean,
       });
     }
     const updated = await prisma.siteSetting.findFirst();
     return NextResponse.json(updated);
-  } catch {
+  } catch (e) {
+    console.error("Settings save error:", e);
     return NextResponse.json({ error: "خطا در ذخیره تنظیمات" }, { status: 500 });
   }
 }
