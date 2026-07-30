@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "public-privacy-policy-for-google-oauth",
+    title: "حریم خصوصی عمومی برای OAuth گوگل",
+    summary: "Privacy Policy عمومی روی دامنه اصلی ایجاد و از صفحه معرفی OAuth و فوتر قابل دسترس شد.",
+    publishedAt: "2026-07-31T02:45:00+03:30",
+    type: "feature",
+  },
+  {
     id: "root-home-english-oauth-branding",
     title: "هویت انگلیسی OAuth در صفحه اصلی",
     summary: "نام و هدف رسمی انگلیسی Imam Ruhollah School در خود صفحه اصلی نیز درج شد تا بررسی Branding گوگل آن را شناسایی کند.",
