@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "google-oauth-purpose-disclosure",
+    title: "شفاف‌سازی هدف ورود گوگل",
+    summary: "هدف سامانه و استفاده اختیاری از ورود گوگل، داده‌های دریافت‌شده و کاربرد آن‌ها به‌صورت صریح در صفحه اصلی درج شد.",
+    publishedAt: "2026-07-31T02:00:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "oauth-branding-home-purpose",
     title: "شفاف‌سازی هویت آکادمی در صفحه اصلی",
     summary: "نام رسمی آکادمی و هدف سامانه به‌صورت ثابت و قابل‌خواندن در صفحه اصلی اضافه شد تا شرایط Branding گوگل رعایت شود.",

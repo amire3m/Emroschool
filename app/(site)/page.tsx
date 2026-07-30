@@ -457,8 +457,9 @@ export default function HomePage() {
         <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-black text-secondary-fixed">ه</div>
           <div>
-            <h2 className="text-xl font-black text-primary md:text-2xl">آکادمی هنر و رسانه امام روح‌الله (ره)</h2>
+            <h1 className="text-xl font-black text-primary md:text-2xl">آکادمی هنر و رسانه امام روح‌الله (ره)</h1>
             <p className="mt-2 max-w-4xl text-sm leading-7 text-outline">این وب‌سایت سامانه رسمی آکادمی هنر و رسانه امام روح‌الله (ره) برای آموزش، ثبت‌نام دوره‌های تخصصی، اطلاع‌رسانی رویدادها و پرورش هنرمندان متعهد در حوزه‌های هنر و رسانه است.</p>
+            <p className="mt-2 max-w-4xl text-xs leading-6 text-outline">ورود با گوگل یک گزینه اختیاری برای ساخت یا ورود امن به حساب کاربری است. فقط نام، ایمیل تأییدشده و تصویر پروفایل Google برای ایجاد حساب و ارائه خدمات آموزشی دریافت می‌شود.</p>
           </div>
         </div>
       </section>
