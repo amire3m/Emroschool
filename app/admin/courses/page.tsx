@@ -11,6 +11,8 @@ import {
    X,
    Check,
    Link2,
+   Layers3,
+   GitBranch,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -456,35 +458,26 @@ export default function AdminCourses() {
 
               <div className="rounded-2xl border border-surface-variant bg-surface-low p-4 space-y-4">
                 <h4 className="font-bold text-primary text-sm">ساختار و زمان‌بندی دوره</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-primary mb-1">نوع دوره</label><select value={form.courseType} onChange={(e) => setForm((p) => ({ ...p, courseType: e.target.value, parentId: e.target.value === "comprehensive" ? "" : p.parentId }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="single">دوره عادی / فرزند</option><option value="comprehensive">دوره جامع (والد)</option></select><p className="text-[11px] text-outline mt-1">دوره جامع برای انتشار باید حداقل یک فرزند داشته باشد.</p></div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                   <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-2">ساختار این محتوا</label><div className="grid sm:grid-cols-2 gap-3"><button type="button" onClick={() => setForm((p) => ({ ...p, courseType: "comprehensive", parentId: "" }))} className={`text-right rounded-2xl border p-4 transition ${form.courseType === "comprehensive" ? "border-primary bg-primary text-white shadow-lg shadow-primary/15" : "border-surface-variant bg-white text-primary hover:border-primary/40"}`}><Layers3 size={22} className={form.courseType === "comprehensive" ? "text-secondary-fixed" : "text-secondary"} /><p className="mt-3 font-black">مجموعه جامع</p><p className={`mt-1 text-xs leading-6 ${form.courseType === "comprehensive" ? "text-white/70" : "text-outline"}`}>فقط معرفی، زمان‌بندی و دسته‌بندی زیر‌دوره‌ها. خرید و ثبت‌نام ندارد.</p></button><button type="button" onClick={() => setForm((p) => ({ ...p, courseType: "single" }))} className={`text-right rounded-2xl border p-4 transition ${form.courseType === "single" ? "border-primary bg-primary text-white shadow-lg shadow-primary/15" : "border-surface-variant bg-white text-primary hover:border-primary/40"}`}><GitBranch size={22} className={form.courseType === "single" ? "text-secondary-fixed" : "text-secondary"} /><p className="mt-3 font-black">دوره مستقل یا زیر‌دوره</p><p className={`mt-1 text-xs leading-6 ${form.courseType === "single" ? "text-white/70" : "text-outline"}`}>دارای صفحه اقدام مستقل؛ می‌تواند به یک مجموعه جامع متصل شود.</p></button></div></div>
+                   {form.courseType === "comprehensive" && <div className="sm:col-span-2 rounded-xl border border-secondary-fixed/70 bg-[#fff8e9] p-3 text-xs leading-6 text-secondary">این مجموعه بعد از ساخت زیر‌دوره‌ها قابل انتشار است. کاربران فقط در صفحه زیر‌دوره‌ها خرید یا فرم ثبت‌نام را می‌بینند.</div>}
                   {form.courseType === "single" && <div><label className="block text-sm font-medium text-primary mb-1">دوره جامع والد (اختیاری)</label><select value={form.parentId} onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="">دوره مستقل؛ بدون والد</option>{courses.filter((item) => item.courseType === "comprehensive" && item.id !== editingCourse?.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
                   <div><label className="block text-sm font-medium text-primary mb-1">وضعیت برگزاری</label><select value={form.scheduleStatus} onChange={(e) => setForm((p) => ({ ...p, scheduleStatus: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="upcoming">قرار است برگزار شود</option><option value="completed">برگزار شده و پایان یافته</option></select></div>
                   <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع (شمسی)" : "تاریخ پایان (شمسی)"}</label><PersianDateTimePicker required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(value) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: value } : { ...p, endDate: value })} /></div>
-                  {form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}
+                   {form.courseType === "single" && form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">قیمت (تومان)</label>
-                  <input
-                    type="number"
-                    value={form.price}
-                    onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">قیمت قبلی (اختیاری)</label>
-                  <input
-                    type="number"
-                    value={form.oldPrice}
-                    onChange={(e) => setForm((p) => ({ ...p, oldPrice: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-              </div>
+               {form.courseType === "single" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-sm font-medium text-primary mb-1">قیمت (تومان)</label>
+                   <input type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
+                 </div>
+                 <div>
+                   <label className="block text-sm font-medium text-primary mb-1">قیمت قبلی (اختیاری)</label>
+                   <input type="number" value={form.oldPrice} onChange={(e) => setForm((p) => ({ ...p, oldPrice: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
+                 </div>
+               </div>}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

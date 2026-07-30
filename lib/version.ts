@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "comprehensive-course-collection-experience",
+    title: "تکمیل تجربه مجموعه‌های جامع",
+    summary: "دوره جامع به صفحه معرفی زیر‌دوره‌ها تبدیل شد و هر زیر‌دوره با زمان، قیمت و اقدام ثبت‌نام مستقل نمایش داده می‌شود.",
+    publishedAt: "2026-07-30T10:40:00+03:30",
+    type: "feature",
+  },
+  {
     id: "two-line-admin-content-urls",
     title: "نمایش دوخطی آدرس محتوا",
     summary: "مسیر ثابت و slug قابل‌ویرایش در فرم‌های محتوا برای خوانایی بهتر در دو خط نمایش داده می‌شوند.",

@@ -21,7 +21,7 @@ export async function GET(
       include: {
         gallery: true,
         parent: { select: { id: true, title: true, slug: true } },
-        children: { where: admin ? undefined : { published: true }, select: { id: true, title: true, slug: true, thumbnail: true, scheduleStatus: true, startDate: true } },
+        children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         _count: { select: { enrollments: true, applications: true, children: true } },
       },
     });
