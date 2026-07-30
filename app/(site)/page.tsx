@@ -9,6 +9,7 @@ import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 import AutoLoopRow from "@/components/ui/auto-loop-row";
 import { GlowEffect } from "@/components/ui/glow-effect";
 import { getCookie } from "@/lib/cookie";
+import NewsletterCta from "@/components/home/newsletter-cta";
 import {
   Star,
   ChevronLeft,
@@ -676,56 +677,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {sectionVisibility.cta !== false && (
-      <AnimatedSection order={orderFor("cta", 7)} className="mx-5 md:mx-auto my-16 w-[calc(100%-2.5rem)] max-w-[1280px]">
-        <div
-          id="about"
-          className="relative rounded-3xl overflow-hidden py-16 px-8 text-center border border-secondary/20"
-           style={{
-             background:
-               "radial-gradient(circle at center, transparent 0%, rgba(3, 0, 75, 0.03) 100%)",
-           }}
-         >
-           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-             <div className="absolute left-10 top-8 h-20 w-20 rounded-full border border-secondary/20 animate-cta-orbit"><span className="absolute -right-1 top-1/2 h-2 w-2 rounded-full bg-secondary" /></div>
-             <div className="absolute right-10 bottom-8 h-28 w-28 rounded-full border border-primary/10 animate-cta-orbit" style={{ animationDelay: "-5s" }} />
-             <div className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/30 blur-2xl animate-cta-shimmer" />
-           </div>
-           <div
-            className="absolute inset-0 opacity-[0.03] pointer-events-none"
-            style={{
-              backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 0L55 45L100 50L55 55L50 100L45 55L0 50L45 45Z' fill='%237b5814'/%3E%3C/svg%3E\")",
-              backgroundSize: "80px 80px",
-            }}
-          />
-
-          <div className="relative z-10 max-w-xl mx-auto">
-            <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
-              {ctaContent.title}
-            </h2>
-            <p className="text-outline leading-relaxed mb-8">
-              {ctaContent.description}
-            </p>
-             {!isLoggedIn ? (
-               <div className="flex flex-col items-center gap-4">
-                 <p className="text-sm font-bold text-secondary">حساب خود را بسازید و این مسیر را با ما آغاز کنید</p>
-                 <Link href="/register" className="group inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:bg-primary-container">
-                   عضویت در آکادمی <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-                 </Link>
-               </div>
-             ) : (
-               <div className="flex flex-col items-center gap-4">
-                 <p className="text-sm font-bold text-secondary">خبرهای مهم آکادمی را از دست ندهید</p>
-                 <Link href="/dashboard/profile" className="group inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:bg-primary-container">
-                   تنظیم عضویت خبرنامه <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-                 </Link>
-               </div>
-             )}
-          </div>
-        </div>
-      </AnimatedSection>
-      )}
+      {sectionVisibility.cta !== false && <NewsletterCta title={String(ctaContent.title)} description={String(ctaContent.description)} isLoggedIn={isLoggedIn} />}
 
       {lightbox && (
         <div
