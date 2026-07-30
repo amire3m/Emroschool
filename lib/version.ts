@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "google-indexing-sitemap-and-robots",
+    title: "آماده‌سازی ایندکس گوگل",
+    summary: "robots.txt و Sitemap پویا برای صفحه‌های عمومی، دوره‌ها، رویدادها، خبرها و گالری اضافه شد.",
+    publishedAt: "2026-07-30T11:25:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "attach-existing-courses-to-collection",
     title: "اتصال دوره‌های قبلی به مجموعه جامع",
     summary: "از داخل دوره جامع می‌توان دوره‌های مستقل قبلی را انتخاب و به زیر‌دوره مجموعه تبدیل کرد.",
