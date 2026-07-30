@@ -36,6 +36,7 @@ export default function LoginPage() {
       }
 
       setCookie("token", data.token);
+      window.dispatchEvent(new Event("auth-changed"));
       const redirect = new URLSearchParams(window.location.search).get("redirect");
       if (redirect?.startsWith("/") && !redirect.startsWith("//")) {
         router.push(redirect);

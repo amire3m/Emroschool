@@ -57,8 +57,12 @@ export default function RegisterPage() {
         return;
       }
 
-      if (data.requiresVerification) setVerificationEmail(data.destination);
-      else { setCookie("token", data.token); router.push("/dashboard"); }
+       if (data.requiresVerification) setVerificationEmail(data.destination);
+       else {
+         setCookie("token", data.token);
+         window.dispatchEvent(new Event("auth-changed"));
+         router.push("/dashboard");
+       }
     } catch {
       setError("خطا در برقراری ارتباط با سرور");
     } finally {
@@ -68,7 +72,7 @@ export default function RegisterPage() {
 
   async function verifyCode(e: FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
-    try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
+     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
   }
 
   async function resendCode() {

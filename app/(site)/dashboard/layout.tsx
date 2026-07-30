@@ -53,6 +53,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   function handleLogout() {
     removeCookie("token");
+    window.dispatchEvent(new Event("auth-changed"));
     router.push("/login");
   }
 
@@ -65,9 +66,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex pt-16">
+    <div className="min-h-screen flex pt-24">
       <aside
-        className={`fixed right-0 top-16 h-[calc(100vh-64px)] w-64 bg-primary z-40 transition-transform duration-300 ${
+        className={`fixed right-0 top-24 h-[calc(100vh-96px)] w-64 bg-primary z-40 transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "translate-x-full"
         } md:translate-x-0 md:block shadow-xl`}
       >
@@ -121,7 +122,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex-1 mr-0 md:mr-64">
-        <div className="md:hidden fixed top-16 left-4 z-50">
+        <div className="md:hidden fixed top-24 left-4 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="bg-primary text-secondary-fixed p-2 rounded-lg shadow-lg"

@@ -42,16 +42,24 @@ export default function Navbar() {
   const [sidebarLayout, setSidebarLayout] = useState("default");
 
   useEffect(() => {
-    const token = getCookie("token");
-    if (token) {
-      setIsLoggedIn(true);
-      fetch("/api/auth/me", {
-        headers: { authorization: `Bearer ${token}` },
-      })
-        .then((r) => r.json())
-        .then((d) => setUserRole(d.user?.role || ""))
-        .catch(() => {});
+    async function syncAuth() {
+      const token = getCookie("token");
+      setIsLoggedIn(Boolean(token));
+      setUserRole("");
+      if (!token) return;
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (response.ok) setUserRole(data.user?.role || "");
+      } catch {
+        setIsLoggedIn(false);
+      }
     }
+
+    syncAuth();
+    window.addEventListener("auth-changed", syncAuth);
 
     fetch("/api/site-settings")
       .then((r) => r.json())
@@ -62,6 +70,8 @@ export default function Navbar() {
         }
       })
       .catch(() => {});
+
+    return () => window.removeEventListener("auth-changed", syncAuth);
   }, []);
 
   useEffect(() => {

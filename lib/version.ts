@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "instant-auth-navbar-and-dashboard-spacing",
+    title: "به‌روزرسانی آنی وضعیت ورود",
+    summary: "وضعیت ورود نوار بالایی پس از ثبت‌نام یا ورود بدون رفرش به‌روزرسانی می‌شود و فاصله داشبورد از topbar اصلاح شد.",
+    publishedAt: "2026-07-30T06:20:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "local-postfix-email-relay",
     title: "پشتیبانی از Mail Server محلی",
     summary: "سامانه ارسال کد تأیید با Postfix محلی روی loopback و بدون ذخیره نام کاربری یا رمز SMTP سازگار شد و STARTTLS محلی را نادیده می‌گیرد.",
