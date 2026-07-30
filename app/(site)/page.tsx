@@ -453,6 +453,15 @@ export default function HomePage() {
           </div>
         </header>
       ))}
+      <section className="relative z-20 -mt-8 mx-5 rounded-[2rem] border border-secondary-fixed/50 bg-white p-6 shadow-xl shadow-primary/10 md:mx-auto md:max-w-[1180px] md:p-8">
+        <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-black text-secondary-fixed">ه</div>
+          <div>
+            <h2 className="text-xl font-black text-primary md:text-2xl">آکادمی هنر و رسانه امام روح‌الله (ره)</h2>
+            <p className="mt-2 max-w-4xl text-sm leading-7 text-outline">این وب‌سایت سامانه رسمی آکادمی هنر و رسانه امام روح‌الله (ره) برای آموزش، ثبت‌نام دوره‌های تخصصی، اطلاع‌رسانی رویدادها و پرورش هنرمندان متعهد در حوزه‌های هنر و رسانه است.</p>
+          </div>
+        </div>
+      </section>
       </div>
 
       {sectionVisibility.departments !== false && (

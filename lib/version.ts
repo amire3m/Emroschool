@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "oauth-branding-home-purpose",
+    title: "شفاف‌سازی هویت آکادمی در صفحه اصلی",
+    summary: "نام رسمی آکادمی و هدف سامانه به‌صورت ثابت و قابل‌خواندن در صفحه اصلی اضافه شد تا شرایط Branding گوگل رعایت شود.",
+    publishedAt: "2026-07-31T01:45:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "google-oauth-login",
     title: "ورود و ثبت‌نام با گوگل",
     summary: "ورود امن Google OAuth با اتصال حساب‌ها از طریق ایمیل تأییدشده و دکمه‌های ورود در فرم‌های سایت اضافه شد.",
