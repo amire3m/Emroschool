@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "interactive-home-course-button",
+    title: "دکمه تعاملی کارت دوره‌ها",
+    summary: "دکمه مشاهده صفحه دوره و ثبت‌نام در صفحه اصلی به‌صورت تعاملی و در مرکز پایین کارت دوره بازطراحی شد.",
+    publishedAt: "2026-07-30T09:00:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "welcome-newsletter-admin-email-tools",
     title: "تجربه ایمیل و خبرنامه آکادمی",
     summary: "قالب‌های گرافیکی تأیید و خوش‌آمدگویی، دعوت هوشمند ثبت‌نام، عضویت خبرنامه در پروفایل و ابزار ارسال ایمیل مدیریت اضافه شد.",

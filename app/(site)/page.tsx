@@ -12,6 +12,7 @@ import { getCookie } from "@/lib/cookie";
 import NewsletterCta from "@/components/home/newsletter-cta";
 import {
   Star,
+  ArrowLeft,
   ChevronLeft,
   ChevronDown,
   Loader2,
@@ -52,6 +53,7 @@ interface Course {
   rating: number;
   ratingCount: number;
   featured?: boolean;
+  registrationMode?: "purchase" | "registration";
 }
 
 interface PageSection {
@@ -136,6 +138,19 @@ function StarRating({ rating }: { rating: number }) {
       <Star size={14} className="fill-current" />
       <span className="font-bold text-sm">{rating}</span>
     </div>
+  );
+}
+
+function InteractiveCourseLink({ text }: { text: string }) {
+  return (
+    <span className="group/course-button relative inline-flex h-11 w-48 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-primary bg-white p-2 text-center font-bold text-primary transition-colors">
+      <span className="relative z-20 inline-block transition-all duration-300 group-hover/course-button:-translate-x-14 group-hover/course-button:opacity-0">{text}</span>
+      <span className="absolute inset-0 z-20 flex translate-x-14 items-center justify-center gap-2 text-white opacity-0 transition-all duration-300 group-hover/course-button:translate-x-0 group-hover/course-button:opacity-100">
+        <span>{text}</span>
+        <ArrowLeft size={17} />
+      </span>
+      <span className="absolute left-[18%] top-[38%] z-10 h-2 w-2 rounded-full bg-primary transition-all duration-300 group-hover/course-button:left-0 group-hover/course-button:top-0 group-hover/course-button:h-full group-hover/course-button:w-full group-hover/course-button:scale-110" />
+    </span>
   );
 }
 
@@ -536,7 +551,7 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  <div className="p-5">
+                   <div className="flex min-h-[190px] flex-col p-5">
                     {course.instructor && (
                       <p className="text-outline text-xs mb-1">
                         {course.instructor}
@@ -553,13 +568,9 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <div className="flex justify-end items-center border-t border-outline-variant/20 pt-3">
-                      <div className="bg-primary/5 hover:bg-primary/10 p-2 rounded-full transition-colors">
-                        <span className="text-primary text-sm font-bold">
-                          مشاهده
-                        </span>
-                      </div>
-                    </div>
+                     <div className="mt-auto flex justify-center border-t border-outline-variant/20 pt-4">
+                       <InteractiveCourseLink text={course.registrationMode === "registration" ? "ثبت‌نام در دوره" : "مشاهده صفحه دوره"} />
+                     </div>
                   </div>
                 </Link>
                 </GlowingEdgeCard>
