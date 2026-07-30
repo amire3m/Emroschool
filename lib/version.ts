@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "attach-existing-courses-to-collection",
+    title: "اتصال دوره‌های قبلی به مجموعه جامع",
+    summary: "از داخل دوره جامع می‌توان دوره‌های مستقل قبلی را انتخاب و به زیر‌دوره مجموعه تبدیل کرد.",
+    publishedAt: "2026-07-30T11:10:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "add-child-courses-from-parent",
     title: "افزودن زیر‌دوره از مجموعه جامع",
     summary: "مدیر می‌تواند هنگام ویرایش دوره جامع، زیر‌دوره جدید بسازد یا زیر‌دوره‌های متصل را مستقیم ویرایش کند.",
