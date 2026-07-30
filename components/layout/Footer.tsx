@@ -113,10 +113,10 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/privacy-policy"
+                    href="#"
                     className="hover:text-secondary-fixed transition-colors"
                   >
-                    حریم خصوصی
+                    قوانین و مقررات
                   </Link>
                 </li>
                 <li>

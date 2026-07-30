@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "remove-temporary-oauth-branding-pages",
+    title: "حذف صفحات موقت Branding گوگل",
+    summary: "صفحه‌های معرفی و حریم خصوصی موقت OAuth از سایت حذف شدند؛ ورود اختیاری با گوگل باقی مانده است.",
+    publishedAt: "2026-07-31T03:15:00+03:30",
+    type: "fix",
+  },
+  {
     id: "unique-google-oauth-brand-identity",
     title: "هویت یکتای Branding گوگل",
     summary: "نام انگلیسی یکتای آکادمی و لوگوی رسمی آن در صفحه OAuth برای تطابق با Consent Screen اضافه شد.",
