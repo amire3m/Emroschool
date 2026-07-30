@@ -31,7 +31,7 @@ interface GalleryImage {
   createdAt: string;
 }
 
-const emptyForm = { courseId: "", imageUrl: "", title: "", slug: "", description: "", folder: "", altText: "", seoTitle: "", seoDescription: "", capturedAt: "" };
+const emptyForm = { courseId: "", imageUrl: "", title: "", slug: "", description: "", folder: "", altText: "", capturedAt: "" };
 
 interface Course {
   id: string;
@@ -99,8 +99,6 @@ export default function AdminGallery() {
           slug: form.slug,
           description: form.description || null,
           altText: form.altText || null,
-          seoTitle: form.seoTitle || null,
-          seoDescription: form.seoDescription || null,
           capturedAt: form.capturedAt || null,
           folder: form.folder || null,
           courseId: form.courseId,
@@ -231,7 +229,7 @@ export default function AdminGallery() {
                 </div>
                 {image.description && <p className="text-[11px] text-outline line-clamp-2 mt-1">{image.description}</p>}
               </div>
-              <button onClick={() => { setEditing(image); setForm({ courseId: image.courseId || "", imageUrl: image.imageUrl, title: image.title || "", slug: image.slug || "", description: image.description || "", folder: image.folder || "", altText: image.altText || "", seoTitle: image.seoTitle || "", seoDescription: image.seoDescription || "", capturedAt: image.capturedAt || "" }); setShowModal(true); }} className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/80 text-outline hover:text-primary opacity-0 group-hover:opacity-100 transition-all"><Pencil size={14} /></button>
+              <button onClick={() => { setEditing(image); setForm({ courseId: image.courseId || "", imageUrl: image.imageUrl, title: image.title || "", slug: image.slug || "", description: image.description || "", folder: image.folder || "", altText: image.altText || "", capturedAt: image.capturedAt || "" }); setShowModal(true); }} className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/80 text-outline hover:text-primary opacity-0 group-hover:opacity-100 transition-all"><Pencil size={14} /></button>
               <button
                 onClick={() => {
                   if (window.confirm("آیا از حذف این تصویر اطمینان دارید؟")) {
@@ -314,7 +312,6 @@ export default function AdminGallery() {
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                 />
               </div>
-              <div className="rounded-xl bg-surface-low border border-surface-variant p-4 space-y-3"><p className="text-sm font-bold text-primary">تنظیمات سئو</p><div><label className="block text-xs text-outline mb-1">عنوان سئو</label><input value={form.seoTitle} onChange={(e) => setForm((p) => ({ ...p, seoTitle: e.target.value }))} maxLength={70} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div><div><label className="block text-xs text-outline mb-1">توضیحات سئو</label><textarea value={form.seoDescription} onChange={(e) => setForm((p) => ({ ...p, seoDescription: e.target.value }))} maxLength={170} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div></div>
 
               <div className="flex items-center gap-3 pt-2">
                 <button

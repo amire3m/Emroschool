@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { hashPassword, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 function getAdmin(token: string | null) {
@@ -21,7 +21,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   try {
     const body = await req.json();
-    const { role, userType, permissions, profileVisible } = body;
+    const { role, userType, permissions, profileVisible, password } = body;
+    const targetUser = await prisma.user.findUnique({ where: { id: params.id }, select: { role: true } });
+    if (!targetUser) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
 
     if (role !== undefined && !roles.includes(role)) {
       return NextResponse.json({ error: "نقش سیستمی نامعتبر است" }, { status: 400 });
@@ -31,6 +33,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
     if (role === "superadmin" && admin.role !== "superadmin") {
       return NextResponse.json({ error: "فقط مدیر ارشد می‌تواند این نقش را واگذار کند" }, { status: 403 });
+    }
+    if (password !== undefined && password !== "") {
+      if (typeof password !== "string" || password.length < 6) return NextResponse.json({ error: "رمز عبور باید حداقل ۶ کاراکتر باشد" }, { status: 400 });
+      if (targetUser.role === "superadmin" && admin.role !== "superadmin") return NextResponse.json({ error: "فقط مدیر ارشد می‌تواند رمز مدیر ارشد را تغییر دهد" }, { status: 403 });
     }
 
     let normalizedPermissions: string | null | undefined;
@@ -55,6 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (userType !== undefined) data.userType = userType;
     if (normalizedPermissions !== undefined) data.permissions = normalizedPermissions;
     if (profileVisible !== undefined && typeof profileVisible === "boolean") data.profileVisible = profileVisible;
+    if (password) data.password = await hashPassword(password);
 
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({

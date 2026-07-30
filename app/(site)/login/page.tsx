@@ -30,6 +30,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.verificationRequired && data.email) { router.push(`/register?verify=${encodeURIComponent(data.email)}`); return; }
         setError(data.error || "خطا در ورود");
         return;
       }

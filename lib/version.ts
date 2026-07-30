@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "email-verification-and-admin-passwords",
+    title: "تأیید ایمیل و مدیریت رمز کاربران",
+    summary: "ثبت‌نام ایمیلی با کد شش‌رقمی، انقضای ده‌دقیقه‌ای و ارسال مجدد امن شد و مدیر می‌تواند برای کاربران رمز عبور جدید تعیین کند.",
+    publishedAt: "2026-07-30T05:27:28+03:30",
+    type: "feature",
+  },
+  {
+    id: "gallery-metadata-simplification",
+    title: "ساده‌سازی اطلاعات گالری",
+    summary: "عنوان و توضیحات اصلی تصویر مستقیماً برای متادیتای سئو استفاده می‌شوند و ورودی‌های تکراری سئو از فرم مدیریت حذف شدند.",
+    publishedAt: "2026-07-30T05:26:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "gallery-seo-persian-dates-and-site-polish",
     title: "گالری حرفه‌ای، تاریخ شمسی و بهبود رابط سایت",
     summary: "ویرایش و سئوی تصاویر گالری، صفحه مستقل هر تصویر، تاریخ‌پیکر شمسی سراسری، آدرس‌های واقعی صفحات، مدیر مستقل ثبت‌نام، کنترل بهتر اساتید و نقشه آکادمی اضافه شد.",

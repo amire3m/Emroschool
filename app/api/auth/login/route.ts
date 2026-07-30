@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     if (!valid) {
       return NextResponse.json({ error: "ایمیل یا رمز عبور اشتباه است" }, { status: 401 });
     }
+    if (!user.emailVerified) return NextResponse.json({ error: "ایمیل شما هنوز تأیید نشده است", verificationRequired: true, email: user.email }, { status: 403 });
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
 

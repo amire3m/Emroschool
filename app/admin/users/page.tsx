@@ -43,7 +43,7 @@ export default function AdminUsers() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [editUser, setEditUser] = useState<UserData | null>(null);
-  const [editForm, setEditForm] = useState({ role: "", userType: "", permissions: "", profileVisible: true });
+  const [editForm, setEditForm] = useState({ role: "", userType: "", permissions: "", profileVisible: true, password: "" });
   const [saving, setSaving] = useState(false);
 
   const getToken = () => getCookie("token") || "";
@@ -69,6 +69,7 @@ export default function AdminUsers() {
       userType: user.userType,
       permissions: user.permissions || "",
       profileVisible: user.profileVisible,
+      password: "",
     });
   };
 
@@ -256,6 +257,7 @@ export default function AdminUsers() {
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.profileVisible ? "translate-x-6" : "translate-x-0.5"}`} />
                 </button>
               </div>
+              <div><label className="block text-sm font-medium text-primary mb-1">رمز عبور جدید</label><input type="password" value={editForm.password} onChange={(e) => setEditForm((current) => ({ ...current, password: e.target.value }))} minLength={6} placeholder="برای حفظ رمز فعلی خالی بگذارید" className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /><p className="text-xs text-outline mt-1">حداقل ۶ کاراکتر؛ مدیر می‌تواند برای کاربر رمز جدید تعیین کند.</p></div>
               <div className="flex items-center gap-3 pt-2">
                 <button onClick={saveEdit} disabled={saving}
                   className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">

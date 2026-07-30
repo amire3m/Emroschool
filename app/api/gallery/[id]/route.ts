@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (!body.title?.trim() || !body.slug?.trim()) return NextResponse.json({ error: "عنوان و آدرس انگلیسی الزامی است" }, { status: 400 });
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug)) return NextResponse.json({ error: "آدرس باید انگلیسی و با خط تیره باشد" }, { status: 400 });
     if (await prisma.gallery.findFirst({ where: { slug: body.slug, NOT: { id: params.id } } })) return NextResponse.json({ error: "این آدرس قبلاً استفاده شده است" }, { status: 409 });
-    const image = await prisma.gallery.update({ where: { id: params.id }, data: { imageUrl: body.imageUrl, title: body.title.trim(), slug: body.slug.trim(), description: body.description?.trim() || null, altText: body.altText?.trim() || null, seoTitle: body.seoTitle?.trim() || null, seoDescription: body.seoDescription?.trim() || null, capturedAt: body.capturedAt ? new Date(body.capturedAt) : null, folder: body.folder?.trim() || null, courseId: body.courseId || null } });
+    const image = await prisma.gallery.update({ where: { id: params.id }, data: { imageUrl: body.imageUrl, title: body.title.trim(), slug: body.slug.trim(), description: body.description?.trim() || null, altText: body.altText?.trim() || null, seoTitle: body.title.trim(), seoDescription: body.description?.trim() || null, capturedAt: body.capturedAt ? new Date(body.capturedAt) : null, folder: body.folder?.trim() || null, courseId: body.courseId || null } });
     return NextResponse.json({ image });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این آدرس قبلاً استفاده شده است" }, { status: 409 });

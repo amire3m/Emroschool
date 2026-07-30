@@ -10,11 +10,13 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
+  emailVerified Boolean @default(true)
   name      String
   password  String
   role      String   @default("user")    // superadmin | admin | user
   userType  String   @default("student") // student | instructor | alumni | admin
   phone     String?
+  phoneVerified Boolean @default(false)
   province  String?
   city      String?
   address   String?
@@ -40,6 +42,19 @@ model User {
   notifications UserNotification[]
   instructor    Instructor?
   alumni        Alumni?
+}
+
+model VerificationCode {
+  id          String   @id @default(cuid())
+  destination String
+  channel     String   // email | sms
+  codeHash    String
+  purpose     String   @default("register")
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([destination, channel, purpose])
 }
 
 model Instructor {

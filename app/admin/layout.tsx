@@ -183,8 +183,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             {!compactSidebar && (
               <div>
-                <h2 className="text-sm font-black text-[#ffdeab]">{settings?.siteName?.split(" ").slice(0, 2).join(" ") || "آکادمی هنر و رسانه"}</h2>
-                <p className="text-xs text-white/50 mt-0.5">امام روح‌الله (ره)</p>
+                <h2 className="text-sm font-black text-[#ffdeab]">سامانه آکادمی هنر و رسانه</h2>
+                <p className="text-xs text-white/50 mt-0.5">نسخه ویژه مؤسسه امام روح‌الله (ره)</p>
               </div>
             )}
           </div>

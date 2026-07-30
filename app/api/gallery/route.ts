@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { imageUrl, title, slug, description, altText, seoTitle, seoDescription, capturedAt, folder, courseId } = await req.json();
+    const { imageUrl, title, slug, description, altText, capturedAt, folder, courseId } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: "آدرس تصویر الزامی است" }, { status: 400 });
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
         slug: slug.trim(),
         description: description?.trim() || null,
         altText: altText || null,
-        seoTitle: seoTitle?.trim() || null,
-        seoDescription: seoDescription?.trim() || null,
+        seoTitle: title.trim(),
+        seoDescription: description?.trim() || null,
         capturedAt: capturedAt ? new Date(capturedAt) : null,
         folder: folder || null,
         courseId: courseId || null,

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft, KeyRound } from "lucide-react";
 import { setCookie } from "@/lib/cookie";
 
 export default function RegisterPage() {
@@ -16,6 +16,9 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) setVerificationEmail(pendingEmail); }, []);
 
   function validateForm(): string | null {
     if (!name.trim()) return "لطفاً نام و نام خانوادگی خود را وارد کنید";
@@ -54,13 +57,22 @@ export default function RegisterPage() {
         return;
       }
 
-      setCookie("token", data.token);
-      router.push("/dashboard");
+      setVerificationEmail(data.destination);
     } catch {
       setError("خطا در برقراری ارتباط با سرور");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function verifyCode(e: FormEvent) {
+    e.preventDefault(); setError(""); setLoading(true);
+    try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
+  }
+
+  async function resendCode() {
+    setError(""); setLoading(true);
+    try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setError("کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
   }
 
   return (
@@ -99,7 +111,7 @@ export default function RegisterPage() {
           </div>
 
           <h2 className="font-playfair text-3xl font-bold text-white mb-1">
-            مدرسه هنر و رسانه
+            آکادمی هنر و رسانه
           </h2>
           <p className="font-playfair text-secondary-fixed text-xl font-semibold tracking-wider">
             امام روح‌الله
@@ -142,7 +154,7 @@ export default function RegisterPage() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {verificationEmail ? <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید ایمیل</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده به <span dir="ltr" className="font-bold text-primary">{verificationEmail}</span> را وارد کنید.</p></div><input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={resendCode} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationEmail(""); setVerificationCode(""); setError(""); }} className="text-outline">اصلاح ایمیل</button></div></form> : <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-primary mb-2">
                 نام و نام خانوادگی
@@ -254,7 +266,7 @@ export default function RegisterPage() {
                 "ثبت‌نام"
               )}
             </button>
-          </form>
+          </form>}
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-7">
