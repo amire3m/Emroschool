@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "local-postfix-email-relay",
+    title: "پشتیبانی از Mail Server محلی",
+    summary: "سامانه ارسال کد تأیید با Postfix محلی روی loopback و بدون ذخیره نام کاربری یا رمز SMTP سازگار شد.",
+    publishedAt: "2026-07-30T05:40:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "optional-email-verification",
     title: "اختیاری‌شدن تأیید ایمیل",
     summary: "تأیید ایمیل به‌صورت پیش‌فرض غیرفعال شد تا کاربران بلافاصله وارد شوند و امکان فعال‌سازی آینده با تنظیم محیطی باقی ماند.",

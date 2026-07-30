@@ -9,9 +9,9 @@ function emailTransport() {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) throw new Error("EMAIL_NOT_CONFIGURED");
+  if (!host || Boolean(user) !== Boolean(pass)) throw new Error("EMAIL_NOT_CONFIGURED");
   const port = Number(process.env.SMTP_PORT || 587);
-  return nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  return nodemailer.createTransport({ host, port, secure: port === 465, ...(user && pass ? { auth: { user, pass } } : {}) });
 }
 
 export async function issueEmailVerificationCode(email: string, name: string) {
