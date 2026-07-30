@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "add-child-courses-from-parent",
+    title: "افزودن زیر‌دوره از مجموعه جامع",
+    summary: "مدیر می‌تواند هنگام ویرایش دوره جامع، زیر‌دوره جدید بسازد یا زیر‌دوره‌های متصل را مستقیم ویرایش کند.",
+    publishedAt: "2026-07-30T10:55:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "comprehensive-course-collection-experience",
     title: "تکمیل تجربه مجموعه‌های جامع",
     summary: "دوره جامع به صفحه معرفی زیر‌دوره‌ها تبدیل شد و هر زیر‌دوره با زمان، قیمت و اقدام ثبت‌نام مستقل نمایش داده می‌شود.",
