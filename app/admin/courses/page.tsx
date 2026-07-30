@@ -8,8 +8,9 @@ import {
   Loader2,
   AlertCircle,
   Search,
-  X,
-  Check,
+   X,
+   Check,
+   Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -108,6 +109,7 @@ export default function AdminCourses() {
   });
 
   const getToken = () => getCookie("token") || "";
+  const copyCourseLink = async (slug: string) => { await navigator.clipboard.writeText(`${window.location.origin}/courses/${slug}`); toast.success("لینک دوره کپی شد"); };
 
   const fetchCourses = () => {
     const token = getToken();
@@ -366,6 +368,7 @@ export default function AdminCourses() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => copyCourseLink(course.slug)} className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="کپی لینک صفحه دوره"><Link2 size={16} /></button>
                       <button
                         onClick={() => openEditModal(course)}
                         className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
@@ -425,16 +428,16 @@ export default function AdminCourses() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
-                  <div className="flex items-stretch gap-0">
-                    <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      imamruhollahschool.com/courses/
-                    </span>
+                   <div className="flex items-stretch gap-0" dir="ltr">
+                     <span className="inline-flex items-center px-3 py-2.5 rounded-l-xl border border-r-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap">
+                       imamruhollahschool.com/courses/
+                     </span>
                     <input
                       type="text"
                       required
                       value={form.slug}
                       onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                      className="flex-1 min-w-0 px-3 py-2.5 rounded-l-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] [direction:ltr]"
+                       className="flex-1 min-w-0 px-3 py-2.5 rounded-r-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                       style={{ fontFamily: "'Courier New', monospace" }}
                     />
                   </div>

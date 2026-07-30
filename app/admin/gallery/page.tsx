@@ -9,7 +9,8 @@ import {
   X,
   FolderOpen,
   ImageIcon,
-  Pencil,
+   Pencil,
+   Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -50,6 +51,7 @@ export default function AdminGallery() {
   const [form, setForm] = useState(emptyForm);
 
   const getToken = () => getCookie("token") || "";
+  const copyGalleryLink = async (slug: string | null) => { if (!slug) return toast.error("ابتدا برای تصویر آدرس صفحه تعیین کنید"); await navigator.clipboard.writeText(`${window.location.origin}/gallery/${slug}`); toast.success("لینک تصویر کپی شد"); };
 
   const fetchData = () => {
     const token = getToken();
@@ -229,7 +231,7 @@ export default function AdminGallery() {
                 </div>
                 {image.description && <p className="text-[11px] text-outline line-clamp-2 mt-1">{image.description}</p>}
               </div>
-              <button onClick={() => { setEditing(image); setForm({ courseId: image.courseId || "", imageUrl: image.imageUrl, title: image.title || "", slug: image.slug || "", description: image.description || "", folder: image.folder || "", altText: image.altText || "", capturedAt: image.capturedAt || "" }); setShowModal(true); }} className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/80 text-outline hover:text-primary opacity-0 group-hover:opacity-100 transition-all"><Pencil size={14} /></button>
+               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => copyGalleryLink(image.slug)} className="p-1.5 rounded-lg bg-white/80 text-outline hover:text-secondary"><Link2 size={14} /></button><button onClick={() => { setEditing(image); setForm({ courseId: image.courseId || "", imageUrl: image.imageUrl, title: image.title || "", slug: image.slug || "", description: image.description || "", folder: image.folder || "", altText: image.altText || "", capturedAt: image.capturedAt || "" }); setShowModal(true); }} className="p-1.5 rounded-lg bg-white/80 text-outline hover:text-primary"><Pencil size={14} /></button></div>
               <button
                 onClick={() => {
                   if (window.confirm("آیا از حذف این تصویر اطمینان دارید؟")) {

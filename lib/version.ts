@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "admin-content-link-controls",
+    title: "کنترل لینک در فهرست مدیریت محتوا",
+    summary: "آیکن کپی لینک کنار مداد و حذف دوره‌ها، رویدادها و گالری اضافه و جهت نمایش آدرس فرم‌ها اصلاح شد.",
+    publishedAt: "2026-07-30T10:10:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "content-permalink-copy-controls",
     title: "آدرس‌های خوانا و کپی لینک محتوا",
     summary: "لینک یکتای دوره، رویداد، خبر و گالری با دکمه زنجیر در کنار عنوان برای کپی سریع اضافه شد.",

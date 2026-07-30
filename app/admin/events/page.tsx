@@ -11,7 +11,8 @@ import {
   X,
   Check,
   MapPin,
-  Calendar,
+   Calendar,
+   Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -101,6 +102,7 @@ export default function AdminEvents() {
   });
 
   const getToken = () => getCookie("token") || "";
+  const copyEventLink = async (slug: string) => { await navigator.clipboard.writeText(`${window.location.origin}/events/${slug}`); toast.success("لینک رویداد کپی شد"); };
 
   const fetchData = () => {
     const token = getToken();
@@ -362,6 +364,7 @@ export default function AdminEvents() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => copyEventLink(event.slug)} className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="کپی لینک صفحه رویداد"><Link2 size={16} /></button>
                       <button
                         onClick={() => openEditModal(event)}
                         className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
@@ -421,16 +424,16 @@ export default function AdminEvents() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
-                  <div className="flex items-stretch gap-0">
-                    <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      imamruhollahschool.com/events/
+                   <div className="flex items-stretch gap-0" dir="ltr">
+                     <span className="inline-flex items-center px-3 py-2.5 rounded-l-xl border border-r-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap">
+                       imamruhollahschool.com/events/
                     </span>
                     <input
                       type="text"
                       required
                       value={form.slug}
                       onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                      className="flex-1 min-w-0 px-3 py-2.5 rounded-l-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] [direction:ltr]"
+                       className="flex-1 min-w-0 px-3 py-2.5 rounded-r-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                       style={{ fontFamily: "'Courier New', monospace" }}
                     />
                   </div>
