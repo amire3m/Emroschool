@@ -36,6 +36,32 @@ export default function Footer() {
               انسانی متعهد و متخصص در حوزه‌های مختلف هنری و رسانه‌ای است. ما به
               دنبال تلفیق هنر اصیل و تکنولوژی روز هستیم.
             </p>
+            <div className="flex items-center gap-3">
+              <Link
+                href="https://www.instagram.com/imamruhollahschool/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="اینستاگرام آکادمی"
+                className="w-11 h-11 rounded-xl bg-white/10 text-secondary-fixed flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                </svg>
+              </Link>
+              <Link
+                href="https://ble.ir/ImamRuhollahSchool"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="کانال بله آکادمی"
+                className="w-11 h-11 rounded-xl bg-white/10 text-secondary-fixed flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+                  <path d="M12 3C6.48 3 2 6.58 2 11c0 2.36 1.35 4.47 3.52 5.84L4.3 21l4.13-2.17c1.1.33 2.31.5 3.57.5 5.52 0 10-3.58 10-8.33C22 6.58 17.52 3 12 3Zm-3.2 7.1h6.4c.54 0 .98.44.98.98s-.44.98-.98.98H8.8a.98.98 0 1 1 0-1.96Z" />
+                </svg>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8">
@@ -126,11 +152,9 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
-          <div className="flex gap-6">
-            <span>نسخه {APP_VERSION}</span>
-            <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank">اینستاگرام</Link>
-            <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank">بله</Link>
-          </div>
+           <div className="flex gap-6">
+             <span>نسخه {APP_VERSION}</span>
+           </div>
         </div>
       </div>
     </footer>

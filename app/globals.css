@@ -37,6 +37,12 @@
 @font-face {
   font-family: Doran;
   font-style: normal;
+  font-weight: 900;
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-ExtraBold.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-ExtraBold.woff') format('woff');
+}
+@font-face {
+  font-family: Doran;
+  font-style: normal;
   font-weight: 800;
   src: url('../font-w/Webfonts/Doran/woff2/Dopink-ExtraBold.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-ExtraBold.woff') format('woff');
 }
@@ -96,6 +102,11 @@ body {
   overflow-x: hidden;
   direction: rtl;
 }
+
+h1:not(.font-black) { font-weight: 900; }
+h2:not(.font-black) { font-weight: 800; }
+h3:not(.font-black), h4:not(.font-black), h5:not(.font-black), h6:not(.font-black) { font-weight: 700; }
+strong, b { font-weight: 700; }
 
 .font-site { font-family: var(--site-font); }
 

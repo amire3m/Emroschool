@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "footer-social-icons-and-font-weights",
+    title: "بهبود وزن فونت‌ها و شبکه‌های اجتماعی فوتر",
+    summary: "وزن مناسب خانواده فونت‌ها برای تیترها اعمال شد و لینک‌های اینستاگرام و بله با لوگو زیر معرفی آکادمی قرار گرفتند.",
+    publishedAt: "2026-07-30T07:30:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "registration-form-fields-and-course-price-visibility",
     title: "تکمیل فرم ثبت‌نام دوره‌ها",
     summary: "تاریخ تولد، سوابق و آیدی اینستاگرام به‌صورت الزامی اضافه شد، کد پستی اختیاری شد و قیمت از کارت دوره‌های صفحه اصلی حذف شد.",
