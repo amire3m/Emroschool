@@ -31,6 +31,14 @@ interface Course {
   published: boolean;
   featured: boolean;
   createdAt: string;
+  courseType: "comprehensive" | "single";
+  scheduleStatus: "upcoming" | "completed";
+  startDate: string | null;
+  endDate: string | null;
+  registrationMode: "purchase" | "registration";
+  parentId: string | null;
+  parent?: { id: string; title: string } | null;
+  childCount?: number;
 }
 
 const levels = ["مبتدی", "متوسط", "پیشرفته"];
@@ -90,6 +98,12 @@ export default function AdminCourses() {
     videoUrl: "",
     published: false,
     featured: false,
+    courseType: "single",
+    scheduleStatus: "upcoming",
+    startDate: "",
+    endDate: "",
+    registrationMode: "purchase",
+    parentId: "",
   });
 
   const getToken = () => getCookie("token") || "";
@@ -129,6 +143,12 @@ export default function AdminCourses() {
       videoUrl: "",
       published: false,
       featured: false,
+      courseType: "single",
+      scheduleStatus: "upcoming",
+      startDate: "",
+      endDate: "",
+      registrationMode: "purchase",
+      parentId: "",
     });
     setEditingCourse(null);
   };
@@ -152,6 +172,12 @@ export default function AdminCourses() {
       videoUrl: course.videoUrl || "",
       published: course.published,
       featured: course.featured,
+      courseType: course.courseType || "single",
+      scheduleStatus: course.scheduleStatus || "upcoming",
+      startDate: course.startDate ? new Date(course.startDate).toISOString().slice(0, 16) : "",
+      endDate: course.endDate ? new Date(course.endDate).toISOString().slice(0, 16) : "",
+      registrationMode: course.registrationMode || "purchase",
+      parentId: course.parentId || "",
     });
     setEditingCourse(course);
     setShowModal(true);
@@ -185,6 +211,12 @@ export default function AdminCourses() {
       videoUrl: form.videoUrl || null,
       published: form.published,
       featured: form.featured,
+      courseType: form.courseType,
+      scheduleStatus: form.scheduleStatus,
+      startDate: form.startDate || null,
+      endDate: form.endDate || null,
+      registrationMode: form.registrationMode,
+      parentId: form.courseType === "single" ? form.parentId || null : null,
     };
 
     try {
@@ -309,7 +341,7 @@ export default function AdminCourses() {
                 <tr key={course.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
                   <td className="p-3">
                     <div className="font-medium text-primary">{course.title}</div>
-                    <div className="text-xs text-outline mt-0.5">{course.slug}</div>
+                    <div className="flex flex-wrap gap-1.5 mt-1"><span className="text-[10px] text-outline">{course.slug}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.courseType === "comprehensive" ? "bg-secondary-fixed text-secondary" : "bg-surface-container text-outline"}`}>{course.courseType === "comprehensive" ? `جامع · ${(course.childCount || 0).toLocaleString("fa-IR")} زیر‌دوره` : course.parent ? `فرزند ${course.parent.title}` : "مستقل"}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزارشده" : "در انتظار برگزاری"}</span></div>
                   </td>
                   <td className="p-3 text-outline hidden md:table-cell">{course.instructor || "—"}</td>
                   <td className="p-3 hidden sm:table-cell">
@@ -418,6 +450,17 @@ export default function AdminCourses() {
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none"
                 />
+              </div>
+
+              <div className="rounded-2xl border border-surface-variant bg-surface-low p-4 space-y-4">
+                <h4 className="font-bold text-primary text-sm">ساختار و زمان‌بندی دوره</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium text-primary mb-1">نوع دوره</label><select value={form.courseType} onChange={(e) => setForm((p) => ({ ...p, courseType: e.target.value, parentId: e.target.value === "comprehensive" ? "" : p.parentId }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="single">دوره عادی / فرزند</option><option value="comprehensive">دوره جامع (والد)</option></select><p className="text-[11px] text-outline mt-1">دوره جامع برای انتشار باید حداقل یک فرزند داشته باشد.</p></div>
+                  {form.courseType === "single" && <div><label className="block text-sm font-medium text-primary mb-1">دوره جامع والد (اختیاری)</label><select value={form.parentId} onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="">دوره مستقل؛ بدون والد</option>{courses.filter((item) => item.courseType === "comprehensive" && item.id !== editingCourse?.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
+                  <div><label className="block text-sm font-medium text-primary mb-1">وضعیت برگزاری</label><select value={form.scheduleStatus} onChange={(e) => setForm((p) => ({ ...p, scheduleStatus: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="upcoming">قرار است برگزار شود</option><option value="completed">برگزار شده و پایان یافته</option></select></div>
+                  <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع" : "تاریخ پایان"}</label><input type="datetime-local" required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(e) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: e.target.value } : { ...p, endDate: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div>
+                  {form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "course-hierarchy-and-registration-applications",
+    title: "دوره‌های جامع و فرم درخواست ثبت‌نام",
+    summary: "ساختار والد و فرزند دوره‌ها، زمان‌بندی برگزاری، انتخاب خرید یا فرم ثبت‌نام، اطلاعات تکمیلی پروفایل و بررسی درخواست‌ها در پنل مدیریت اضافه شد.",
+    publishedAt: "2026-07-30T04:31:30+03:30",
+    type: "feature",
+  },
+  {
+    id: "topbar-typography-logo-crop",
+    title: "نمایش کامل لوگوی تایپوگرافی در topbar",
+    summary: "حاشیه شفاف بزرگ فایل PNG با viewBox دقیق حذف شد تا تایپوگرافی آکادمی بزرگ‌تر و خواناتر در بالای سایت نمایش داده شود.",
+    publishedAt: "2026-07-30T04:30:00+03:30",
+    type: "fix",
+  },
+  {
     id: "new-font-library-and-ravagh",
     title: "کتابخانه فونت جدید و فونت رواق",
     summary: "مسیر فونت‌ها به پوشه font-w منتقل شد و فونت‌های دوران، ری و رواق در تنظیمات سایت آکادمی و مجله قابل انتخاب هستند.",

@@ -28,6 +28,7 @@ interface Enrollment {
   createdAt: string;
   course: CourseInfo;
 }
+interface Application { id: string; status: string; createdAt: string; course: CourseInfo & { startDate?: string | null }; }
 
 function formatPrice(price: number) {
   return price.toLocaleString("fa-IR");
@@ -35,6 +36,7 @@ function formatPrice(price: number) {
 
 export default function DashboardCoursesPage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -44,12 +46,10 @@ export default function DashboardCoursesPage() {
       if (!token) return;
 
       try {
-        const res = await fetch("/api/user/enrollments", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-        setEnrollments(data.enrollments || []);
+        const [res, applicationsRes] = await Promise.all([fetch("/api/user/enrollments", { headers: { Authorization: `Bearer ${token}` } }), fetch("/api/course-applications", { headers: { Authorization: `Bearer ${token}` } })]);
+        if (!res.ok || !applicationsRes.ok) throw new Error("Failed");
+        const [data, applicationData] = await Promise.all([res.json(), applicationsRes.json()]);
+        setEnrollments(data.enrollments || []); setApplications(applicationData.applications || []);
       } catch {
         setError(true);
       } finally {
@@ -85,7 +85,9 @@ export default function DashboardCoursesPage() {
         <p className="text-outline mt-1">دوره‌هایی که ثبت‌نام کرده‌اید</p>
       </div>
 
-      {enrollments.length === 0 ? (
+      {applications.length > 0 && <section className="mb-9"><h2 className="font-black text-primary mb-3">درخواست‌های ثبت‌نام</h2><div className="grid md:grid-cols-2 gap-4">{applications.map((application) => <Link href={`/courses/${application.course.slug}`} key={application.id} className="bg-white rounded-2xl border border-outline-variant/30 p-4 flex gap-4 hover:shadow-lg transition-shadow"><div className="w-20 h-20 rounded-xl overflow-hidden bg-surface-low shrink-0">{application.course.thumbnail && <img src={application.course.thumbnail} alt="" className="w-full h-full object-cover" />}</div><div className="min-w-0"><h3 className="font-bold text-primary truncate">{application.course.title}</h3><span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-bold ${application.status === "approved" ? "bg-green-50 text-green-700" : application.status === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}>{application.status === "approved" ? "تأیید شده" : application.status === "rejected" ? "رد شده" : "در انتظار بررسی"}</span><p className="text-[11px] text-outline mt-2">ارسال: {new Date(application.createdAt).toLocaleDateString("fa-IR")}</p></div></Link>)}</div></section>}
+
+      {enrollments.length === 0 && applications.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/30 p-12 text-center">
           <BookOpen size={64} className="mx-auto text-outline-variant mb-4" />
           <p className="text-outline text-lg mb-2">

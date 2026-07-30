@@ -38,7 +38,6 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
   const [sidebarColor, setSidebarColor] = useState("#03004b");
   const [sidebarLayout, setSidebarLayout] = useState("default");
 
@@ -58,7 +57,6 @@ export default function Navbar() {
       .then((r) => r.json())
       .then((d) => {
         if (!d.error) {
-          if (d.siteName) setSiteName(d.siteName);
           if (d.sidebarColor) setSidebarColor(d.sidebarColor);
           if (d.sidebarLayout) setSidebarLayout(d.sidebarLayout);
         }
@@ -122,10 +120,9 @@ export default function Navbar() {
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-3 shrink-0">
-              <img src={HEADER_LOGO} alt="لوگوی آکادمی امام روح‌الله" className="h-11 w-auto max-w-[116px] object-contain" />
-              <span className="text-secondary-fixed font-bold hidden sm:block text-sm">
-                {siteName}
-              </span>
+              <svg viewBox="330 610 1380 790" role="img" aria-label="آکادمی هنر و رسانه امام روح‌الله" className="h-14 md:h-16 w-auto max-w-[125px] md:max-w-[145px] overflow-visible">
+                <image href={HEADER_LOGO} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
+              </svg>
             </Link>
             <div className="hidden lg:block"><AnimatedSearchBar /></div>
           </div>

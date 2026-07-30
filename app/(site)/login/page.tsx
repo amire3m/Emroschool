@@ -35,6 +35,11 @@ export default function LoginPage() {
       }
 
       setCookie("token", data.token);
+      const redirect = new URLSearchParams(window.location.search).get("redirect");
+      if (redirect?.startsWith("/") && !redirect.startsWith("//")) {
+        router.push(redirect);
+        return;
+      }
       if (data.user?.role === "admin" || data.user?.role === "superadmin") {
         router.push("/admin");
       } else {

@@ -20,6 +20,8 @@ interface UserProfile {
   name: string;
   email: string;
   phone?: string;
+  province?: string; city?: string; address?: string; postalCode?: string; workHistory?: string; artHistory?: string;
+  educationLevel?: string; educationField?: string; instagramId?: string; virtualPhone?: string; landline?: string;
   avatar?: string;
   bio?: string;
   expertise?: string;
@@ -37,6 +39,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState("");
 
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [details, setDetails] = useState({ province: "", city: "", address: "", postalCode: "", workHistory: "", artHistory: "", educationLevel: "", educationField: "", instagramId: "", virtualPhone: "", landline: "" });
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [avatar, setAvatar] = useState("");
@@ -59,6 +64,9 @@ export default function ProfilePage() {
         const user = data.user;
         setProfile(user);
         setName(user.name || "");
+        setEmail(user.email || "");
+        setPhone(user.phone || "");
+        setDetails({ province: user.province || "", city: user.city || "", address: user.address || "", postalCode: user.postalCode || "", workHistory: user.workHistory || "", artHistory: user.artHistory || "", educationLevel: user.educationLevel || "", educationField: user.educationField || "", instagramId: user.instagramId || "", virtualPhone: user.virtualPhone || "", landline: user.landline || "" });
         setAvatar(user.avatar || "");
         setBio(user.bio || "");
         setExpertise(user.expertise || "");
@@ -88,7 +96,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, avatar, bio, expertise, socialLinks, profileVisible };
+      const body: Record<string, unknown> = { name, email, phone, ...details, avatar, bio, expertise, socialLinks, profileVisible };
       if (password) body.password = password;
 
       const res = await fetch("/api/user/profile", {
@@ -104,7 +112,8 @@ export default function ProfilePage() {
         const err = await res.json();
         throw new Error(err.error || "خطا در ذخیره");
       }
-
+      const data = await res.json();
+      setProfile((current) => current ? { ...current, ...data.user } : data.user);
       setSuccess("پروفایل با موفقیت بروزرسانی شد");
       setPassword("");
       setPasswordConfirm("");
@@ -187,9 +196,9 @@ export default function ProfilePage() {
             </label>
             <input
               type="email"
-              value={profile?.email || ""}
-              disabled
-              className="w-full bg-surface-variant border border-outline-variant rounded-xl px-4 py-3 text-sm text-outline cursor-not-allowed"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
             />
           </div>
 
@@ -200,9 +209,9 @@ export default function ProfilePage() {
             </label>
             <input
               type="text"
-              value={profile?.phone || ""}
-              disabled
-              className="w-full bg-surface-variant border border-outline-variant rounded-xl px-4 py-3 text-sm text-outline cursor-not-allowed"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
             />
           </div>
 
@@ -230,6 +239,16 @@ export default function ProfilePage() {
             rows={3}
             className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none resize-none"
           />
+        </div>
+
+        <div className="border-t border-outline-variant/20 pt-6 space-y-5">
+          <div><h3 className="font-bold text-primary">اطلاعات تکمیلی ثبت‌نام</h3><p className="text-xs text-outline mt-1">این اطلاعات در فرم دوره‌ها به‌صورت خودکار تکمیل می‌شود.</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {[{ key: "province", label: "استان" }, { key: "city", label: "شهر" }, { key: "postalCode", label: "کد پستی" }, { key: "educationLevel", label: "مقطع تحصیلی" }, { key: "educationField", label: "رشته تحصیلی" }, { key: "instagramId", label: "آیدی اینستاگرام" }, { key: "virtualPhone", label: "شماره فعال در فضای مجازی" }, { key: "landline", label: "تلفن ثابت" }].map((item) => <div key={item.key}><label className="block text-sm font-bold text-primary mb-1.5">{item.label}</label><input value={details[item.key as keyof typeof details]} onChange={(e) => setDetails((current) => ({ ...current, [item.key]: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>)}
+            <div className="md:col-span-2"><label className="block text-sm font-bold text-primary mb-1.5">آدرس محل سکونت</label><textarea rows={2} value={details.address} onChange={(e) => setDetails((current) => ({ ...current, address: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
+            <div><label className="block text-sm font-bold text-primary mb-1.5">سوابق کاری</label><textarea rows={3} value={details.workHistory} onChange={(e) => setDetails((current) => ({ ...current, workHistory: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
+            <div><label className="block text-sm font-bold text-primary mb-1.5">سوابق هنری</label><textarea rows={3} value={details.artHistory} onChange={(e) => setDetails((current) => ({ ...current, artHistory: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

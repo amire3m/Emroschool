@@ -12,18 +12,20 @@ async function getAdminUser(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const admin = await getAdminUser(req);
     const { searchParams } = new URL(req.url);
     const categoryName = searchParams.get("categoryName");
     const level = searchParams.get("level");
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = admin ? {} : { published: true };
     if (categoryName) where.categoryName = categoryName;
     if (level) where.level = level;
 
     const courses = await prisma.course.findMany({
       where,
       include: {
-        _count: { select: { gallery: true } },
+        parent: { select: { id: true, title: true, slug: true } },
+        _count: { select: { gallery: true, children: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -31,6 +33,7 @@ export async function GET(req: NextRequest) {
     const result = courses.map((course) => ({
       ...course,
       galleryCount: course._count.gallery,
+      childCount: course._count.children,
       _count: undefined,
     }));
 
@@ -63,11 +66,28 @@ export async function POST(req: NextRequest) {
       duration,
       published,
       featured,
+      courseType,
+      scheduleStatus,
+      startDate,
+      endDate,
+      registrationMode,
+      parentId,
     } = body;
 
     if (!title || !slug || !description) {
       return NextResponse.json({ error: "عنوان، اسلاگ و توضیحات الزامی است" }, { status: 400 });
     }
+    if (!["comprehensive", "single"].includes(courseType)) return NextResponse.json({ error: "نوع دوره نامعتبر است" }, { status: 400 });
+    if (!["upcoming", "completed"].includes(scheduleStatus)) return NextResponse.json({ error: "وضعیت زمانی دوره نامعتبر است" }, { status: 400 });
+    if (!["purchase", "registration"].includes(registrationMode)) return NextResponse.json({ error: "روش ثبت‌نام نامعتبر است" }, { status: 400 });
+    if (courseType === "comprehensive" && parentId) return NextResponse.json({ error: "دوره جامع نمی‌تواند فرزند دوره دیگری باشد" }, { status: 400 });
+    if (courseType === "comprehensive" && published) return NextResponse.json({ error: "ابتدا دوره جامع را به‌صورت پیش‌نویس بسازید، حداقل یک دوره فرزند به آن متصل کنید و سپس منتشر کنید" }, { status: 400 });
+    const parsedStartDate = startDate ? new Date(startDate) : null;
+    const parsedEndDate = endDate ? new Date(endDate) : null;
+    if (scheduleStatus === "upcoming" && (!parsedStartDate || Number.isNaN(parsedStartDate.getTime()))) return NextResponse.json({ error: "تاریخ شروع دوره آینده الزامی است" }, { status: 400 });
+    if (scheduleStatus === "completed" && (!parsedEndDate || Number.isNaN(parsedEndDate.getTime()))) return NextResponse.json({ error: "تاریخ پایان دوره برگزارشده الزامی است" }, { status: 400 });
+    const parent = parentId ? await prisma.course.findUnique({ where: { id: parentId } }) : null;
+    if (parentId && (!parent || parent.courseType !== "comprehensive")) return NextResponse.json({ error: "دوره والد باید یک دوره جامع معتبر باشد" }, { status: 400 });
 
     const category = categoryId
       ? await prisma.category.findUnique({ where: { id: categoryId } })
@@ -92,11 +112,18 @@ export async function POST(req: NextRequest) {
         duration: duration ?? null,
         published: published ?? false,
         featured: featured ?? false,
+        courseType,
+        scheduleStatus,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        registrationMode,
+        parentId: courseType === "single" ? parentId || null : null,
       },
     });
 
     return NextResponse.json({ course }, { status: 201 });
   } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "آدرس این دوره قبلاً استفاده شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در ایجاد دوره" }, { status: 500 });
   }
 }

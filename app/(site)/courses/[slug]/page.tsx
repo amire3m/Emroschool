@@ -11,8 +11,13 @@ import {
   Loader2,
   ChevronRight,
   ImageIcon,
+  CalendarDays,
+  ClipboardEdit,
+  CheckCircle2,
 } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
+import CourseRegistrationModal from "@/components/courses/course-registration-modal";
+import toast from "react-hot-toast";
 
 interface GalleryImage {
   id: string;
@@ -43,6 +48,13 @@ interface CourseDetail {
   gallery: GalleryImage[];
   images?: CourseImage[];
   _count: { enrollments: number };
+  courseType: "comprehensive" | "single";
+  scheduleStatus: "upcoming" | "completed";
+  startDate?: string | null;
+  endDate?: string | null;
+  registrationMode: "purchase" | "registration";
+  parent?: { id: string; title: string; slug: string } | null;
+  children?: Array<{ id: string; title: string; slug: string; thumbnail?: string | null; scheduleStatus: string; startDate?: string | null }>;
 }
 
 function formatPrice(price: number) {
@@ -72,6 +84,9 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [applicationSent, setApplicationSent] = useState(false);
 
   useEffect(() => {
     async function fetchCourse() {
@@ -117,6 +132,8 @@ export default function CourseDetailPage() {
               setIsEnrolled(true);
             }
           }
+          const applicationRes = await fetch("/api/course-applications", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+          if (applicationRes?.ok) { const applicationData = await applicationRes.json(); const application = applicationData.applications?.find((item: { courseId: string }) => item.courseId === found.id); if (application) setApplicationStatus(application.status); }
         }
       } catch {
         setNotFound(true);
@@ -193,6 +210,7 @@ export default function CourseDetailPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
+              {course.parent && <button onClick={() => router.push(`/courses/${course.parent?.slug}`)} className="bg-primary text-secondary-fixed text-xs font-bold px-3 py-1 rounded-full">زیرمجموعه {course.parent.title}</button>}
               {course.categoryName && (
                 <span className="bg-secondary-fixed/30 text-secondary text-xs font-bold px-3 py-1 rounded-full">
                   {course.categoryName}
@@ -209,6 +227,7 @@ export default function CourseDetailPage() {
                   {course.duration}
                 </span>
               )}
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزار شده" : `شروع: ${course.startDate ? new Date(course.startDate).toLocaleDateString("fa-IR") : "به‌زودی"}`}</span>
             </div>
 
             <h1 className="text-2xl md:text-3xl font-bold text-primary mb-3">
@@ -236,6 +255,7 @@ export default function CourseDetailPage() {
             <div className="prose prose-sm max-w-none text-on-background leading-relaxed whitespace-pre-line">
               {course.description}
             </div>
+            {course.courseType === "comprehensive" && course.children && course.children.length > 0 && <div className="mt-10"><h2 className="text-xl font-black text-primary mb-4">دوره‌های این مجموعه جامع</h2><div className="grid sm:grid-cols-2 gap-4">{course.children.map((child) => <button key={child.id} onClick={() => router.push(`/courses/${child.slug}`)} className="text-right bg-white border border-surface-variant rounded-2xl p-3 flex gap-3 hover:shadow-lg hover:-translate-y-1 transition-all"><div className="w-20 h-20 rounded-xl bg-surface-low overflow-hidden shrink-0">{child.thumbnail && <img src={child.thumbnail} alt="" className="w-full h-full object-cover" />}</div><div><p className="font-bold text-primary line-clamp-2">{child.title}</p><p className="text-xs text-outline mt-2">{child.startDate ? new Date(child.startDate).toLocaleDateString("fa-IR") : child.scheduleStatus === "completed" ? "برگزار شده" : "به‌زودی"}</p></div></button>)}</div></div>}
           </div>
 
           <div>
@@ -254,17 +274,12 @@ export default function CourseDetailPage() {
                 )}
               </div>
 
-              {isEnrolled ? (
+              {course.scheduleStatus === "completed" ? <button disabled className="w-full bg-surface-variant text-outline py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-3"><CheckCircle2 size={18} />این دوره به پایان رسیده است</button> : isEnrolled ? (
                 <button className="w-full bg-secondary text-white py-3 rounded-xl font-bold hover:bg-secondary-container hover:text-on-secondary-fixed transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3">
                   <Play size={18} />
                   ادامه یادگیری
                 </button>
-              ) : (
-                <button className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3">
-                  <ShoppingCart size={18} />
-                  خرید و ثبت‌نام
-                </button>
-              )}
+              ) : course.registrationMode === "registration" ? applicationStatus ? <div className={`w-full py-3 rounded-xl font-bold text-center mb-3 ${applicationStatus === "approved" ? "bg-green-50 text-green-700" : applicationStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}>{applicationStatus === "approved" ? "درخواست شما تأیید شده" : applicationStatus === "rejected" ? "درخواست شما رد شده" : "درخواست شما در انتظار بررسی است"}</div> : <button onClick={() => { if (!getCookie("token")) { router.push(`/login?redirect=${encodeURIComponent(`/courses/${slug}`)}`); return; } setRegistrationOpen(true); }} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"><ClipboardEdit size={18} />تکمیل فرم ثبت‌نام</button> : <button onClick={() => toast("اتصال به درگاه خرید در مرحله بعد انجام می‌شود")} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"><ShoppingCart size={18} />خرید و ثبت‌نام</button>}
 
               <p className="text-xs text-outline text-center">
                 تضمین کیفیت آموزش
@@ -293,6 +308,8 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </div>
+      {registrationOpen && <CourseRegistrationModal courseId={course.id} courseTitle={course.title} onClose={() => setRegistrationOpen(false)} onSuccess={(profileUpdated) => { setRegistrationOpen(false); setApplicationStatus("pending"); setApplicationSent(true); if (profileUpdated) toast.success("نام، ایمیل یا موبایل حساب کاربری شما نیز بروزرسانی شد"); }} />}
+      {applicationSent && <div className="modal-overlay" onClick={() => setApplicationSent(false)}><div className="modal-content max-w-md text-center" onClick={(event) => event.stopPropagation()}><div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto"><CheckCircle2 size={30} /></div><h2 className="text-xl font-black text-primary mt-5">درخواست شما ثبت شد</h2><p className="text-sm text-outline leading-7 mt-2">اطلاعات شما برای دوره «{course.title}» ارسال شد و پس از بررسی، وضعیت آن در پنل کاربری قابل مشاهده است.</p><button onClick={() => setApplicationSent(false)} className="mt-6 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold">متوجه شدم</button></div></div>}
     </div>
   );
 }

@@ -15,6 +15,17 @@ model User {
   role      String   @default("user")    // superadmin | admin | user
   userType  String   @default("student") // student | instructor | alumni | admin
   phone     String?
+  province  String?
+  city      String?
+  address   String?
+  postalCode String?
+  workHistory String?
+  artHistory String?
+  educationLevel String?
+  educationField String?
+  instagramId String?
+  virtualPhone String?
+  landline String?
   avatar    String?
   bio       String?
   expertise String?
@@ -25,6 +36,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   enrollments   Enrollment[]
+  courseApplications CourseApplication[]
   notifications UserNotification[]
   instructor    Instructor?
   alumni        Alumni?
@@ -79,6 +91,11 @@ model Course {
   featured    Boolean  @default(false)
   notifyOnPublish Boolean @default(false)
   notifyChannel  String?  // email | sms | both
+  courseType     String   @default("single") // comprehensive | single
+  scheduleStatus String   @default("upcoming") // upcoming | completed
+  startDate      DateTime?
+  endDate        DateTime?
+  registrationMode String @default("purchase") // purchase | registration
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -89,6 +106,10 @@ model Course {
   category     Category?   @relation(fields: [categoryId], references: [id])
   events       EventCourse[]
   notifications Notification[]
+  applications  CourseApplication[]
+  parentId      String?
+  parent        Course?  @relation("CourseHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Course[] @relation("CourseHierarchy")
 }
 
 model CourseImage {
@@ -118,6 +139,37 @@ model Enrollment {
   progress  Int      @default(0)
   completed Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model CourseApplication {
+  id                   String   @id @default(cuid())
+  status               String   @default("pending") // pending | approved | rejected
+  fullName             String
+  email                String
+  phone                String
+  province             String
+  city                 String
+  address              String
+  postalCode           String
+  workHistory          String?
+  artHistory           String?
+  educationLevel       String
+  educationField       String
+  reason               String
+  knowsInstructors     Boolean  @default(false)
+  familiarityDetails   String?
+  instagramId          String?
+  virtualPhone         String
+  landline             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)

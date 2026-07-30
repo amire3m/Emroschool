@@ -21,6 +21,7 @@ import {
   Settings,
   HardDrive,
   History,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
@@ -44,6 +45,7 @@ interface MenuGroup {
 const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
   { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
+  { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "courses" },
   { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
   { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
@@ -77,6 +79,7 @@ const pageTitles: Record<string, string> = {
   "/admin": "داشبورد",
   "/admin/slider": "مدیریت اسلایدر",
   "/admin/courses": "مدیریت دوره‌ها",
+  "/admin/applications": "درخواست‌های ثبت‌نام دوره‌ها",
   "/admin/categories": "دسته‌بندی دوره‌ها",
   "/admin/events": "مدیریت رویدادها",
   "/admin/instructors": "مدیریت اساتید",

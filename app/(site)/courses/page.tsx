@@ -18,6 +18,10 @@ interface Course {
   rating: number;
   ratingCount: number;
   duration?: string;
+  courseType?: string;
+  scheduleStatus?: string;
+  startDate?: string | null;
+  childCount?: number;
 }
 
 interface Category {
@@ -165,6 +169,7 @@ export default function CoursesPage() {
                       {course.categoryName}
                     </div>
                   )}
+                  <div className="absolute top-3 left-3 flex flex-col items-end gap-1.5"><span className={`text-[10px] font-bold px-2 py-1 rounded ${course.scheduleStatus === "completed" ? "bg-white/90 text-outline" : "bg-blue-600 text-white"}`}>{course.scheduleStatus === "completed" ? "برگزار شده" : course.startDate ? new Date(course.startDate).toLocaleDateString("fa-IR") : "به‌زودی"}</span>{course.courseType === "comprehensive" && <span className="bg-primary text-secondary-fixed text-[10px] font-bold px-2 py-1 rounded">دوره جامع · {(course.childCount || 0).toLocaleString("fa-IR")} زیر‌دوره</span>}</div>
                 </div>
                 <div className="p-5">
                   {course.instructor && (

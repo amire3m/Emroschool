@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     if (!course) {
       return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     }
+    if (course.scheduleStatus === "completed") return NextResponse.json({ error: "این دوره به پایان رسیده است" }, { status: 400 });
+    if (course.registrationMode === "registration") return NextResponse.json({ error: "ثبت‌نام این دوره فقط از طریق فرم درخواست انجام می‌شود" }, { status: 400 });
 
     const existing = await prisma.enrollment.findUnique({
       where: { userId_courseId: { userId: user.id, courseId } },
@@ -57,6 +59,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const courseId = new URL(req.url).searchParams.get("courseId");
+    if (courseId) {
+      const enrollment = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId } } });
+      return NextResponse.json({ enrolled: Boolean(enrollment), enrollment });
+    }
     const enrollments = await prisma.enrollment.findMany({
       where: { userId: user.id },
       include: {

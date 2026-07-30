@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         phone: true,
+        province: true, city: true, address: true, postalCode: true,
+        workHistory: true, artHistory: true, educationLevel: true, educationField: true,
+        instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
         bio: true,
         expertise: true,
@@ -61,10 +64,23 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
+    const { name, email, phone, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = String(email).trim().toLowerCase();
+    if (phone !== undefined) data.phone = String(phone).trim() || null;
+    if (province !== undefined) data.province = province || null;
+    if (city !== undefined) data.city = city || null;
+    if (address !== undefined) data.address = address || null;
+    if (postalCode !== undefined) data.postalCode = postalCode || null;
+    if (workHistory !== undefined) data.workHistory = workHistory || null;
+    if (artHistory !== undefined) data.artHistory = artHistory || null;
+    if (educationLevel !== undefined) data.educationLevel = educationLevel || null;
+    if (educationField !== undefined) data.educationField = educationField || null;
+    if (instagramId !== undefined) data.instagramId = instagramId || null;
+    if (virtualPhone !== undefined) data.virtualPhone = virtualPhone || null;
+    if (landline !== undefined) data.landline = landline || null;
     if (avatar !== undefined) data.avatar = avatar;
     if (bio !== undefined) data.bio = bio;
     if (expertise !== undefined) data.expertise = expertise;
@@ -82,6 +98,9 @@ export async function PUT(req: NextRequest) {
         name: true,
         email: true,
         phone: true,
+        province: true, city: true, address: true, postalCode: true,
+        workHistory: true, artHistory: true, educationLevel: true, educationField: true,
+        instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
         bio: true,
         expertise: true,
@@ -95,6 +114,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ user });
   } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این ایمیل قبلاً برای حساب دیگری ثبت شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در بروزرسانی پروفایل" }, { status: 500 });
   }
 }
