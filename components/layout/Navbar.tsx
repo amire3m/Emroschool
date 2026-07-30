@@ -14,7 +14,7 @@ const navLinks = [
   { label: "مجله", href: MAGAZINE_SITE },
   { label: "اساتید", href: "/instructors" },
   { label: "هنر آموختگان", href: "/honar-amooztegan" },
-  { label: "درباره ما", href: "/#about" },
+  { label: "درباره ما", href: "/about" },
 ];
 
 const HEADER_LOGO = "https://imamruhollahschool.com/uploads/1785365353558-5c082fe5-logo-main.png";
@@ -120,7 +120,7 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-300 ${
           scrolled
             ? "backdrop-blur-md shadow-sm"
             : ""

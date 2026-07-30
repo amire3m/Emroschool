@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "about-contact-page-and-footer-address",
+    title: "صفحه درباره آکادمی و تماس با ما",
+    summary: "صفحه اختصاصی معرفی و تماس، آدرس کامل زیر نقشه و چیدمان جدید لوگوی فوتر اضافه شد.",
+    publishedAt: "2026-07-30T08:00:00+03:30",
+    type: "feature",
+  },
+  {
     id: "footer-social-icons-and-font-weights",
     title: "بهبود وزن فونت‌ها و شبکه‌های اجتماعی فوتر",
     summary: "وزن مناسب خانواده فونت‌ها برای تیترها اعمال شد و لینک‌های اینستاگرام و بله با لوگو زیر معرفی آکادمی قرار گرفتند.",

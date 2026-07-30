@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { APP_VERSION } from "@/lib/version";
 
 export default function Footer() {
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
@@ -26,10 +25,10 @@ export default function Footer() {
       <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="text-right">
-            <div className="flex items-center gap-3 mb-6 justify-end">
-              <div className="w-14 h-14 rounded-full bg-secondary-fixed flex items-center justify-center overflow-hidden">
-                <img src={siteLogo} alt="لوگو" className="w-full h-full object-cover" />
-              </div>
+             <div className="flex items-center justify-end mb-6">
+               <svg viewBox="330 610 1380 790" role="img" aria-label="آکادمی هنر و رسانه امام روح‌الله" className="h-16 w-auto max-w-[170px] overflow-visible">
+                 <image href={siteLogo} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
+               </svg>
             </div>
             <p className="text-sm leading-loose opacity-80 mb-8">
               {siteName}، نهادی تخصصی برای تربیت نیروی
@@ -88,7 +87,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="#"
+                     href="#"
                     className="hover:text-secondary-fixed transition-colors"
                   >
                     همایش‌ها
@@ -96,7 +95,7 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="#"
+                     href="#"
                     className="hover:text-secondary-fixed transition-colors"
                   >
                     فراخوان‌های هنری
@@ -109,7 +108,7 @@ export default function Footer() {
               <ul className="space-y-3 text-sm opacity-80">
                 <li>
                   <Link
-                    href="#"
+                     href="/about#contact"
                     className="hover:text-secondary-fixed transition-colors"
                   >
                     تماس با ما
@@ -145,15 +144,16 @@ export default function Footer() {
 
           <div className="flex flex-col gap-3">
             <h5 className="text-secondary-fixed font-bold flex items-center gap-2"><MapPin size={17} />موقعیت آکادمی</h5>
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><iframe title="موقعیت آکادمی امام روح‌الله روی نقشه" src="https://www.google.com/maps?q=35.699257969493395,51.39662703655142&z=16&output=embed" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="w-full h-full border-0 grayscale-[35%]" /></div>
-            <a href="https://www.google.com/maps?q=35.699257969493395,51.39662703655142" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مشاهده مسیر در نقشه</a>
+             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><iframe title="موقعیت آکادمی امام روح‌الله روی نقشه" src="https://www.google.com/maps?q=35.699257969493395,51.39662703655142&z=16&output=embed" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="w-full h-full border-0 grayscale-[35%]" /></div>
+             <p className="text-sm leading-7 text-white/70">تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72</p>
+             <a href="https://www.google.com/maps?q=35.699257969493395,51.39662703655142" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مشاهده مسیر در نقشه</a>
           </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
            <div className="flex gap-6">
-             <span>نسخه {APP_VERSION}</span>
+             <span>نسخه ۲</span>
            </div>
         </div>
       </div>
