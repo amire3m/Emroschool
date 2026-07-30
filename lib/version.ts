@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "unique-google-oauth-brand-identity",
+    title: "هویت یکتای Branding گوگل",
+    summary: "نام انگلیسی یکتای آکادمی و لوگوی رسمی آن در صفحه OAuth برای تطابق با Consent Screen اضافه شد.",
+    publishedAt: "2026-07-31T03:00:00+03:30",
+    type: "fix",
+  },
+  {
     id: "public-privacy-policy-for-google-oauth",
     title: "حریم خصوصی عمومی برای OAuth گوگل",
     summary: "Privacy Policy عمومی روی دامنه اصلی ایجاد و از صفحه معرفی OAuth و فوتر قابل دسترس شد.",
