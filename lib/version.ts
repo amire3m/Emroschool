@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "two-line-admin-content-urls",
+    title: "نمایش دوخطی آدرس محتوا",
+    summary: "مسیر ثابت و slug قابل‌ویرایش در فرم‌های محتوا برای خوانایی بهتر در دو خط نمایش داده می‌شوند.",
+    publishedAt: "2026-07-30T10:25:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "admin-content-link-controls",
     title: "کنترل لینک در فهرست مدیریت محتوا",
     summary: "آیکن کپی لینک کنار مداد و حذف دوره‌ها، رویدادها و گالری اضافه و جهت نمایش آدرس فرم‌ها اصلاح شد.",

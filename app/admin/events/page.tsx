@@ -424,16 +424,14 @@ export default function AdminEvents() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
-                   <div className="flex items-stretch gap-0" dir="ltr">
-                     <span className="inline-flex items-center px-3 py-2.5 rounded-l-xl border border-r-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap">
-                       imamruhollahschool.com/events/
-                    </span>
-                    <input
+                   <div className="space-y-1.5" dir="ltr">
+                     <div className="w-full rounded-xl border border-surface-variant bg-surface-low px-3 py-2 text-xs text-outline select-none">imamruhollahschool.com/events/</div>
+                     <input
                       type="text"
                       required
                       value={form.slug}
                       onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                       className="flex-1 min-w-0 px-3 py-2.5 rounded-r-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                       className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                       style={{ fontFamily: "'Courier New', monospace" }}
                     />
                   </div>
