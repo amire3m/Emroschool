@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 import { APP_VERSION } from "@/lib/version";
+import { getFontFamily } from "@/lib/fonts";
 
 interface MenuLink {
   href: string;
@@ -132,7 +133,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .then((data) => {
         if (!data.error) {
           setSettings(data);
-          document.documentElement.style.setProperty("--site-font", `'${data.siteFont === "kay" ? "Kay" : "Foran"}', sans-serif`);
+          document.documentElement.style.setProperty("--site-font", `'${getFontFamily(data.siteFont)}', sans-serif`);
           if (data.bgColor) document.body.style.backgroundColor = data.bgColor;
         }
       })

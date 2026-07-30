@@ -246,16 +246,21 @@ export default function AdminSettings() {
             <h3 className="font-bold text-primary text-lg">قلم (فونت) سایت</h3>
             <div>
               <label className="block text-sm font-medium text-primary mb-2">فونت انتخابی</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button onClick={() => updateField("siteFont", "foran")}
                   className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "foran" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">فونت Foran</span>
-                  <span className="text-sm text-outline font-foran">نمایش متن با فونت فوران</span>
+                  <span className="block font-bold text-primary">فونت دوران</span>
+                  <span className="text-sm text-outline font-foran">نمایش متن با فونت دوران</span>
                 </button>
                 <button onClick={() => updateField("siteFont", "kay")}
                   className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "kay" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">فونت Kay</span>
-                  <span className="text-sm text-outline font-kay">نمایش متن با فونت کی</span>
+                  <span className="block font-bold text-primary">فونت ری</span>
+                  <span className="text-sm text-outline font-kay">نمایش متن با فونت ری</span>
+                </button>
+                <button onClick={() => updateField("siteFont", "ravagh")}
+                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "ravagh" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
+                  <span className="block font-bold text-primary">فونت رواق</span>
+                  <span className="text-sm text-outline font-ravagh">نمایش متن با فونت رواق و اعداد فارسی</span>
                 </button>
               </div>
             </div>

@@ -21,8 +21,9 @@ const config: Config = {
         "error-container": "#ffdad6",
       },
       fontFamily: {
-        foran: ["Foran", "sans-serif"],
-        kay: ["Kay", "sans-serif"],
+        foran: ["Doran", "sans-serif"],
+        kay: ["Ray", "sans-serif"],
+        ravagh: ["Ravagh", "sans-serif"],
       },
     },
   },

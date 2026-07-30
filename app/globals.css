@@ -5,92 +5,89 @@
 @tailwind utilities;
 
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 100;
-  src: url('/fonts/woff/Foran-Thin.woff') format('woff'),
-       url('/fonts/woff2/Foran-Thin.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-Thin.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-Thin.woff') format('woff');
 }
-
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 300;
-  src: url('/fonts/woff/Foran-Light.woff') format('woff'),
-       url('/fonts/woff2/Foran-Light.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-Light.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-Light.woff') format('woff');
 }
-
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 400;
-  src: url('/fonts/woff/Foran-Regular.woff') format('woff'),
-       url('/fonts/woff2/Foran-Regular.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-Regular.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-Regular.woff') format('woff');
 }
-
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 500;
-  src: url('/fonts/woff/Foran-Medium.woff') format('woff'),
-       url('/fonts/woff2/Foran-Medium.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-Medium.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-Medium.woff') format('woff');
 }
-
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 700;
-  src: url('/fonts/woff/Foran-Bold.woff') format('woff'),
-       url('/fonts/woff2/Foran-Bold.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-Bold.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-Bold.woff') format('woff');
 }
-
 @font-face {
-  font-family: Foran;
+  font-family: Doran;
   font-style: normal;
   font-weight: 800;
-  src: url('/fonts/woff/Foran-ExtraBold.woff') format('woff'),
-       url('/fonts/woff2/Foran-ExtraBold.woff2') format('woff2');
+  src: url('../font-w/Webfonts/Doran/woff2/Dopink-ExtraBold.woff2') format('woff2'), url('../font-w/Webfonts/Doran/woff/Dopink-ExtraBold.woff') format('woff');
 }
-
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 300;
-  src: url('/fonts/ttf/Kay-Light.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray_Light.ttf') format('truetype');
 }
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 500;
-  src: url('/fonts/ttf/Kay-Medium.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray-Medium.ttf') format('truetype');
 }
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 700;
-  src: url('/fonts/ttf/Kay-Bold.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray_Bold.ttf') format('truetype');
 }
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 800;
-  src: url('/fonts/ttf/Kay-ExtraBold.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray_ExtraBold.ttf') format('truetype');
 }
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 900;
-  src: url('/fonts/ttf/Kay-Black.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray_Black.ttf') format('truetype');
 }
 @font-face {
-  font-family: Kay;
+  font-family: Ray;
   font-style: normal;
   font-weight: 950;
-  src: url('/fonts/ttf/Kay-ExtraBlack.ttf') format('truetype');
+  src: url('../font-w/Webfonts/Ray Family/Ray_ExtraBlack.ttf') format('truetype');
 }
 
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 200; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-ExtraLight.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-ExtraLight.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 300; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-Light.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-Light.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 400; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-Regular.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-Regular.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 500; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-Medium.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-Medium.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 600; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-SemiBold.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-SemiBold.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 700; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-Bold.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-Bold.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 800; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-ExtraBold.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-ExtraBold.woff') format('woff'); }
+@font-face { font-family: Ravagh; font-style: normal; font-weight: 900; src: url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff2/RavaghFaNum-Black.woff2') format('woff2'), url('../font-w/Webfonts/Ravagh Pro/FaNum Webfont/Woff/RavaghFaNum-Black.woff') format('woff'); }
+
 :root {
-  --site-font: 'Foran', sans-serif;
+  --site-font: 'Doran', sans-serif;
 }
 
 body {

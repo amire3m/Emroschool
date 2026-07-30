@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "new-font-library-and-ravagh",
+    title: "کتابخانه فونت جدید و فونت رواق",
+    summary: "مسیر فونت‌ها به پوشه font-w منتقل شد و فونت‌های دوران، ری و رواق در تنظیمات سایت آکادمی و مجله قابل انتخاب هستند.",
+    publishedAt: "2026-07-30T04:04:42+03:30",
+    type: "improvement",
+  },
+  {
     id: "magazine-font-setting",
     title: "انتخاب فونت مستقل مجله",
     summary: "انتخاب فونت کلی فران یا کی به تنظیمات مجله اضافه شد و روی تمام صفحات عمومی و پنل تحریریه اعمال می‌شود.",
