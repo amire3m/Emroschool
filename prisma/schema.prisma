@@ -17,6 +17,7 @@ model User {
   userType  String   @default("student") // student | instructor | alumni | admin
   phone     String?
   phoneVerified Boolean @default(false)
+  birthDate String?
   province  String?
   city      String?
   address   String?
@@ -175,6 +176,7 @@ model CourseApplication {
   fullName             String
   email                String
   phone                String
+  birthDate            String?
   province             String
   city                 String
   address              String

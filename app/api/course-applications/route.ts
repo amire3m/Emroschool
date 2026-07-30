@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "برای ثبت‌نام ابتدا وارد حساب کاربری شوید" }, { status: 401 });
   try {
     const body = await req.json();
-    const requiredFields = ["courseId", "fullName", "email", "phone", "province", "city", "address", "postalCode", "educationLevel", "educationField", "reason", "virtualPhone"];
+     const requiredFields = ["courseId", "fullName", "email", "phone", "birthDate", "province", "city", "address", "educationLevel", "educationField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
     if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
     const course = await prisma.course.findUnique({ where: { id: body.courseId } });
@@ -53,18 +53,18 @@ export async function POST(req: NextRequest) {
 
     const application = await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
-        name: fullName, email, phone, province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode.trim(),
+         name: fullName, email, phone, birthDate: body.birthDate.trim(), province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), instagramId: body.instagramId?.trim() || null,
         virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
       } });
       return tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone,
-        province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode.trim(),
+         province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), reason: body.reason.trim(),
         knowsInstructors: Boolean(body.knowsInstructors), familiarityDetails: body.knowsInstructors ? body.familiarityDetails.trim() : null,
-        instagramId: body.instagramId?.trim() || null, virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
+         instagramId: body.instagramId.trim(), virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
       } });
     });
     return NextResponse.json({ application, profileUpdated }, { status: 201 });

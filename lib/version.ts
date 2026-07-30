@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "registration-form-fields-and-course-price-visibility",
+    title: "تکمیل فرم ثبت‌نام دوره‌ها",
+    summary: "تاریخ تولد، سوابق و آیدی اینستاگرام به‌صورت الزامی اضافه شد، کد پستی اختیاری شد و قیمت از کارت دوره‌های صفحه اصلی حذف شد.",
+    publishedAt: "2026-07-30T07:00:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "instant-auth-navbar-and-dashboard-spacing",
     title: "به‌روزرسانی آنی وضعیت ورود",
     summary: "وضعیت ورود نوار بالایی پس از ثبت‌نام یا ورود بدون رفرش به‌روزرسانی می‌شود و فاصله داشبورد از topbar اصلاح شد.",

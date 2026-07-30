@@ -542,18 +542,7 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center border-t border-outline-variant/20 pt-3">
-                      <div className="flex flex-col">
-                        {course.oldPrice && course.oldPrice > course.price && (
-                          <span className="text-outline text-xs line-through">
-                            {formatPrice(course.oldPrice)}
-                          </span>
-                        )}
-                        <div className="text-primary font-black text-base md:text-lg">
-                          {formatPrice(course.price)}{" "}
-                          <span className="text-xs font-normal">تومان</span>
-                        </div>
-                      </div>
+                    <div className="flex justify-end items-center border-t border-outline-variant/20 pt-3">
                       <div className="bg-primary/5 hover:bg-primary/10 p-2 rounded-full transition-colors">
                         <span className="text-primary text-sm font-bold">
                           مشاهده

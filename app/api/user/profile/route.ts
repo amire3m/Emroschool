@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         email: true,
-        phone: true,
+         phone: true, birthDate: true,
         province: true, city: true, address: true, postalCode: true,
         workHistory: true, artHistory: true, educationLevel: true, educationField: true,
         instagramId: true, virtualPhone: true, landline: true,
@@ -64,12 +64,13 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, phone, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
+    const { name, email, phone, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
     if (email !== undefined) data.email = String(email).trim().toLowerCase();
     if (phone !== undefined) data.phone = String(phone).trim() || null;
+    if (birthDate !== undefined) data.birthDate = birthDate || null;
     if (province !== undefined) data.province = province || null;
     if (city !== undefined) data.city = city || null;
     if (address !== undefined) data.address = address || null;
@@ -97,7 +98,7 @@ export async function PUT(req: NextRequest) {
         id: true,
         name: true,
         email: true,
-        phone: true,
+         phone: true, birthDate: true,
         province: true, city: true, address: true, postalCode: true,
         workHistory: true, artHistory: true, educationLevel: true, educationField: true,
         instagramId: true, virtualPhone: true, landline: true,
