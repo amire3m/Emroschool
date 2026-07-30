@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "english-google-oauth-branding-page",
+    title: "صفحه انگلیسی معرفی OAuth گوگل",
+    summary: "صفحه مستقل انگلیسی برای معرفی نام برنامه، هدف ورود گوگل، داده‌های دریافت‌شده و اختیاری‌بودن آن اضافه شد.",
+    publishedAt: "2026-07-31T02:15:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "google-oauth-purpose-disclosure",
     title: "شفاف‌سازی هدف ورود گوگل",
     summary: "هدف سامانه و استفاده اختیاری از ورود گوگل، داده‌های دریافت‌شده و کاربرد آن‌ها به‌صورت صریح در صفحه اصلی درج شد.",
