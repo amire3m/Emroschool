@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "independent-magazine-platform",
+    title: "استقلال سایت و پنل مجله",
+    summary: "مجله روی ساب‌دامین پوسته، تنظیمات و پنل تحریریه مستقل دارد؛ حساب و اعلان‌ها مشترک مانده‌اند و مسیرهای اختصاصی آکادمی از ساب‌دامین به دامنه اصلی هدایت می‌شوند.",
+    publishedAt: "2026-07-30T03:48:12+03:30",
+    type: "feature",
+  },
+  {
     id: "academy-magazine-publishing-flow",
     title: "هویت آکادمی و تأیید انتشار روایت",
     summary: "عنوان‌های مجله به آکادمی اصلاح شد، نمایش متن فارسی بهبود یافت و پس از انتشار، صفحه موفقیت همراه لینک مستقیم روایت نمایش داده می‌شود.",

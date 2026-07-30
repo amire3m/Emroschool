@@ -22,7 +22,6 @@ import {
   HardDrive,
   History,
   type LucideIcon,
-  Newspaper,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 import { APP_VERSION } from "@/lib/version";
@@ -46,7 +45,6 @@ const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
   { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
   { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
-  { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: "news" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
@@ -80,7 +78,6 @@ const pageTitles: Record<string, string> = {
   "/admin/courses": "مدیریت دوره‌ها",
   "/admin/categories": "دسته‌بندی دوره‌ها",
   "/admin/events": "مدیریت رویدادها",
-  "/admin/news": "مدیریت اخبار",
   "/admin/instructors": "مدیریت اساتید",
   "/admin/alumni": "مدیریت هنرآموختگان",
   "/admin/gallery": "گالری تصاویر",

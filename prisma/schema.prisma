@@ -258,6 +258,19 @@ model NewsPost {
   updatedAt   DateTime @updatedAt
 }
 
+model MagazineSetting {
+  id              Int      @id @default(autoincrement())
+  title           String   @default("مجله آکادمی امام روح‌الله (ره)")
+  description     String   @default("روایت‌هایی از مسیر یادگیری، تجربه اساتید و داستان هنرآموختگان")
+  logo            String?
+  heroLabel       String   @default("مجله آکادمی امام روح‌الله (ره)")
+  heroTitle       String   @default("خبر فقط اتفاق نیست؛")
+  heroHighlight   String   @default("روایتی‌ست که می‌ماند.")
+  heroDescription String   @default("اینجا از مسیر دوره‌ها، تجربه اساتید و داستان هنرآموختگان می‌نویسیم؛ جایی برای دیدن پشت صحنه رشد.")
+  accentColor     String   @default("#ffdeab")
+  updatedAt       DateTime @updatedAt
+}
+
 model UserNotification {
   id             String       @id @default(cuid())
   read           Boolean      @default(false)

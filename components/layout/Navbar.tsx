@@ -6,11 +6,12 @@ import { Menu, X, Search, Bell, CheckCheck } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
 import AnimatedSearchBar from "@/components/ui/animated-search-bar";
 
+const MAGAZINE_SITE = process.env.NEXT_PUBLIC_MAGAZINE_URL || "https://mag.imamruhollahschool.com";
 const navLinks = [
   { label: "صفحه اصلی", href: "/" },
   { label: "دوره‌ها", href: "/courses" },
   { label: "رویدادها", href: "/events" },
-  { label: "اخبار", href: "/news" },
+  { label: "مجله", href: MAGAZINE_SITE },
   { label: "اساتید", href: "/instructors" },
   { label: "هنر آموختگان", href: "/honar-amooztegan" },
   { label: "درباره ما", href: "/#about" },

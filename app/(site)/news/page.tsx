@@ -11,6 +11,7 @@ interface NewsPost {
   id: string; title: string; slug: string; excerpt: string; content: string; coverImage: string | null;
   category: string; authorName: string | null; featured: boolean; publishedAt: string | null; createdAt: string;
 }
+interface MagazineSettings { heroLabel: string; heroTitle: string; heroHighlight: string; heroDescription: string; accentColor: string; }
 
 const categoryLabels: Record<string, string> = { general: "خبر آکادمی", course: "دوره‌ها", instructor: "اساتید", alumni: "هنرآموختگان" };
 const filters = [{ value: "all", label: "همه روایت‌ها" }, ...Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))];
@@ -25,11 +26,12 @@ export default function NewsPage() {
   const [canPublish, setCanPublish] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [publishedResult, setPublishedResult] = useState<{ title: string; url: string } | null>(null);
+  const [magazineSettings, setMagazineSettings] = useState<MagazineSettings>({ heroLabel: "مجله آکادمی امام روح‌الله (ره)", heroTitle: "خبر فقط اتفاق نیست؛", heroHighlight: "روایتی‌ست که می‌ماند.", heroDescription: "اینجا از مسیر دوره‌ها، تجربه اساتید و داستان هنرآموختگان می‌نویسیم؛ جایی برای دیدن پشت صحنه رشد.", accentColor: "#ffdeab" });
   const heroRef = useRef<HTMLElement>(null);
   const cursorGlowRef = useRef<HTMLDivElement>(null);
 
   function fetchNews() { setLoading(true); return fetch("/api/news").then((response) => response.json()).then((data) => setNews(data.news || [])).finally(() => setLoading(false)); }
-  useEffect(() => { fetchNews(); const token = getCookie("token"); if (token) fetch("/api/auth/me", { headers: { authorization: `Bearer ${token}` } }).then((response) => response.json()).then(({ user }) => { if (!user || !["admin", "superadmin"].includes(user.role)) return; if (user.role === "superadmin" || !user.permissions) setCanPublish(true); else { try { const permissions = JSON.parse(user.permissions); setCanPublish(Array.isArray(permissions) && (permissions.length === 0 || permissions.includes("news"))); } catch {} } }).catch(() => {}); }, []);
+  useEffect(() => { fetchNews(); fetch("/api/magazine-settings").then((response) => response.json()).then((data) => { if (!data.error) setMagazineSettings(data); }).catch(() => {}); const token = getCookie("token"); if (token) fetch("/api/auth/me", { headers: { authorization: `Bearer ${token}` } }).then((response) => response.json()).then(({ user }) => { if (!user || !["admin", "superadmin"].includes(user.role)) return; if (user.role === "superadmin" || !user.permissions) setCanPublish(true); else { try { const permissions = JSON.parse(user.permissions); setCanPublish(Array.isArray(permissions) && (permissions.length === 0 || permissions.includes("news"))); } catch {} } }).catch(() => {}); }, []);
   useEffect(() => {
     if (!window.matchMedia("(pointer: fine)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const move = (event: MouseEvent) => { if (cursorGlowRef.current) cursorGlowRef.current.style.transform = `translate3d(${event.clientX - 160}px, ${event.clientY - 160}px, 0)`; };
@@ -70,9 +72,9 @@ export default function NewsPage() {
       <div className="absolute top-24 left-[8%] w-[28rem] h-[28rem] rounded-full border border-secondary-fixed/15 animate-[spin_28s_linear_infinite] transition-transform duration-700 ease-out" style={{ transform: "translate3d(var(--shift-x, 0), var(--shift-y, 0), 0)" }}><div className="absolute top-10 right-12 w-4 h-4 rounded-full bg-secondary-fixed shadow-[0_0_35px_#ffdeab]" /><div className="absolute bottom-20 left-2 w-2 h-2 rounded-full bg-white/70" /></div>
       <div className="absolute top-1/2 right-[12%] text-[18vw] font-black text-white/[0.025] select-none whitespace-nowrap transition-transform duration-700 ease-out" style={{ transform: "translate3d(var(--text-x, 0), calc(-50% + var(--text-y, 0px)), 0)" }}>روایت</div>
       <div className="relative max-w-[1280px] mx-auto px-5 md:px-8 pt-28 pb-14 w-full">
-        <div className="flex items-center gap-2 text-secondary-fixed text-sm font-bold mb-6 animate-fade-in"><Sparkles size={17} />مجله آکادمی امام روح‌الله (ره)</div>
+        <div className="flex items-center gap-2 text-sm font-bold mb-6 animate-fade-in" style={{ color: magazineSettings.accentColor }}><Sparkles size={17} />{magazineSettings.heroLabel}</div>
         <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-10 items-end">
-          <div className="animate-fade-in-up"><h1 className="text-5xl md:text-7xl font-black leading-[1.15]">خبر فقط اتفاق نیست؛<br /><span className="text-secondary-fixed">روایتی‌ست که می‌ماند.</span></h1><p className="text-white/55 mt-6 max-w-xl leading-8">اینجا از مسیر دوره‌ها، تجربه اساتید و داستان هنرآموختگان می‌نویسیم؛ جایی برای دیدن پشت صحنه رشد.</p></div>
+          <div className="animate-fade-in-up"><h1 className="text-5xl md:text-7xl font-black leading-[1.15]">{magazineSettings.heroTitle}<br /><span style={{ color: magazineSettings.accentColor }}>{magazineSettings.heroHighlight}</span></h1><p className="text-white/55 mt-6 max-w-xl leading-8">{magazineSettings.heroDescription}</p></div>
           {featured && <Link href={`/news/${featured.slug}`} onPointerMove={tiltCard} onPointerLeave={resetCard} className="group relative min-h-80 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl animate-fade-in-up [animation-delay:180ms] opacity-0 [animation-fill-mode:forwards] transition-transform duration-300 ease-out will-change-transform">
             {featured.coverImage ? <img src={featured.coverImage} alt={featured.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.2s]" /> : <div className="absolute inset-0 bg-gradient-to-br from-secondary to-primary-container" />}
             <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/35 to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 md:p-8"><span className="inline-flex px-3 py-1 rounded-full bg-secondary-fixed text-primary text-xs font-bold">روایت ویژه</span><h2 className="text-2xl md:text-3xl font-black mt-3 leading-relaxed">{featured.title}</h2><div className="flex items-center gap-4 mt-3 text-xs text-white/60"><span>{dateOf(featured)}</span><span>{readingTime(featured.content).toLocaleString("fa-IR")} دقیقه مطالعه</span></div></div>
