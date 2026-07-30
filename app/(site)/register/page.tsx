@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft, KeyRound } from "lucide-react";
 import { setCookie } from "@/lib/cookie";
+import GoogleAuthButton from "@/components/auth/google-auth-button";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -274,14 +275,15 @@ export default function RegisterPage() {
           </form>}
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-7">
+           <div className="flex items-center gap-3 my-7">
             <div className="flex-1 h-px bg-outline-variant/60" />
             <span className="text-outline text-sm">یا</span>
             <div className="flex-1 h-px bg-outline-variant/60" />
-          </div>
+           </div>
+           {!verificationEmail && <GoogleAuthButton label="ثبت‌نام با گوگل" />}
 
-          {/* Login link */}
-          <div className="text-center">
+           {/* Login link */}
+           <div className="text-center mt-6">
             <p className="text-outline text-sm">
               قبلاً ثبت‌نام کرده‌اید؟{" "}
               <Link

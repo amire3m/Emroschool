@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "google-oauth-login",
+    title: "ورود و ثبت‌نام با گوگل",
+    summary: "ورود امن Google OAuth با اتصال حساب‌ها از طریق ایمیل تأییدشده و دکمه‌های ورود در فرم‌های سایت اضافه شد.",
+    publishedAt: "2026-07-31T01:30:00+03:30",
+    type: "feature",
+  },
+  {
     id: "google-indexing-sitemap-and-robots",
     title: "آماده‌سازی ایندکس گوگل",
     summary: "robots.txt و Sitemap پویا برای صفحه‌های عمومی، دوره‌ها، رویدادها، خبرها و گالری اضافه شد.",
