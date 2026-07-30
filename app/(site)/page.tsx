@@ -459,6 +459,7 @@ export default function HomePage() {
           <div>
             <h1 className="text-xl font-black text-primary md:text-2xl">آکادمی هنر و رسانه امام روح‌الله (ره)</h1>
             <p className="mt-2 max-w-4xl text-sm leading-7 text-outline">این وب‌سایت سامانه رسمی آکادمی هنر و رسانه امام روح‌الله (ره) برای آموزش، ثبت‌نام دوره‌های تخصصی، اطلاع‌رسانی رویدادها و پرورش هنرمندان متعهد در حوزه‌های هنر و رسانه است.</p>
+            <p lang="en" className="mt-2 max-w-4xl text-xs leading-6 text-outline" dir="ltr">Imam Ruhollah School is the official arts and media learning platform for course registration, educational services, and student accounts.</p>
             <p className="mt-2 max-w-4xl text-xs leading-6 text-outline">ورود با گوگل یک گزینه اختیاری برای ساخت یا ورود امن به حساب کاربری است. فقط نام، ایمیل تأییدشده و تصویر پروفایل Google برای ایجاد حساب و ارائه خدمات آموزشی دریافت می‌شود.</p>
           </div>
         </div>

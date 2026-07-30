@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "root-home-english-oauth-branding",
+    title: "هویت انگلیسی OAuth در صفحه اصلی",
+    summary: "نام و هدف رسمی انگلیسی Imam Ruhollah School در خود صفحه اصلی نیز درج شد تا بررسی Branding گوگل آن را شناسایی کند.",
+    publishedAt: "2026-07-31T02:30:00+03:30",
+    type: "fix",
+  },
+  {
     id: "english-google-oauth-branding-page",
     title: "صفحه انگلیسی معرفی OAuth گوگل",
     summary: "صفحه مستقل انگلیسی برای معرفی نام برنامه، هدف ورود گوگل، داده‌های دریافت‌شده و اختیاری‌بودن آن اضافه شد.",
