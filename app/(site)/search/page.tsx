@@ -49,7 +49,7 @@ export default function SearchPage() {
         <div className="absolute -top-32 -left-24 w-80 h-80 rounded-full border border-secondary-fixed/20 animate-[spin_18s_linear_infinite]"><span className="absolute top-8 right-8 w-3 h-3 rounded-full bg-secondary-fixed shadow-[0_0_25px_#ffdeab]" /></div>
         <div className="absolute -bottom-28 right-1/3 w-60 h-60 rounded-full bg-secondary/20 blur-3xl" />
         <div className="relative max-w-3xl">
-          <p className="text-secondary-fixed text-sm font-bold mb-3">جستجو در تمام مدرسه</p>
+          <p className="text-secondary-fixed text-sm font-bold mb-3">جستجو در تمام آکادمی</p>
           <h1 className="text-3xl md:text-5xl font-black leading-tight">هر چیزی که دنبالش هستید، از همین‌جا پیدا کنید.</h1>
           <form action="/search" className="relative mt-8"><Search className="absolute right-5 top-1/2 -translate-y-1/2 text-primary" size={21} /><input name="q" value={input} onChange={(event) => setInput(event.target.value)} className="w-full rounded-2xl bg-white text-primary pr-14 pl-28 py-4 outline-none ring-4 ring-white/10 focus:ring-secondary-fixed/30 transition-shadow" placeholder="دوره، رویداد، استاد، هنرآموخته یا خبر..." /><button className="absolute left-2 top-2 bottom-2 bg-secondary text-white px-5 rounded-xl text-sm font-bold">جستجو</button></form>
         </div>

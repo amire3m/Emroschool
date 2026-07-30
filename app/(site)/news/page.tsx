@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, Clock3, Loader2, Newspaper, PenLine, Sparkles } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Copy, ExternalLink, Loader2, Newspaper, PenLine, Sparkles, X } from "lucide-react";
+import toast from "react-hot-toast";
 import NewsSiteEditor from "@/components/news/news-site-editor";
 import { getCookie } from "@/lib/cookie";
 
@@ -11,7 +12,7 @@ interface NewsPost {
   category: string; authorName: string | null; featured: boolean; publishedAt: string | null; createdAt: string;
 }
 
-const categoryLabels: Record<string, string> = { general: "خبر مدرسه", course: "دوره‌ها", instructor: "اساتید", alumni: "هنرآموختگان" };
+const categoryLabels: Record<string, string> = { general: "خبر آکادمی", course: "دوره‌ها", instructor: "اساتید", alumni: "هنرآموختگان" };
 const filters = [{ value: "all", label: "همه روایت‌ها" }, ...Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))];
 
 function readingTime(content: string) { return Math.max(1, Math.ceil(content.split(/\s+/).length / 180)); }
@@ -23,6 +24,7 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true);
   const [canPublish, setCanPublish] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [publishedResult, setPublishedResult] = useState<{ title: string; url: string } | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   const cursorGlowRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,12 @@ export default function NewsPage() {
 
   function resetCard(event: PointerEvent<HTMLElement>) { event.currentTarget.style.transform = "perspective(1000px) rotateX(0) rotateY(0) translateY(0)"; }
   const featured = news.find((post) => post.featured) || news[0];
-  const filtered = news.filter((post) => post.id !== featured?.id && (filter === "all" || post.category === filter));
+  const filtered = news.filter((post) => filter === "all" || post.category === filter);
+
+  function handleCreated(result: { title: string; slug: string; published: boolean }) {
+    fetchNews();
+    if (result.published) setPublishedResult({ title: result.title, url: `${window.location.origin}/news/${result.slug}` });
+  }
 
   return <main className="min-h-screen overflow-hidden bg-[#f8f5ee] pt-20 pb-24">
     <div ref={cursorGlowRef} className="hidden lg:block fixed z-20 top-0 left-0 w-80 h-80 rounded-full bg-secondary-fixed/[0.055] blur-3xl pointer-events-none will-change-transform" />
@@ -63,7 +70,7 @@ export default function NewsPage() {
       <div className="absolute top-24 left-[8%] w-[28rem] h-[28rem] rounded-full border border-secondary-fixed/15 animate-[spin_28s_linear_infinite] transition-transform duration-700 ease-out" style={{ transform: "translate3d(var(--shift-x, 0), var(--shift-y, 0), 0)" }}><div className="absolute top-10 right-12 w-4 h-4 rounded-full bg-secondary-fixed shadow-[0_0_35px_#ffdeab]" /><div className="absolute bottom-20 left-2 w-2 h-2 rounded-full bg-white/70" /></div>
       <div className="absolute top-1/2 right-[12%] text-[18vw] font-black text-white/[0.025] select-none whitespace-nowrap transition-transform duration-700 ease-out" style={{ transform: "translate3d(var(--text-x, 0), calc(-50% + var(--text-y, 0px)), 0)" }}>روایت</div>
       <div className="relative max-w-[1280px] mx-auto px-5 md:px-8 pt-28 pb-14 w-full">
-        <div className="flex items-center gap-2 text-secondary-fixed text-sm font-bold mb-6 animate-fade-in"><Sparkles size={17} />مجله مدرسه امام روح‌الله</div>
+        <div className="flex items-center gap-2 text-secondary-fixed text-sm font-bold mb-6 animate-fade-in"><Sparkles size={17} />مجله آکادمی امام روح‌الله (ره)</div>
         <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-10 items-end">
           <div className="animate-fade-in-up"><h1 className="text-5xl md:text-7xl font-black leading-[1.15]">خبر فقط اتفاق نیست؛<br /><span className="text-secondary-fixed">روایتی‌ست که می‌ماند.</span></h1><p className="text-white/55 mt-6 max-w-xl leading-8">اینجا از مسیر دوره‌ها، تجربه اساتید و داستان هنرآموختگان می‌نویسیم؛ جایی برای دیدن پشت صحنه رشد.</p></div>
           {featured && <Link href={`/news/${featured.slug}`} onPointerMove={tiltCard} onPointerLeave={resetCard} className="group relative min-h-80 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl animate-fade-in-up [animation-delay:180ms] opacity-0 [animation-fill-mode:forwards] transition-transform duration-300 ease-out will-change-transform">
@@ -76,7 +83,7 @@ export default function NewsPage() {
     </section>
 
     <section className="max-w-[1280px] mx-auto px-5 md:px-8 pt-14">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8"><div><p className="text-secondary text-sm font-bold">تازه‌ترین نوشته‌ها</p><h2 className="text-3xl md:text-4xl font-black text-primary mt-2">از مدرسه چه خبر؟</h2></div><div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">{filters.map((item) => <button key={item.value} onClick={() => setFilter(item.value)} className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${filter === item.value ? "bg-primary text-white" : "bg-white text-outline border border-black/5 hover:text-primary"}`}>{item.label}</button>)}</div></div>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8"><div><p className="text-secondary text-sm font-bold">تازه‌ترین نوشته‌ها</p><h2 className="text-3xl md:text-4xl font-black text-primary mt-2">از آکادمی چه خبر؟</h2></div><div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">{filters.map((item) => <button key={item.value} onClick={() => setFilter(item.value)} className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${filter === item.value ? "bg-primary text-white" : "bg-white text-outline border border-black/5 hover:text-primary"}`}>{item.label}</button>)}</div></div>
       {loading ? <div className="py-24 flex justify-center"><Loader2 className="animate-spin text-secondary" size={34} /></div> : news.length === 0 ? <div className="py-24 text-center text-outline"><Newspaper size={48} className="mx-auto mb-4 opacity-30" /><p>هنوز خبری منتشر نشده است.</p></div> : <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((post, index) => <Link key={post.id} href={`/news/${post.slug}`} onPointerMove={tiltCard} onPointerLeave={resetCard} style={{ animationDelay: `${index * 90}ms` }} className="group relative bg-white rounded-[1.6rem] overflow-hidden border border-black/5 hover:shadow-2xl transition-[transform,box-shadow,border-color] duration-300 ease-out animate-fade-in-up opacity-0 [animation-fill-mode:forwards] will-change-transform">
         <span className="absolute inset-0 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "radial-gradient(240px circle at var(--card-x, 50%) var(--card-y, 50%), rgba(255,222,171,.22), transparent 70%)" }} />
         <div className="aspect-[16/10] relative overflow-hidden bg-primary-container">{post.coverImage ? <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1s]" /> : <div className="w-full h-full flex items-center justify-center text-white/20"><Newspaper size={62} /></div>}<span className="absolute top-4 right-4 bg-primary/85 backdrop-blur text-secondary-fixed px-3 py-1 rounded-full text-[11px] font-bold">{categoryLabels[post.category]}</span></div>
@@ -84,6 +91,7 @@ export default function NewsPage() {
       </Link>)}</div>}
     </section>
     {canPublish && <button onClick={() => setEditorOpen(true)} className="fixed z-40 bottom-6 left-6 md:bottom-8 md:left-8 group flex items-center gap-3 bg-secondary-fixed text-primary pl-5 pr-3 py-3 rounded-full shadow-[0_15px_45px_rgba(3,0,75,.28)] hover:-translate-y-1 hover:shadow-[0_20px_55px_rgba(123,88,20,.35)] transition-all"><span className="w-10 h-10 rounded-full bg-primary text-secondary-fixed flex items-center justify-center group-hover:rotate-12 transition-transform"><PenLine size={18} /></span><span className="font-black text-sm">انتشار روایت تازه</span></button>}
-    {editorOpen && <NewsSiteEditor onClose={() => setEditorOpen(false)} onCreated={fetchNews} />}
+    {editorOpen && <NewsSiteEditor onClose={() => setEditorOpen(false)} onCreated={handleCreated} />}
+    {publishedResult && <div className="fixed inset-0 z-[110] bg-primary/85 backdrop-blur-xl p-5 flex items-center justify-center animate-fade-in"><div className="relative w-full max-w-lg rounded-[2rem] bg-white p-7 md:p-10 text-center shadow-2xl animate-fade-in-up"><button onClick={() => setPublishedResult(null)} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-surface-low text-outline flex items-center justify-center hover:text-primary"><X size={17} /></button><div className="relative w-20 h-20 mx-auto"><span className="absolute inset-0 rounded-full bg-green-400/20 animate-ping" /><span className="relative w-full h-full rounded-full bg-green-100 text-green-700 flex items-center justify-center"><CheckCircle2 size={38} /></span></div><p className="text-secondary text-sm font-bold mt-6">انتشار موفق</p><h2 className="text-2xl md:text-3xl font-black text-primary mt-2">روایت شما با موفقیت بارگذاری شد</h2><p className="text-sm text-outline leading-7 mt-3">«{publishedResult.title}» اکنون در مجله آکادمی قابل مشاهده است.</p><div className="flex items-center gap-2 bg-surface-low border border-surface-variant rounded-xl p-2 mt-6" dir="ltr"><input readOnly value={publishedResult.url} className="min-w-0 flex-1 bg-transparent px-2 text-xs text-outline outline-none" /><button onClick={async () => { await navigator.clipboard.writeText(publishedResult.url); toast.success("لینک روایت کپی شد"); }} className="w-9 h-9 rounded-lg bg-white text-primary flex items-center justify-center hover:bg-secondary-fixed transition-colors" title="کپی لینک"><Copy size={16} /></button></div><div className="flex flex-col sm:flex-row gap-3 mt-5"><a href={publishedResult.url} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white rounded-xl px-5 py-3 text-sm font-bold"><ExternalLink size={16} />مشاهده روایت</a><button onClick={() => setPublishedResult(null)} className="flex-1 border border-surface-variant text-outline rounded-xl px-5 py-3 text-sm font-bold">بازگشت به مجله</button></div></div></div>}
   </main>;
 }

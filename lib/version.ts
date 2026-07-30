@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "academy-magazine-publishing-flow",
+    title: "هویت آکادمی و تأیید انتشار روایت",
+    summary: "عنوان‌های مجله به آکادمی اصلاح شد، نمایش متن فارسی بهبود یافت و پس از انتشار، صفحه موفقیت همراه لینک مستقیم روایت نمایش داده می‌شود.",
+    publishedAt: "2026-07-30T03:30:27+03:30",
+    type: "improvement",
+  },
+  {
     id: "news-site-editor-and-interactions",
     title: "تحریریه داخل مجله و موشن‌های تعاملی",
     summary: "مدیران اکنون از خود صفحه اخبار خبر منتشر می‌کنند و آرشیو و صفحه مطالعه با نور دنبال‌کننده موس، عمق سه‌بعدی و پارالاکس چندلایه واکنش نشان می‌دهند.",

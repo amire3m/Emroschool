@@ -6,14 +6,14 @@ import toast from "react-hot-toast";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { getCookie } from "@/lib/cookie";
 
-const categories = [{ value: "general", label: "خبر مدرسه" }, { value: "course", label: "دوره‌ها" }, { value: "instructor", label: "اساتید" }, { value: "alumni", label: "هنرآموختگان" }];
+const categories = [{ value: "general", label: "خبر آکادمی" }, { value: "course", label: "دوره‌ها" }, { value: "instructor", label: "اساتید" }, { value: "alumni", label: "هنرآموختگان" }];
 
 function toSlug(value: string) {
   const map: Record<string, string> = { ا: "a", آ: "a", ب: "b", پ: "p", ت: "t", ث: "s", ج: "j", چ: "ch", ح: "h", خ: "kh", د: "d", ذ: "z", ر: "r", ز: "z", ژ: "zh", س: "s", ش: "sh", ص: "s", ض: "z", ط: "t", ظ: "z", ع: "a", غ: "gh", ف: "f", ق: "gh", ک: "k", گ: "g", ل: "l", م: "m", ن: "n", و: "v", ه: "h", ی: "y", " ": "-" };
   return [...value].map((character) => map[character] || character).join("").replace(/[^a-zA-Z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 }
 
-export default function NewsSiteEditor({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+export default function NewsSiteEditor({ onClose, onCreated }: { onClose: () => void; onCreated: (result: { title: string; slug: string; published: boolean }) => void }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", slug: "", excerpt: "", content: "", coverImage: "", category: "general", authorName: "", tags: "", featured: false });
 
@@ -36,8 +36,8 @@ export default function NewsSiteEditor({ onClose, onCreated }: { onClose: () => 
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "خطا در ذخیره خبر");
-      toast.success(published ? "خبر منتشر شد" : "پیش‌نویس ذخیره شد");
-      onCreated();
+      if (!published) toast.success("پیش‌نویس ذخیره شد");
+      onCreated({ title: data.newsPost.title, slug: data.newsPost.slug, published });
       onClose();
     } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در ذخیره خبر"); }
     finally { setSaving(false); }
@@ -53,7 +53,7 @@ export default function NewsSiteEditor({ onClose, onCreated }: { onClose: () => 
         <label className="md:col-span-2 text-sm font-bold text-primary">خلاصه<input required maxLength={300} value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" placeholder="در دو جمله بگویید این روایت درباره چیست..." /></label>
         <label className="md:col-span-2 text-sm font-bold text-primary">متن کامل<textarea required rows={12} value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal leading-8 outline-none focus:ring-2 focus:ring-secondary-fixed resize-y" placeholder="بین پاراگراف‌ها یک خط خالی بگذارید..." /></label>
         <div className="md:col-span-2"><ImageUpload value={form.coverImage} onChange={(coverImage) => setForm((current) => ({ ...current, coverImage }))} label="تصویر شاخص روایت" sizeHint="تصویر افقی 16:9" aspectRatio="16:9" /></div>
-        <label className="text-sm font-bold text-primary">نام نویسنده<input value={form.authorName} onChange={(event) => setForm((current) => ({ ...current, authorName: event.target.value }))} placeholder="تحریریه مدرسه" className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal" /></label>
+        <label className="text-sm font-bold text-primary">نام نویسنده<input value={form.authorName} onChange={(event) => setForm((current) => ({ ...current, authorName: event.target.value }))} placeholder="تحریریه آکادمی" className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal" /></label>
         <label className="text-sm font-bold text-primary">برچسب‌ها<input value={form.tags} onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))} placeholder="آموزش، سینما، تجربه" className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal" /></label>
         <label className="md:col-span-2 flex items-center justify-between p-4 rounded-2xl bg-white border border-surface-variant"><div><p className="text-sm font-bold text-primary">نمایش به‌عنوان روایت ویژه</p><p className="text-xs text-outline mt-1">در ابتدای صفحه مجله با اندازه بزرگ نمایش داده می‌شود.</p></div><input type="checkbox" checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} className="w-5 h-5 accent-primary" /></label>
       </div>
