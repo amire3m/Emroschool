@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import CopyLinkButton from "@/components/ui/copy-link-button";
 import {
   Loader2,
   AlertCircle,
@@ -159,9 +160,7 @@ export default function EventDetailPage() {
               )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-primary mb-4">
-              {event.title}
-            </h1>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4"><h1 className="text-2xl md:text-3xl font-bold text-primary">{event.title}</h1><CopyLinkButton path={`/events/${event.slug}`} /></div>
 
             <div className="flex flex-wrap gap-4 mb-6">
               <div className="flex items-center gap-2 text-outline text-sm">

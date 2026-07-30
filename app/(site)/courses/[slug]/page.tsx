@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
 import CourseRegistrationModal from "@/components/courses/course-registration-modal";
+import CopyLinkButton from "@/components/ui/copy-link-button";
 import toast from "react-hot-toast";
 
 interface GalleryImage {
@@ -230,9 +231,7 @@ export default function CourseDetailPage() {
               <span className={`text-xs font-bold px-3 py-1 rounded-full ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزار شده" : `شروع: ${course.startDate ? new Date(course.startDate).toLocaleDateString("fa-IR") : "به‌زودی"}`}</span>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-primary mb-3">
-              {course.title}
-            </h1>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h1 className="text-2xl md:text-3xl font-bold text-primary">{course.title}</h1><CopyLinkButton path={`/courses/${course.slug}`} /></div>
 
             {course.instructor && (
               <div className="flex items-center gap-2 text-outline mb-4">

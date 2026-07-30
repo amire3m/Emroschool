@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "content-permalink-copy-controls",
+    title: "آدرس‌های خوانا و کپی لینک محتوا",
+    summary: "لینک یکتای دوره، رویداد، خبر و گالری با دکمه زنجیر در کنار عنوان برای کپی سریع اضافه شد.",
+    publishedAt: "2026-07-30T09:50:00+03:30",
+    type: "improvement",
+  },
+  {
     id: "animated-global-error-pages",
     title: "صفحات خطای اختصاصی و متحرک",
     summary: "صفحات ۴۰۴، خطای صفحه و خطای سراسری با طراحی وکتور و مسیرهای بازیابی اختصاصی اضافه شدند.",
