@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "magazine-font-setting",
+    title: "انتخاب فونت مستقل مجله",
+    summary: "انتخاب فونت کلی فران یا کی به تنظیمات مجله اضافه شد و روی تمام صفحات عمومی و پنل تحریریه اعمال می‌شود.",
+    publishedAt: "2026-07-30T03:55:39+03:30",
+    type: "improvement",
+  },
+  {
     id: "independent-magazine-platform",
     title: "استقلال سایت و پنل مجله",
     summary: "مجله روی ساب‌دامین پوسته، تنظیمات و پنل تحریریه مستقل دارد؛ حساب و اعلان‌ها مشترک مانده‌اند و مسیرهای اختصاصی آکادمی از ساب‌دامین به دامنه اصلی هدایت می‌شوند.",

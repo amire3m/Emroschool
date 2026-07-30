@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { getCookie } from "@/lib/cookie";
 
-interface MagazineSettings { title: string; description: string; logo: string | null; heroLabel: string; heroTitle: string; heroHighlight: string; heroDescription: string; accentColor: string; }
+interface MagazineSettings { title: string; description: string; logo: string | null; heroLabel: string; heroTitle: string; heroHighlight: string; heroDescription: string; accentColor: string; font: string; }
 
 export default function MagazineSettingsPage() {
   const [settings, setSettings] = useState<MagazineSettings | null>(null);
@@ -20,6 +20,7 @@ export default function MagazineSettingsPage() {
     <label className="md:col-span-2 text-sm font-bold text-primary">عنوان مجله<input value={settings.title} onChange={(event) => update("title", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" /></label>
     <label className="md:col-span-2 text-sm font-bold text-primary">توضیح کوتاه<textarea rows={2} value={settings.description} onChange={(event) => update("description", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" /></label>
     <div className="md:col-span-2"><ImageUpload value={settings.logo || ""} onChange={(value) => update("logo", value || null)} label="لوگوی مجله" sizeHint="ترجیحاً لوگوی افقی با پس‌زمینه شفاف" aspectRatio="3:1" /></div>
+    <label className="text-sm font-bold text-primary">فونت کلی مجله<select value={settings.font} onChange={(event) => update("font", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white font-normal"><option value="foran">فران</option><option value="kay">کی</option></select></label>
     <label className="md:col-span-2 text-sm font-bold text-primary">برچسب بالای Hero<input value={settings.heroLabel} onChange={(event) => update("heroLabel", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal" /></label>
     <label className="text-sm font-bold text-primary">خط اول تیتر<input value={settings.heroTitle} onChange={(event) => update("heroTitle", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal" /></label><label className="text-sm font-bold text-primary">خط طلایی تیتر<input value={settings.heroHighlight} onChange={(event) => update("heroHighlight", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal" /></label>
     <label className="md:col-span-2 text-sm font-bold text-primary">توضیح Hero<textarea rows={3} value={settings.heroDescription} onChange={(event) => update("heroDescription", event.target.value)} className="mt-2 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal leading-7" /></label><label className="text-sm font-bold text-primary">رنگ تأکیدی<input type="color" value={settings.accentColor} onChange={(event) => update("accentColor", event.target.value)} className="mt-2 block w-full h-12 rounded-xl border border-surface-variant bg-white p-1" /></label>

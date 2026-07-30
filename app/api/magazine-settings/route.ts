@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       heroLabel: String(body.heroLabel || "").trim(), heroTitle: String(body.heroTitle || "").trim(),
       heroHighlight: String(body.heroHighlight || "").trim(), heroDescription: String(body.heroDescription || "").trim(),
       accentColor: /^#[0-9a-fA-F]{6}$/.test(body.accentColor) ? body.accentColor : "#ffdeab",
+      font: body.font === "kay" ? "kay" : "foran",
     };
     if (!clean.title || !clean.heroLabel || !clean.heroTitle || !clean.heroHighlight) return NextResponse.json({ error: "عنوان‌های اصلی مجله الزامی هستند" }, { status: 400 });
     const existing = await prisma.magazineSetting.findFirst();

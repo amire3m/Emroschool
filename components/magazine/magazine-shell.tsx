@@ -7,11 +7,11 @@ import { getCookie } from "@/lib/cookie";
 import { APP_VERSION } from "@/lib/version";
 
 const MAIN_SITE = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "https://imamruhollahschool.com";
-interface MagazineSettings { title: string; description: string; logo: string | null; accentColor: string; }
+interface MagazineSettings { title: string; description: string; logo: string | null; accentColor: string; font: string; }
 interface NotificationItem { id: string; title: string; message: string; read?: boolean; createdAt: string; }
 
 export default function MagazineShell({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<MagazineSettings>({ title: "مجله آکادمی امام روح‌الله (ره)", description: "روایت‌هایی از مسیر یادگیری و تجربه", logo: null, accentColor: "#ffdeab" });
+  const [settings, setSettings] = useState<MagazineSettings>({ title: "مجله آکادمی امام روح‌الله (ره)", description: "روایت‌هایی از مسیر یادگیری و تجربه", logo: null, accentColor: "#ffdeab", font: "foran" });
   const [user, setUser] = useState<{ name: string; role: string; permissions: string | null } | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -40,7 +40,7 @@ export default function MagazineShell({ children }: { children: React.ReactNode 
     else { try { const permissions = JSON.parse(user.permissions); canManage = Array.isArray(permissions) && (permissions.length === 0 || permissions.includes("news")); } catch {} }
   }
 
-  return <div className="min-h-screen flex flex-col" style={{ "--magazine-accent": settings.accentColor } as React.CSSProperties}>
+  return <div className="min-h-screen flex flex-col" style={{ "--magazine-accent": settings.accentColor, fontFamily: settings.font === "kay" ? "Kay, sans-serif" : "Foran, sans-serif" } as React.CSSProperties}>
     <header className="fixed top-0 inset-x-0 z-50 border-b border-white/10 bg-primary/90 backdrop-blur-xl text-white">
       <div className="max-w-[1280px] mx-auto h-20 px-5 md:px-8 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-3 min-w-0">{settings.logo ? <img src={settings.logo} alt="" className="h-11 w-auto max-w-24 object-contain" /> : <span className="w-10 h-10 rounded-xl bg-secondary-fixed text-primary flex items-center justify-center rotate-3"><BookOpen size={20} /></span>}<div className="min-w-0"><p className="text-sm md:text-base font-black text-secondary-fixed truncate">{settings.title}</p><p className="hidden sm:block text-[10px] text-white/40 mt-0.5 truncate">روایت، تجربه، الهام</p></div></Link>
