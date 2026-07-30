@@ -91,7 +91,7 @@ export default function EventsPage() {
             {events.map((event) => (
               <Link
                 key={event.id}
-                href={`/events/${event.id}`}
+                href={`/events/${event.slug}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border border-outline-variant/30"
               >
                 <div className="relative aspect-[9/16] overflow-hidden">

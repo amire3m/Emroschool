@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { isAdminRole, verifyToken } from "@/lib/auth";
+import { getUserFromToken, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 function tokenUser(req: NextRequest) {
@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "ابتدا وارد حساب کاربری شوید" }, { status: 401 });
   try {
     const adminView = new URL(req.url).searchParams.get("admin") === "1";
-    if (adminView && !isAdminRole(user.role)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+    if (adminView) {
+      if (!isAdminRole(user.role)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+      const admin = await getUserFromToken(req.headers.get("authorization")!.slice(7));
+      if (!admin) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+      if (admin.role !== "superadmin" && admin.permissions) { try { const permissions = JSON.parse(admin.permissions); if (permissions.length > 0 && !permissions.includes("applications")) return NextResponse.json({ error: "دسترسی مدیریت ثبت‌نام را ندارید" }, { status: 403 }); } catch { return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } }
+    }
     const applications = await prisma.courseApplication.findMany({
       where: adminView ? undefined : { userId: user.id },
       include: {

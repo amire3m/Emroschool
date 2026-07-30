@@ -9,6 +9,9 @@ export interface AutoScrollGalleryItem {
   imageUrl: string;
   altText?: string | null;
   folder?: string | null;
+  title?: string | null;
+  description?: string | null;
+  slug?: string | null;
 }
 
 export default function AutoScrollSlider({
@@ -57,11 +60,7 @@ export default function AutoScrollSlider({
                   draggable={false}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
-                {item.altText && (
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-4 pb-4 pt-12 text-right text-sm font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    {item.altText}
-                  </span>
-                )}
+                {(item.title || item.altText) && <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-4 pt-12 text-right text-white opacity-0 transition-opacity group-hover:opacity-100"><strong className="block text-sm">{item.title || item.altText}</strong>{item.description && <small className="block text-white/65 mt-1 line-clamp-1">{item.description}</small>}</span>}
               </button>
             );
           })}

@@ -38,11 +38,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { imageUrl, altText, folder, courseId } = await req.json();
+    const { imageUrl, title, slug, description, altText, seoTitle, seoDescription, capturedAt, folder, courseId } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: "آدرس تصویر الزامی است" }, { status: 400 });
     }
+    if (!title?.trim() || !slug?.trim()) return NextResponse.json({ error: "عنوان و آدرس انگلیسی تصویر الزامی است" }, { status: 400 });
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return NextResponse.json({ error: "آدرس باید انگلیسی و با خط تیره باشد" }, { status: 400 });
+    if (await prisma.gallery.findFirst({ where: { slug } })) return NextResponse.json({ error: "این آدرس قبلاً استفاده شده است" }, { status: 409 });
 
     if (courseId) {
       const course = await prisma.course.findUnique({ where: { id: courseId } });
@@ -54,7 +57,13 @@ export async function POST(req: NextRequest) {
     const image = await prisma.gallery.create({
       data: {
         imageUrl,
+        title: title.trim(),
+        slug: slug.trim(),
+        description: description?.trim() || null,
         altText: altText || null,
+        seoTitle: seoTitle?.trim() || null,
+        seoDescription: seoDescription?.trim() || null,
+        capturedAt: capturedAt ? new Date(capturedAt) : null,
         folder: folder || null,
         courseId: courseId || null,
       },
@@ -62,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ image }, { status: 201 });
   } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این آدرس قبلاً استفاده شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در ایجاد گالری" }, { status: 500 });
   }
 }

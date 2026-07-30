@@ -85,7 +85,7 @@ function getLevelLabel(level?: string) {
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const slug = params.slug as string;
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +94,7 @@ export default function EventDetailPage() {
   useEffect(() => {
     async function fetchEvent() {
       try {
-        const res = await fetch(`/api/events/${id}`);
+        const res = await fetch(`/api/events/${slug}`);
         if (!res.ok) {
           if (res.status === 404) setNotFound(true);
           return;
@@ -108,7 +108,7 @@ export default function EventDetailPage() {
       }
     }
     fetchEvent();
-  }, [id]);
+  }, [slug]);
 
   if (loading) {
     return (

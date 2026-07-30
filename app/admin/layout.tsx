@@ -45,14 +45,13 @@ interface MenuGroup {
 const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
   { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
-  { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "courses" },
+  { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "applications" },
   { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
   { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
   { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
-  { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
   {
     key: "users",
     label: "کاربران",
@@ -70,6 +69,7 @@ const menuItems: Array<MenuLink | MenuGroup> = [
     children: [
       { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: "settings" },
       { href: "/admin/slider", label: "اسلایدر", icon: Image, permission: "slider" },
+      { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
     ],
   },
   { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },

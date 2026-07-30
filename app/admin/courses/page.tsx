@@ -14,6 +14,7 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import PersianDateTimePicker from "@/components/ui/persian-date-time-picker";
 
 interface Course {
   id: string;
@@ -174,8 +175,8 @@ export default function AdminCourses() {
       featured: course.featured,
       courseType: course.courseType || "single",
       scheduleStatus: course.scheduleStatus || "upcoming",
-      startDate: course.startDate ? new Date(course.startDate).toISOString().slice(0, 16) : "",
-      endDate: course.endDate ? new Date(course.endDate).toISOString().slice(0, 16) : "",
+      startDate: course.startDate || "",
+      endDate: course.endDate || "",
       registrationMode: course.registrationMode || "purchase",
       parentId: course.parentId || "",
     });
@@ -426,7 +427,7 @@ export default function AdminCourses() {
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
                   <div className="flex items-stretch gap-0">
                     <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      https://imamruhollahschool.com/
+                      imamruhollahschool.com/courses/
                     </span>
                     <input
                       type="text"
@@ -458,7 +459,7 @@ export default function AdminCourses() {
                   <div><label className="block text-sm font-medium text-primary mb-1">نوع دوره</label><select value={form.courseType} onChange={(e) => setForm((p) => ({ ...p, courseType: e.target.value, parentId: e.target.value === "comprehensive" ? "" : p.parentId }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="single">دوره عادی / فرزند</option><option value="comprehensive">دوره جامع (والد)</option></select><p className="text-[11px] text-outline mt-1">دوره جامع برای انتشار باید حداقل یک فرزند داشته باشد.</p></div>
                   {form.courseType === "single" && <div><label className="block text-sm font-medium text-primary mb-1">دوره جامع والد (اختیاری)</label><select value={form.parentId} onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="">دوره مستقل؛ بدون والد</option>{courses.filter((item) => item.courseType === "comprehensive" && item.id !== editingCourse?.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
                   <div><label className="block text-sm font-medium text-primary mb-1">وضعیت برگزاری</label><select value={form.scheduleStatus} onChange={(e) => setForm((p) => ({ ...p, scheduleStatus: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="upcoming">قرار است برگزار شود</option><option value="completed">برگزار شده و پایان یافته</option></select></div>
-                  <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع" : "تاریخ پایان"}</label><input type="datetime-local" required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(e) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: e.target.value } : { ...p, endDate: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div>
+                  <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع (شمسی)" : "تاریخ پایان (شمسی)"}</label><PersianDateTimePicker required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(value) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: value } : { ...p, endDate: value })} /></div>
                   {form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}
                 </div>
               </div>

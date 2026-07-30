@@ -152,8 +152,8 @@ export default function AdminEvents() {
       title: event.title,
       slug: event.slug,
       description: event.description,
-      startDate: event.startDate ? new Date(event.startDate).toISOString().slice(0, 16) : "",
-      endDate: event.endDate ? new Date(event.endDate).toISOString().slice(0, 16) : "",
+      startDate: event.startDate || "",
+      endDate: event.endDate || "",
       location: event.location || "",
       imageUrl: event.imageUrl || "",
       published: event.published,
@@ -199,8 +199,8 @@ export default function AdminEvents() {
       title: form.title,
       slug: form.slug,
       description: form.description,
-      startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
-      endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+      startDate: form.startDate || null,
+      endDate: form.endDate || null,
       location: form.location || null,
       imageUrl: form.imageUrl || null,
       published: form.published,
@@ -423,7 +423,7 @@ export default function AdminEvents() {
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
                   <div className="flex items-stretch gap-0">
                     <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      https://imamruhollahschool.com/
+                      imamruhollahschool.com/events/
                     </span>
                     <input
                       type="text"
@@ -459,10 +459,7 @@ export default function AdminEvents() {
                     plugins={[<TimePicker position="bottom" />]}
                     value={form.startDate ? new Date(form.startDate) : undefined}
                     onChange={(date) => {
-                      if (date) {
-                        const d = date.toDate();
-                        setForm((p) => ({ ...p, startDate: d.toISOString().slice(0, 16) }));
-                      }
+                       setForm((p) => ({ ...p, startDate: date ? date.toDate().toISOString() : "" }));
                     }}
                     inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                     containerClassName="w-full"
@@ -477,10 +474,7 @@ export default function AdminEvents() {
                     plugins={[<TimePicker position="bottom" />]}
                     value={form.endDate ? new Date(form.endDate) : undefined}
                     onChange={(date) => {
-                      if (date) {
-                        const d = date.toDate();
-                        setForm((p) => ({ ...p, endDate: d.toISOString().slice(0, 16) }));
-                      }
+                       setForm((p) => ({ ...p, endDate: date ? date.toDate().toISOString() : "" }));
                     }}
                     inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                     containerClassName="w-full"

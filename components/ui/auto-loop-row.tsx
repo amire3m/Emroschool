@@ -9,10 +9,14 @@ export default function AutoLoopRow({
   children,
   slideClassName,
   speed = 0.8,
+  showControls = true,
+  controlsAlwaysVisible = false,
 }: {
   children: ReactNode;
   slideClassName: string;
   speed?: number;
+  showControls?: boolean;
+  controlsAlwaysVisible?: boolean;
 }) {
   const items = Children.toArray(children);
   const repeatCount = items.length < 5 ? 3 : 2;
@@ -26,6 +30,11 @@ export default function AutoLoopRow({
   );
 
   if (items.length === 0) return null;
+  const navigate = (direction: "prev" | "next") => {
+    autoScroll.current.stop();
+    direction === "prev" ? api?.scrollPrev() : api?.scrollNext();
+    window.setTimeout(() => autoScroll.current.play(), 900);
+  };
 
   return (
     <div className="group/loop relative" dir="rtl">
@@ -34,8 +43,8 @@ export default function AutoLoopRow({
           {repeated.map(({ item, key }) => <div key={key} className={`min-w-0 shrink-0 ${slideClassName}`}>{item}</div>)}
         </div>
       </div>
-      <button type="button" onClick={() => api?.scrollPrev()} className="absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-secondary/20 bg-white/90 text-primary opacity-0 shadow-lg backdrop-blur transition-all group-hover/loop:opacity-100 hover:bg-secondary-fixed md:flex" aria-label="مورد قبلی"><ChevronRight size={19} /></button>
-      <button type="button" onClick={() => api?.scrollNext()} className="absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-secondary/20 bg-white/90 text-primary opacity-0 shadow-lg backdrop-blur transition-all group-hover/loop:opacity-100 hover:bg-secondary-fixed md:flex" aria-label="مورد بعدی"><ChevronLeft size={19} /></button>
+      {showControls && <><button type="button" onClick={() => navigate("prev")} className={`absolute right-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-secondary/20 bg-white/90 text-primary shadow-lg backdrop-blur transition-all hover:scale-110 hover:bg-secondary-fixed md:flex ${controlsAlwaysVisible ? "opacity-100" : "opacity-0 group-hover/loop:opacity-100 focus:opacity-100"}`} aria-label="مورد قبلی"><ChevronRight size={20} /></button>
+      <button type="button" onClick={() => navigate("next")} className={`absolute left-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-secondary/20 bg-white/90 text-primary shadow-lg backdrop-blur transition-all hover:scale-110 hover:bg-secondary-fixed md:flex ${controlsAlwaysVisible ? "opacity-100" : "opacity-0 group-hover/loop:opacity-100 focus:opacity-100"}`} aria-label="مورد بعدی"><ChevronLeft size={20} /></button></>}
     </div>
   );
 }

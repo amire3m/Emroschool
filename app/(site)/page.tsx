@@ -66,6 +66,9 @@ interface GalleryItem {
   folder: string;
   courseId: string;
   createdAt: string;
+  title?: string | null;
+  description?: string | null;
+  slug?: string | null;
 }
 
 interface SliderItem {
@@ -582,12 +585,12 @@ export default function HomePage() {
             </Link>
           </div>
           {displayInstructors.length > 0 ? (
-            <AutoLoopRow slideClassName="basis-[68%] sm:basis-[38%] lg:basis-[24%]" speed={0.65}>
+            <AutoLoopRow slideClassName="basis-[68%] sm:basis-[38%] lg:basis-[24%]" speed={0.65} controlsAlwaysVisible>
                 {displayInstructors.map((instructor) => {
                   const instName = instructor.name || instructor.user?.name || "";
                   const instAvatar = instructor.avatar || instructor.user?.avatar || null;
                   return (
-                  <Link key={instructor.id} href={instructor.user?.id ? `/profile/${instructor.user.id}` : "/instructors"} className="group block h-full rounded-3xl border border-outline-variant/50 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-secondary/50 hover:shadow-xl">
+                  <Link key={instructor.id} href={instructor.user?.id ? `/profile/${instructor.user.id}` : "/instructors"} className="group relative block h-full overflow-hidden rounded-3xl border border-outline-variant/50 bg-white p-4 text-center shadow-sm transition-all duration-500 hover:-translate-y-2 hover:border-secondary/50 hover:shadow-2xl before:absolute before:-inset-20 before:bg-[conic-gradient(from_90deg,transparent,#ffdeab55,transparent_35%)] before:opacity-0 before:transition-opacity before:duration-500 hover:before:opacity-100">
                     <div
                       className="relative mx-auto mb-5 aspect-[4/5] w-full overflow-hidden rounded-2xl"
                     >
@@ -646,7 +649,7 @@ export default function HomePage() {
           ) : (
             <AutoScrollSlider
               items={galleryItems}
-              onSelect={(item) => setLightbox(item.imageUrl)}
+              onSelect={(item) => item.slug ? window.location.assign(`/gallery/${item.slug}`) : setLightbox(item.imageUrl)}
             />
           )}
         </div>
@@ -659,7 +662,7 @@ export default function HomePage() {
             <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">{partnersContent.title}</h2>
             <p className="text-outline max-w-lg mx-auto">{partnersContent.description}</p>
           </div>
-          <AutoLoopRow slideClassName="basis-[42%] sm:basis-[25%] lg:basis-[16%]" speed={0.55}>
+           <AutoLoopRow slideClassName="basis-[42%] sm:basis-[25%] lg:basis-[16%]" speed={0.55} showControls={false}>
               {partners.map((partner) => (
                 <div key={partner.id} className="group flex h-28 items-center justify-center rounded-2xl border border-outline-variant/40 bg-white p-5 shadow-sm transition hover:border-secondary/40 hover:shadow-md">
                   <img

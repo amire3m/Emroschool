@@ -334,7 +334,7 @@ export default function AdminCategories() {
                   <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
                   <div className="flex items-stretch gap-0">
                     <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      https://imamruhollahschool.com/
+                      imamruhollahschool.com/courses?category=
                     </span>
                     <input
                       type="text"

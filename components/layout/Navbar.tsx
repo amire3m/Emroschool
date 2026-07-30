@@ -123,6 +123,7 @@ export default function Navbar() {
               <svg viewBox="330 610 1380 790" role="img" aria-label="آکادمی هنر و رسانه امام روح‌الله" className="h-14 md:h-16 w-auto max-w-[125px] md:max-w-[145px] overflow-visible">
                 <image href={HEADER_LOGO} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
               </svg>
+              <span className="hidden xl:block text-secondary-fixed font-bold text-xs whitespace-nowrap">آکادمی هنر و رسانه امام روح‌الله (ره)</span>
             </Link>
             <div className="hidden lg:block"><AnimatedSearchBar /></div>
           </div>

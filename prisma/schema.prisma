@@ -126,7 +126,13 @@ model CourseImage {
 model Gallery {
   id        String   @id @default(cuid())
   imageUrl  String
+  title     String?
+  slug      String?
+  description String?
   altText   String?
+  seoTitle  String?
+  seoDescription String?
+  capturedAt DateTime?
   folder    String?
   createdAt DateTime @default(now())
 

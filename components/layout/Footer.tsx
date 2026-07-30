@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Globe, Share2, AtSign } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { APP_VERSION } from "@/lib/version";
 
 export default function Footer() {
@@ -36,22 +36,6 @@ export default function Footer() {
               انسانی متعهد و متخصص در حوزه‌های مختلف هنری و رسانه‌ای است. ما به
               دنبال تلفیق هنر اصیل و تکنولوژی روز هستیم.
             </p>
-            <div className="flex gap-3 justify-end">
-              <Link
-                href="https://www.instagram.com/imamruhollahschool/"
-                target="_blank"
-                className="w-10 h-10 rounded-full border border-secondary/30 flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-all"
-              >
-                <Globe size={18} />
-              </Link>
-              <Link
-                href="https://ble.ir/ImamRuhollahSchool"
-                target="_blank"
-                className="w-10 h-10 rounded-full border border-secondary/30 flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-all"
-              >
-                <Share2 size={18} />
-              </Link>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8">
@@ -133,18 +117,10 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <h5 className="text-secondary-fixed font-bold mb-2">
-              مجوزها و افتخارات
-            </h5>
-            <div className="flex gap-4">
-              <div className="w-20 h-20 bg-white/10 rounded-xl border border-white/10 flex items-center justify-center">
-                <span className="text-3xl opacity-50 font-playfair">✓</span>
-              </div>
-              <div className="w-20 h-20 bg-white/10 rounded-xl border border-white/10 flex items-center justify-center">
-                <span className="text-3xl opacity-50 font-playfair">★</span>
-              </div>
-            </div>
+          <div className="flex flex-col gap-3">
+            <h5 className="text-secondary-fixed font-bold flex items-center gap-2"><MapPin size={17} />موقعیت آکادمی</h5>
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><iframe title="موقعیت آکادمی امام روح‌الله روی نقشه" src="https://www.google.com/maps?q=35.699257969493395,51.39662703655142&z=16&output=embed" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="w-full h-full border-0 grayscale-[35%]" /></div>
+            <a href="https://www.google.com/maps?q=35.699257969493395,51.39662703655142" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مشاهده مسیر در نقشه</a>
           </div>
         </div>
 

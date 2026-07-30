@@ -9,19 +9,29 @@ import {
   X,
   FolderOpen,
   ImageIcon,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import PersianDateTimePicker from "@/components/ui/persian-date-time-picker";
 
 interface GalleryImage {
   id: string;
   imageUrl: string;
+  title: string | null;
+  slug: string | null;
+  description: string | null;
   altText: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  capturedAt: string | null;
   folder: string | null;
   courseId: string | null;
   createdAt: string;
 }
+
+const emptyForm = { courseId: "", imageUrl: "", title: "", slug: "", description: "", folder: "", altText: "", seoTitle: "", seoDescription: "", capturedAt: "" };
 
 interface Course {
   id: string;
@@ -36,12 +46,8 @@ export default function AdminGallery() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    courseId: "",
-    imageUrl: "",
-    folder: "",
-    altText: "",
-  });
+  const [editing, setEditing] = useState<GalleryImage | null>(null);
+  const [form, setForm] = useState(emptyForm);
 
   const getToken = () => getCookie("token") || "";
 
@@ -84,12 +90,18 @@ export default function AdminGallery() {
     const token = getToken();
 
     try {
-      const res = await fetch("/api/gallery", {
-        method: "POST",
+      const res = await fetch(editing ? `/api/gallery/${editing.id}` : "/api/gallery", {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({
           imageUrl: form.imageUrl,
+          title: form.title,
+          slug: form.slug,
+          description: form.description || null,
           altText: form.altText || null,
+          seoTitle: form.seoTitle || null,
+          seoDescription: form.seoDescription || null,
+          capturedAt: form.capturedAt || null,
           folder: form.folder || null,
           courseId: form.courseId,
         }),
@@ -98,9 +110,10 @@ export default function AdminGallery() {
         const err = await res.json();
         throw new Error(err.error || "خطا");
       }
-      toast.success("تصویر با موفقیت افزوده شد");
+      toast.success(editing ? "اطلاعات تصویر بروزرسانی شد" : "تصویر با موفقیت افزوده شد");
       setShowModal(false);
-      setForm({ courseId: "", imageUrl: "", folder: "", altText: "" });
+      setEditing(null);
+      setForm(emptyForm);
       fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "خطا");
@@ -176,7 +189,7 @@ export default function AdminGallery() {
           ))}
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }}
           className="flex items-center gap-2 bg-[#03004b] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors shrink-0"
         >
           <Plus size={18} />
@@ -214,9 +227,11 @@ export default function AdminGallery() {
                   </div>
                 )}
                 <div className="text-xs text-[#03004b] font-medium truncate">
-                  {getCourseTitle(image.courseId)}
+                  {image.title || getCourseTitle(image.courseId)}
                 </div>
+                {image.description && <p className="text-[11px] text-outline line-clamp-2 mt-1">{image.description}</p>}
               </div>
+              <button onClick={() => { setEditing(image); setForm({ courseId: image.courseId || "", imageUrl: image.imageUrl, title: image.title || "", slug: image.slug || "", description: image.description || "", folder: image.folder || "", altText: image.altText || "", seoTitle: image.seoTitle || "", seoDescription: image.seoDescription || "", capturedAt: image.capturedAt || "" }); setShowModal(true); }} className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/80 text-outline hover:text-primary opacity-0 group-hover:opacity-100 transition-all"><Pencil size={14} /></button>
               <button
                 onClick={() => {
                   if (window.confirm("آیا از حذف این تصویر اطمینان دارید؟")) {
@@ -236,7 +251,7 @@ export default function AdminGallery() {
         <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
           <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">افزودن تصویر جدید</h3>
+                <h3 className="text-lg font-bold text-primary">{editing ? "ویرایش اطلاعات تصویر" : "افزودن تصویر جدید"}</h3>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-outline hover:text-primary p-1"
@@ -268,6 +283,11 @@ export default function AdminGallery() {
                 aspectRatio="16:9"
               />
 
+              <div className="grid sm:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-primary mb-1">عنوان تصویر</label><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div><div><label className="block text-sm font-medium text-primary mb-1">آدرس صفحه</label><div className="flex" dir="ltr"><span className="px-2 py-2.5 rounded-l-xl border border-r-0 border-surface-variant bg-surface-low text-[10px] text-outline">/gallery/</span><input required value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-") }))} className="min-w-0 flex-1 px-3 py-2.5 rounded-r-xl border border-surface-variant text-sm" /></div></div></div>
+
+              <div><label className="block text-sm font-medium text-primary mb-1">توضیحات تصویر / آلبوم</label><textarea rows={3} value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div>
+              <div><label className="block text-sm font-medium text-primary mb-1">تاریخ ثبت تصویر (شمسی)</label><PersianDateTimePicker value={form.capturedAt} onChange={(capturedAt) => setForm((p) => ({ ...p, capturedAt }))} /></div>
+
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">پوشه</label>
                 <input
@@ -294,6 +314,7 @@ export default function AdminGallery() {
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                 />
               </div>
+              <div className="rounded-xl bg-surface-low border border-surface-variant p-4 space-y-3"><p className="text-sm font-bold text-primary">تنظیمات سئو</p><div><label className="block text-xs text-outline mb-1">عنوان سئو</label><input value={form.seoTitle} onChange={(e) => setForm((p) => ({ ...p, seoTitle: e.target.value }))} maxLength={70} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div><div><label className="block text-xs text-outline mb-1">توضیحات سئو</label><textarea value={form.seoDescription} onChange={(e) => setForm((p) => ({ ...p, seoDescription: e.target.value }))} maxLength={170} rows={2} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm" /></div></div>
 
               <div className="flex items-center gap-3 pt-2">
                 <button
@@ -302,7 +323,7 @@ export default function AdminGallery() {
                   className="flex items-center gap-2 bg-[#03004b] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors disabled:opacity-50"
                 >
                   {saving && <Loader2 size={16} className="animate-spin" />}
-                  افزودن تصویر
+                  {editing ? "ذخیره تغییرات" : "افزودن تصویر"}
                 </button>
                 <button
                   type="button"

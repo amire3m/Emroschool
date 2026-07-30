@@ -15,8 +15,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const event = await prisma.event.findUnique({
-      where: { id: params.id },
+    const event = await prisma.event.findFirst({
+      where: { OR: [{ id: params.id }, { slug: params.id }] },
       include: {
         courses: {
           include: {

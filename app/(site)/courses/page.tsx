@@ -70,8 +70,9 @@ export default function CoursesPage() {
   }, []);
 
   const filtered = courses.filter((course) => {
+    const selectedCategory = categories.find((category) => category.slug === activeCategory);
     const matchCategory =
-      activeCategory === "همه" || course.categoryName === activeCategory;
+      activeCategory === "همه" || course.categoryName === (selectedCategory?.name || activeCategory);
     const matchSearch =
       !searchQuery ||
       course.title.includes(searchQuery) ||
@@ -127,9 +128,9 @@ export default function CoursesPage() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.name)}
+              onClick={() => setActiveCategory(cat.slug)}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                activeCategory === cat.name
+                activeCategory === cat.slug
                   ? "bg-primary text-white"
                   : "bg-white border border-outline-variant text-outline hover:border-primary hover:text-primary"
               }`}
