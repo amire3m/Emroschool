@@ -13,7 +13,7 @@ const unsortedReleaseNotes: ReleaseNote[] = [
   {
     id: "local-postfix-email-relay",
     title: "پشتیبانی از Mail Server محلی",
-    summary: "سامانه ارسال کد تأیید با Postfix محلی روی loopback و بدون ذخیره نام کاربری یا رمز SMTP سازگار شد.",
+    summary: "سامانه ارسال کد تأیید با Postfix محلی روی loopback و بدون ذخیره نام کاربری یا رمز SMTP سازگار شد و STARTTLS محلی را نادیده می‌گیرد.",
     publishedAt: "2026-07-30T05:40:00+03:30",
     type: "improvement",
   },

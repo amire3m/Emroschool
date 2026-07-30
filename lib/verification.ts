@@ -11,7 +11,14 @@ function emailTransport() {
   const pass = process.env.SMTP_PASS;
   if (!host || Boolean(user) !== Boolean(pass)) throw new Error("EMAIL_NOT_CONFIGURED");
   const port = Number(process.env.SMTP_PORT || 587);
-  return nodemailer.createTransport({ host, port, secure: port === 465, ...(user && pass ? { auth: { user, pass } } : {}) });
+  const localRelay = host === "127.0.0.1" && port === 25 && !user && !pass;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    ...(localRelay ? { ignoreTLS: true } : {}),
+    ...(user && pass ? { auth: { user, pass } } : {}),
+  });
 }
 
 export async function issueEmailVerificationCode(email: string, name: string) {
