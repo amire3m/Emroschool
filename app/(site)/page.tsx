@@ -688,7 +688,11 @@ export default function HomePage() {
         </section>
       )}
 
-      {sectionVisibility.cta !== false && <NewsletterCta title={String(ctaContent.title)} description={String(ctaContent.description)} isLoggedIn={isLoggedIn} />}
+      {sectionVisibility.cta !== false && (
+        <div style={{ order: orderFor("cta", 7) }}>
+          <NewsletterCta title={String(ctaContent.title)} description={String(ctaContent.description)} isLoggedIn={isLoggedIn} />
+        </div>
+      )}
 
       {lightbox && (
         <div

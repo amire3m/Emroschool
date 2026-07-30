@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "restore-newsletter-section-order",
+    title: "بازگردانی جایگاه خبرنامه",
+    summary: "بخش خبرنامه به ترتیب قبلی صفحه و جایگاه خود در انتهای محتوای اصلی بازگردانده شد.",
+    publishedAt: "2026-07-30T09:15:00+03:30",
+    type: "fix",
+  },
+  {
     id: "interactive-home-course-button",
     title: "دکمه تعاملی کارت دوره‌ها",
     summary: "دکمه مشاهده صفحه دوره و ثبت‌نام در صفحه اصلی به‌صورت تعاملی و در مرکز پایین کارت دوره بازطراحی شد.",
