@@ -57,7 +57,8 @@ export default function RegisterPage() {
         return;
       }
 
-      setVerificationEmail(data.destination);
+      if (data.requiresVerification) setVerificationEmail(data.destination);
+      else { setCookie("token", data.token); router.push("/dashboard"); }
     } catch {
       setError("خطا در برقراری ارتباط با سرور");
     } finally {

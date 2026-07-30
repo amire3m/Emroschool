@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "optional-email-verification",
+    title: "اختیاری‌شدن تأیید ایمیل",
+    summary: "تأیید ایمیل به‌صورت پیش‌فرض غیرفعال شد تا کاربران بلافاصله وارد شوند و امکان فعال‌سازی آینده با تنظیم محیطی باقی ماند.",
+    publishedAt: "2026-07-30T05:31:21+03:30",
+    type: "improvement",
+  },
+  {
     id: "email-verification-and-admin-passwords",
     title: "تأیید ایمیل و مدیریت رمز کاربران",
     summary: "ثبت‌نام ایمیلی با کد شش‌رقمی، انقضای ده‌دقیقه‌ای و ارسال مجدد امن شد و مدیر می‌تواند برای کاربران رمز عبور جدید تعیین کند.",
