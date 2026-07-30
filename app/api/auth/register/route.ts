@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { generateToken, hashPassword } from "@/lib/auth";
-import { issueEmailVerificationCode } from "@/lib/verification";
+import { issueEmailVerificationCode, sendWelcomeEmail } from "@/lib/verification";
 import { NextResponse, NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ requiresVerification: true, channel: "email", destination: user.email, message: "کد تأیید به ایمیل شما ارسال شد" }, { status: 201 });
     }
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
+    await sendWelcomeEmail(user.email, user.name).catch((error) => console.error("Welcome email error:", error));
     return NextResponse.json({ token, requiresVerification: false, user: { id: user.id, email: user.email, name: user.name, role: user.role } }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "RATE_LIMIT") return NextResponse.json({ error: "کد قبلاً ارسال شده است؛ یک دقیقه صبر کنید" }, { status: 429 });

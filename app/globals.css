@@ -163,6 +163,17 @@ strong, b { font-weight: 700; }
 .animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
 .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
 
+@keyframes ctaOrbit {
+  from { transform: rotate(0deg) translateX(22px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(22px) rotate(-360deg); }
+}
+@keyframes ctaShimmer {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+.animate-cta-orbit { animation: ctaOrbit 12s linear infinite; }
+.animate-cta-shimmer { animation: ctaShimmer 4s ease-in-out infinite; }
+
 @keyframes searchPlaceholder {
   0% { opacity: 0; transform: translateY(calc(-50% + 8px)); filter: blur(4px); }
   16%, 78% { opacity: 1; transform: translateY(-50%); filter: blur(0); }

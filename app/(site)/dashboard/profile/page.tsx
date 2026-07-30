@@ -29,6 +29,7 @@ interface UserProfile {
   role: string;
   userType: string;
   profileVisible: boolean;
+  newsletterSubscribed: boolean;
 }
 
 export default function ProfilePage() {
@@ -49,6 +50,7 @@ export default function ProfilePage() {
   const [expertise, setExpertise] = useState("");
   const [socialLinks, setSocialLinks] = useState("");
   const [profileVisible, setProfileVisible] = useState(false);
+  const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -72,6 +74,7 @@ export default function ProfilePage() {
         setExpertise(user.expertise || "");
         setSocialLinks(user.socialLinks || "");
         setProfileVisible(Boolean(user.profileVisible));
+        setNewsletterSubscribed(Boolean(user.newsletterSubscribed));
       } catch {
         setError("خطا در بارگذاری پروفایل");
       } finally {
@@ -96,7 +99,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, email, phone, ...details, avatar, bio, expertise, socialLinks, profileVisible };
+      const body: Record<string, unknown> = { name, email, phone, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed };
       if (password) body.password = password;
 
       const res = await fetch("/api/user/profile", {
@@ -281,7 +284,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="border-t border-outline-variant/20 pt-6">
-          <div className="flex items-center justify-between gap-4 p-4 mb-6 rounded-2xl bg-surface-low border border-outline-variant/30">
+           <div className="flex items-center justify-between gap-4 p-4 mb-6 rounded-2xl bg-surface-low border border-outline-variant/30">
             <div className="flex items-start gap-3">
               {profileVisible ? <Eye size={20} className="text-green-600 mt-0.5" /> : <EyeOff size={20} className="text-outline mt-0.5" />}
               <div>
@@ -289,7 +292,20 @@ export default function ProfilePage() {
                 <p className="text-xs text-outline mt-1">
                   {profileVisible ? "پروفایل شما برای عموم قابل مشاهده است." : "پروفایل شما از دید عموم مخفی است."}
                 </p>
-              </div>
+           </div>
+
+           <div className="flex items-center justify-between gap-4 p-4 mb-6 rounded-2xl bg-[#fff8e9] border border-secondary-fixed/60">
+             <div className="flex items-start gap-3">
+               <Mail size={20} className="text-secondary mt-0.5" />
+               <div>
+                 <h3 className="text-sm font-bold text-primary">عضویت در خبرنامه آکادمی</h3>
+                 <p className="text-xs text-outline mt-1">از دوره‌ها، رویدادها و فرصت‌های تازه آکادمی باخبر شوید.</p>
+               </div>
+             </div>
+             <button type="button" role="switch" aria-checked={newsletterSubscribed} onClick={() => setNewsletterSubscribed((value) => !value)} className={`relative w-12 h-6 rounded-full shrink-0 transition-colors ${newsletterSubscribed ? "bg-secondary" : "bg-outline-variant"}`}>
+               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${newsletterSubscribed ? "translate-x-6" : "translate-x-0.5"}`} />
+             </button>
+           </div>
             </div>
             <button
               type="button"

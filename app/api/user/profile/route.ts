@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       select: {
-        id: true,
+         id: true,
+         newsletterSubscribed: true,
         name: true,
         email: true,
          phone: true, birthDate: true,
@@ -64,7 +65,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, phone, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible } = body;
+    const { name, email, phone, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
@@ -87,6 +88,7 @@ export async function PUT(req: NextRequest) {
     if (expertise !== undefined) data.expertise = expertise;
     if (socialLinks !== undefined) data.socialLinks = socialLinks;
     if (profileVisible !== undefined && typeof profileVisible === "boolean") data.profileVisible = profileVisible;
+    if (newsletterSubscribed !== undefined && typeof newsletterSubscribed === "boolean") data.newsletterSubscribed = newsletterSubscribed;
     if (password !== undefined) {
       data.password = await hashPassword(password);
     }
@@ -95,7 +97,8 @@ export async function PUT(req: NextRequest) {
       where: { id: payload.id },
       data,
       select: {
-        id: true,
+         id: true,
+         newsletterSubscribed: true,
         name: true,
         email: true,
          phone: true, birthDate: true,

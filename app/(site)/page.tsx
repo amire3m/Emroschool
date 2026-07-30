@@ -8,6 +8,7 @@ import AutoScrollSlider from "@/components/ui/autoscroll-slider";
 import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 import AutoLoopRow from "@/components/ui/auto-loop-row";
 import { GlowEffect } from "@/components/ui/glow-effect";
+import { getCookie } from "@/lib/cookie";
 import {
   Star,
   ChevronLeft,
@@ -160,6 +161,15 @@ export default function HomePage() {
   const [sectionContent, setSectionContent] = useState<Record<string, HomeSectionContent>>({});
   const [partners, setPartners] = useState<{ id: string; name: string; logoUrl: string }[]>([]);
   const [categories, setCategories] = useState<HomeCategory[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = getCookie("token");
+    if (!token) return;
+    fetch("/api/auth/me", { headers: { authorization: `Bearer ${token}` } })
+      .then((response) => setIsLoggedIn(response.ok))
+      .catch(() => setIsLoggedIn(false));
+  }, []);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -671,12 +681,17 @@ export default function HomePage() {
         <div
           id="about"
           className="relative rounded-3xl overflow-hidden py-16 px-8 text-center border border-secondary/20"
-          style={{
-            background:
-              "radial-gradient(circle at center, transparent 0%, rgba(3, 0, 75, 0.03) 100%)",
-          }}
-        >
-          <div
+           style={{
+             background:
+               "radial-gradient(circle at center, transparent 0%, rgba(3, 0, 75, 0.03) 100%)",
+           }}
+         >
+           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+             <div className="absolute left-10 top-8 h-20 w-20 rounded-full border border-secondary/20 animate-cta-orbit"><span className="absolute -right-1 top-1/2 h-2 w-2 rounded-full bg-secondary" /></div>
+             <div className="absolute right-10 bottom-8 h-28 w-28 rounded-full border border-primary/10 animate-cta-orbit" style={{ animationDelay: "-5s" }} />
+             <div className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/30 blur-2xl animate-cta-shimmer" />
+           </div>
+           <div
             className="absolute inset-0 opacity-[0.03] pointer-events-none"
             style={{
               backgroundImage:
@@ -692,28 +707,21 @@ export default function HomePage() {
             <p className="text-outline leading-relaxed mb-8">
               {ctaContent.description}
             </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setEmail("");
-              }}
-              className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder={String(ctaContent.placeholder)}
-                className="flex-1 bg-white border border-outline-variant rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="bg-primary text-white px-8 py-3.5 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-95"
-              >
-                {ctaContent.buttonText}
-              </button>
-            </form>
+             {!isLoggedIn ? (
+               <div className="flex flex-col items-center gap-4">
+                 <p className="text-sm font-bold text-secondary">حساب خود را بسازید و این مسیر را با ما آغاز کنید</p>
+                 <Link href="/register" className="group inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:bg-primary-container">
+                   عضویت در آکادمی <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+                 </Link>
+               </div>
+             ) : (
+               <div className="flex flex-col items-center gap-4">
+                 <p className="text-sm font-bold text-secondary">خبرهای مهم آکادمی را از دست ندهید</p>
+                 <Link href="/dashboard/profile" className="group inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:bg-primary-container">
+                   تنظیم عضویت خبرنامه <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+                 </Link>
+               </div>
+             )}
           </div>
         </div>
       </AnimatedSection>

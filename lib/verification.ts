@@ -1,25 +1,9 @@
 import crypto from "crypto";
-import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
+import { emailShell, htmlEscape, sendSiteEmail } from "@/lib/email";
 
 const secret = process.env.VERIFICATION_SECRET || process.env.JWT_SECRET || "verification-secret-1405";
 const hashCode = (destination: string, code: string) => crypto.createHmac("sha256", secret).update(`${destination}:${code}`).digest("hex");
-
-function emailTransport() {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || Boolean(user) !== Boolean(pass)) throw new Error("EMAIL_NOT_CONFIGURED");
-  const port = Number(process.env.SMTP_PORT || 587);
-  const localRelay = host === "127.0.0.1" && port === 25 && !user && !pass;
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    ...(localRelay ? { ignoreTLS: true } : {}),
-    ...(user && pass ? { auth: { user, pass } } : {}),
-  });
-}
 
 export async function issueEmailVerificationCode(email: string, name: string) {
   const normalized = email.trim().toLowerCase();
@@ -29,17 +13,27 @@ export async function issueEmailVerificationCode(email: string, name: string) {
   await prisma.verificationCode.deleteMany({ where: { destination: normalized, channel: "email", purpose: "register" } });
   const record = await prisma.verificationCode.create({ data: { destination: normalized, channel: "email", codeHash: hashCode(normalized, code), purpose: "register", expiresAt: new Date(Date.now() + 10 * 60_000) } });
   try {
-    await emailTransport().sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const safeName = htmlEscape(name);
+    await sendSiteEmail({
       to: normalized,
-      subject: "کد تأیید ثبت‌نام آکادمی امام روح‌الله",
-      text: `${name} عزیز، کد تأیید شما: ${code}\nاین کد تا ۱۰ دقیقه معتبر است.`,
-      html: `<div dir="rtl" style="font-family:Tahoma,sans-serif;max-width:520px;margin:auto;padding:32px;border:1px solid #e2e1f0;border-radius:20px"><h2 style="color:#03004b">تأیید ایمیل آکادمی</h2><p>${name} عزیز، برای تکمیل ثبت‌نام کد زیر را وارد کنید:</p><div style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#7b5814;text-align:center;padding:20px;background:#fbf8ff;border-radius:14px">${code}</div><p style="color:#777681;font-size:13px">این کد تا ۱۰ دقیقه معتبر است. اگر شما درخواست ثبت‌نام نداده‌اید، این ایمیل را نادیده بگیرید.</p></div>`,
+      subject: "کد تأیید ثبت‌نام | آکادمی امام روح‌الله",
+      text: `${name} عزیز، کد تأیید شما ${code} است. این کد تا ۱۰ دقیقه معتبر است.`,
+      html: emailShell(`<div style="text-align:center"><div style="display:inline-block;padding:10px 16px;border-radius:999px;background:#fff3dc;color:#7b5814;font-size:12px;font-weight:bold">یک قدم تا ورود به آکادمی</div><h1 style="margin:22px 0 10px;color:#03004b;font-size:27px">تأیید ایمیل شما</h1><p style="margin:0;color:#777681;line-height:2">${safeName} عزیز، برای تکمیل ثبت‌نام این کد را در صفحه آکادمی وارد کنید.</p><div style="margin:28px 0;padding:24px 12px;border-radius:20px;background:linear-gradient(135deg,#fbf8ff,#fff7e9);border:1px solid #ffdeab;color:#03004b;font-size:38px;font-weight:900;letter-spacing:12px;direction:ltr">${code}</div><p style="margin:0;color:#777681;font-size:12px;line-height:2">این کد تا ۱۰ دقیقه معتبر است و فقط یک‌بار قابل استفاده است.<br>اگر شما درخواست ثبت‌نام نداده‌اید، این پیام را نادیده بگیرید.</p></div>`, "کد تأیید ثبت‌نام آکادمی"),
     });
   } catch (error) {
     await prisma.verificationCode.delete({ where: { id: record.id } }).catch(() => {});
     throw error;
   }
+}
+
+export async function sendWelcomeEmail(email: string, name: string) {
+  const safeName = htmlEscape(name);
+  await sendSiteEmail({
+    to: email,
+    subject: "به خانواده آکادمی امام روح‌الله خوش آمدید",
+    text: `${name} عزیز، به آکادمی هنر و رسانه امام روح‌الله خوش آمدید.`,
+    html: emailShell(`<div><div style="display:inline-block;padding:10px 16px;border-radius:999px;background:#fff3dc;color:#7b5814;font-size:12px;font-weight:bold">خوش آمدی، هنرمند</div><h1 style="margin:22px 0 12px;color:#03004b;font-size:30px">${safeName} عزیز،<br>به آکادمی خوش آمدی</h1><p style="color:#555568;line-height:2.2;font-size:15px">از اینکه به جمع هنرمندان متعهد و خلاق آکادمی هنر و رسانه امام روح‌الله پیوستی خوشحالیم. اینجا قرار است یاد بگیری، تجربه کنی و اثری ماندگار بسازی.</p><div style="margin:26px 0;padding:20px;border-radius:18px;background:#03004b;color:#fff"><div style="color:#ffdeab;font-size:12px;font-weight:bold">مسیر تو از همین‌جا آغاز می‌شود</div><div style="margin-top:8px;font-size:18px;font-weight:bold">دوره‌ها را ببین، در رویدادها همراه شو و رشد کن.</div></div><a href="https://imamruhollahschool.com/courses" style="display:inline-block;padding:14px 24px;background:#7b5814;color:#fff;text-decoration:none;border-radius:12px;font-weight:bold">مشاهده دوره‌ها</a></div>`, "خوش آمدید به آکادمی امام روح‌الله"),
+  });
 }
 
 export async function verifyEmailCode(email: string, code: string) {

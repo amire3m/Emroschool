@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "welcome-newsletter-admin-email-tools",
+    title: "تجربه ایمیل و خبرنامه آکادمی",
+    summary: "قالب‌های گرافیکی تأیید و خوش‌آمدگویی، دعوت هوشمند ثبت‌نام، عضویت خبرنامه در پروفایل و ابزار ارسال ایمیل مدیریت اضافه شد.",
+    publishedAt: "2026-07-30T08:30:00+03:30",
+    type: "feature",
+  },
+  {
     id: "about-contact-page-and-footer-address",
     title: "صفحه درباره آکادمی و تماس با ما",
     summary: "صفحه اختصاصی معرفی و تماس، آدرس کامل زیر نقشه و چیدمان جدید لوگوی فوتر اضافه شد.",

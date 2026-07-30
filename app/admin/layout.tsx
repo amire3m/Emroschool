@@ -18,6 +18,7 @@ import {
   Calendar,
   GraduationCap,
   Bell,
+  Mail,
   Settings,
   HardDrive,
   History,
@@ -51,6 +52,7 @@ const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
+  { href: "/admin/email", label: "ارسال ایمیل", icon: Mail, permission: "settings" },
   { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
   {
     key: "users",
@@ -88,6 +90,7 @@ const pageTitles: Record<string, string> = {
   "/admin/files": "مدیریت فایل‌ها",
   "/admin/users": "مدیریت کاربران",
   "/admin/notifications": "اعلان‌ها",
+  "/admin/email": "ارسال ایمیل از دامنه آکادمی",
   "/admin/updates": "بروزرسانی‌ها",
   "/admin/partners": "مدیریت همراهان",
   "/admin/settings": "تنظیمات سایت",
