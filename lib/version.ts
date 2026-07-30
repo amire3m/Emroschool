@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "animated-global-error-pages",
+    title: "صفحات خطای اختصاصی و متحرک",
+    summary: "صفحات ۴۰۴، خطای صفحه و خطای سراسری با طراحی وکتور و مسیرهای بازیابی اختصاصی اضافه شدند.",
+    publishedAt: "2026-07-30T09:30:00+03:30",
+    type: "feature",
+  },
+  {
     id: "restore-newsletter-section-order",
     title: "بازگردانی جایگاه خبرنامه",
     summary: "بخش خبرنامه به ترتیب قبلی صفحه و جایگاه خود در انتهای محتوای اصلی بازگردانده شد.",
