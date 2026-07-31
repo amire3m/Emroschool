@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidIranianNationalCode, normalizeIranianNationalCode } from "@/lib/iranian-national-code";
+import { isValidIranianMobile, normalizeIranianMobile } from "@/lib/iranian-mobile";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
      if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
     const nationalCode = normalizeIranianNationalCode(body.nationalCode);
     if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
+    const normalizedPhone = normalizeIranianMobile(body.phone);
+    if (!isValidIranianMobile(normalizedPhone)) return NextResponse.json({ error: "شماره تلفن همراه واردشده معتبر نیست" }, { status: 400 });
     const course = await prisma.course.findUnique({ where: { id: body.courseId } });
     if (!course || !course.published) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     if (course.scheduleStatus !== "upcoming" || course.registrationMode !== "registration") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();
     const fullName = body.fullName.trim();
-    const phone = body.phone.trim();
+    const phone = normalizedPhone;
     const profileUpdated = existingUser.name !== fullName || existingUser.email !== email || existingUser.phone !== phone || existingUser.nationalCode !== nationalCode;
 
     const application = await prisma.$transaction(async (tx) => {
