@@ -103,6 +103,19 @@ body {
   direction: rtl;
 }
 
+@keyframes breaking-news-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(50%); }
+}
+
+.breaking-news-track {
+  animation: breaking-news-marquee 42s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breaking-news-track { animation: none; }
+}
+
 h1:not(.font-black) { font-weight: 900; }
 h2:not(.font-black) { font-weight: 800; }
 h3:not(.font-black), h4:not(.font-black), h5:not(.font-black), h6:not(.font-black) { font-weight: 700; }
