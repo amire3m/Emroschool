@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-const RSS_URL = "https://www.mehrnews.com/rss?pl=224";
+const RSS_URL = "https://www.mehrnews.com/rss";
+
+export const dynamic = "force-dynamic";
 
 function decodeXml(value: string) {
   return value
