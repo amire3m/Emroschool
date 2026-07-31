@@ -10,8 +10,6 @@ export function normalizeIranianMobile(value: string) {
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
     .replace(/\D/g, "");
-  if (digits.startsWith("0098")) return `0${digits.slice(4, 13)}`;
-  if (digits.startsWith("98")) return `0${digits.slice(2, 11)}`;
   return digits.slice(0, 11);
 }
 
