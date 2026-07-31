@@ -112,6 +112,11 @@ body {
   animation: breaking-news-marquee 52s linear infinite;
 }
 
+/* Replaced by the visual learning path rendered immediately above the course description. */
+.course-detail-layout .prose + section {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .breaking-news-track { animation: none; }
 }

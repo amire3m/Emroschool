@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
 import CourseRegistrationModal from "@/components/courses/course-registration-modal";
+import ComprehensiveCoursePath from "@/components/courses/comprehensive-course-path";
 import CopyLinkButton from "@/components/ui/copy-link-button";
 import toast from "react-hot-toast";
 
@@ -178,7 +179,7 @@ export default function CourseDetailPage() {
           بازگشت به دوره‌ها
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <div className="course-detail-layout grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           <div className="lg:col-span-2">
             <div className="relative aspect-[21/9] rounded-2xl overflow-hidden mb-6">
               {course.thumbnail ? (
@@ -251,6 +252,7 @@ export default function CourseDetailPage() {
               </span>
             </div>
 
+            {course.courseType === "comprehensive" && <ComprehensiveCoursePath title={course.title} children={course.children || []} />}
             <div className="prose prose-sm max-w-none text-on-background leading-relaxed whitespace-pre-line">
               {course.description}
             </div>
