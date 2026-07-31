@@ -117,6 +117,42 @@ body {
   display: none;
 }
 
+.persian-date-picker.rmdp-wrapper {
+  border: 1px solid rgba(3, 0, 75, 0.12);
+  border-radius: 1.25rem;
+  box-shadow: 0 22px 45px -25px rgba(3, 0, 75, 0.45);
+  padding: 0.75rem;
+}
+
+.persian-date-picker .rmdp-header,
+.persian-date-picker .rmdp-week-day {
+  color: #03004b;
+  font-weight: 800;
+}
+
+.persian-date-picker .rmdp-week-day {
+  font-size: 0.66rem;
+}
+
+.persian-date-picker .rmdp-day span {
+  border-radius: 0.7rem;
+}
+
+.persian-date-picker .rmdp-day.rmdp-selected span {
+  background-color: #03004b;
+  box-shadow: none;
+}
+
+.persian-date-picker .rmdp-day:not(.rmdp-disabled) span:hover {
+  background-color: #ffdeab;
+  color: #03004b;
+}
+
+.persian-date-picker .rmdp-arrow-container:hover {
+  background-color: #ffdeab;
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .breaking-news-track { animation: none; }
 }
