@@ -131,24 +131,7 @@ body {
 }
 
 .persian-date-picker .rmdp-week-day {
-  font-size: 0.66rem;
-  white-space: nowrap;
-}
-
-.persian-date-picker .rmdp-calendar {
-  width: 25rem;
-  max-width: calc(100vw - 2rem);
-}
-
-.persian-date-picker .rmdp-week,
-.persian-date-picker .rmdp-day-picker > div {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-}
-
-.persian-date-picker .rmdp-week-day,
-.persian-date-picker .rmdp-day {
-  width: auto;
+  font-size: 0.75rem;
 }
 
 .persian-date-picker .rmdp-day span {
