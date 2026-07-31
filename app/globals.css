@@ -109,7 +109,7 @@ body {
 }
 
 .breaking-news-track {
-  animation: breaking-news-marquee 42s linear infinite;
+  animation: breaking-news-marquee 52s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

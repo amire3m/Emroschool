@@ -51,8 +51,8 @@ export default function MagazineShell({ children }: { children: React.ReactNode 
       </div>
       {mobileOpen && <div className="md:hidden px-5 pb-5 border-t border-white/5 pt-4 flex flex-col gap-2"><Link href="/" onClick={() => setMobileOpen(false)} className="p-3 rounded-xl bg-white/5 text-secondary-fixed text-sm font-bold">خانه مجله</Link>{canManage && <Link href="/mag-admin" className="p-3 text-sm text-white/70">ورود به تحریریه</Link>}<a href={MAIN_SITE} className="p-3 text-sm text-white/70">بازگشت به سایت آکادمی</a></div>}
     </header>
-     <BreakingNewsTicker />
      <div className="flex-1">{children}</div>
-    <footer className="bg-[#020035] text-white border-t border-secondary-fixed/10"><div className="max-w-[1280px] mx-auto px-5 md:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6"><div><p className="font-black text-secondary-fixed">{settings.title}</p><p className="text-xs text-white/40 mt-2 max-w-lg leading-6">{settings.description}</p></div><div className="text-center md:text-left"><a href={MAIN_SITE} className="inline-flex items-center gap-2 text-sm text-white/65 hover:text-secondary-fixed">مشاهده سایت آکادمی<ArrowUpLeft size={15} /></a><p className="text-[10px] text-white/25 mt-3">نسخه {APP_VERSION}</p></div></div></footer>
+     <BreakingNewsTicker />
+     <footer className="bg-[#020035] text-white border-t border-secondary-fixed/10"><div className="max-w-[1280px] mx-auto px-5 md:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6"><div><p className="font-black text-secondary-fixed">{settings.title}</p><p className="text-xs text-white/40 mt-2 max-w-lg leading-6">{settings.description}</p></div><div className="text-center md:text-left"><a href={MAIN_SITE} className="inline-flex items-center gap-2 text-sm text-white/65 hover:text-secondary-fixed">مشاهده سایت آکادمی<ArrowUpLeft size={15} /></a><p className="text-[10px] text-white/25 mt-3">نسخه {APP_VERSION}</p></div></div></footer>
   </div>;
 }
