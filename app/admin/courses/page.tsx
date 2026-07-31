@@ -78,6 +78,63 @@ function toSlug(str: string) {
     .toLowerCase();
 }
 
+const priceUnits = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+const priceTeens = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+const priceTens = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+const priceHundreds = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+const priceScales = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+
+function normalizePrice(value: string) {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/\D/g, "");
+}
+
+function formatPrice(value: string) {
+  const digits = normalizePrice(value);
+  return digits ? Number(digits).toLocaleString("fa-IR") : "";
+}
+
+function threeDigitPriceToWords(value: number) {
+  const words: string[] = [];
+  if (value >= 100) words.push(priceHundreds[Math.floor(value / 100)]);
+  const remainder = value % 100;
+  if (remainder >= 20) {
+    words.push(priceTens[Math.floor(remainder / 10)]);
+    if (remainder % 10) words.push(priceUnits[remainder % 10]);
+  } else if (remainder >= 10) words.push(priceTeens[remainder - 10]);
+  else if (remainder > 0) words.push(priceUnits[remainder]);
+  return words.join(" و ");
+}
+
+function priceInWords(value: string) {
+  const amount = Number(normalizePrice(value));
+  if (!amount) return "صفر تومان";
+  const groups: string[] = [];
+  let remaining = amount;
+  let scaleIndex = 0;
+  while (remaining && scaleIndex < priceScales.length) {
+    const group = remaining % 1000;
+    if (group) groups.unshift([threeDigitPriceToWords(group), priceScales[scaleIndex]].filter(Boolean).join(" "));
+    remaining = Math.floor(remaining / 1000);
+    scaleIndex += 1;
+  }
+  return `${groups.join(" و ")} تومان`;
+}
+
+function PriceField({ label, value, onChange, optional = false }: { label: string; value: string; onChange: (value: string) => void; optional?: boolean }) {
+  const hasValue = Boolean(normalizePrice(value));
+  return <div>
+    <label className="block text-sm font-medium text-primary mb-1">{label}</label>
+    <div className="relative">
+      <input type="text" inputMode="numeric" value={formatPrice(value)} onChange={(event) => onChange(normalizePrice(event.target.value))} placeholder="۰" className="w-full rounded-xl border border-surface-variant px-3 py-2.5 pl-16 text-sm font-bold tracking-wide focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-outline">تومان</span>
+    </div>
+    <p className={`mt-1.5 min-h-5 text-xs leading-5 ${hasValue ? "text-secondary" : "text-outline"}`}>{optional && !hasValue ? "در صورت تخفیف وارد کنید" : priceInWords(value)}</p>
+  </div>;
+}
+
 export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
@@ -191,8 +248,8 @@ export default function AdminCourses() {
       title: course.title,
       slug: course.slug,
       description: course.description,
-      price: String(course.price),
-      oldPrice: course.oldPrice ? String(course.oldPrice) : "",
+      price: formatPrice(String(course.price)),
+      oldPrice: course.oldPrice ? formatPrice(String(course.oldPrice)) : "",
       instructor: course.instructor || "",
       category: course.categoryId || categories.find((category) => category.name === course.categoryName)?.id || "",
       level: reverseLevelMap[course.level || ""] || course.level || "",
@@ -229,8 +286,8 @@ export default function AdminCourses() {
       title: form.title,
       slug: form.slug,
       description: form.description,
-      price: Number(form.price) || 0,
-      oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
+      price: Number(normalizePrice(form.price)) || 0,
+      oldPrice: normalizePrice(form.oldPrice) ? Number(normalizePrice(form.oldPrice)) : null,
       instructor: form.instructor || null,
       categoryId: selectedCategory?.id || null,
       categoryName: selectedCategory?.name || null,
@@ -493,14 +550,8 @@ export default function AdminCourses() {
               </div>
 
                {form.courseType === "single" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div>
-                   <label className="block text-sm font-medium text-primary mb-1">قیمت (تومان)</label>
-                   <input type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
-                 </div>
-                 <div>
-                   <label className="block text-sm font-medium text-primary mb-1">قیمت قبلی (اختیاری)</label>
-                   <input type="number" value={form.oldPrice} onChange={(e) => setForm((p) => ({ ...p, oldPrice: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
-                 </div>
+                  <PriceField label="قیمت دوره" value={form.price} onChange={(price) => setForm((p) => ({ ...p, price }))} />
+                  <PriceField label="قیمت پیش از تخفیف" value={form.oldPrice} onChange={(oldPrice) => setForm((p) => ({ ...p, oldPrice }))} optional />
                </div>}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
