@@ -1,12 +1,61 @@
 "use client";
 
-import DatePicker, { DateObject } from "react-multi-date-picker";
-import TimePicker from "react-multi-date-picker/plugins/time_picker";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Clock3, CalendarDays } from "lucide-react";
+import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
 import persianFa from "react-date-object/locales/persian_fa";
-import { useRef } from "react";
+
+const weekDays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+
+function persianDate(value?: string) {
+  return new DateObject({ date: value ? new Date(value) : new Date(), calendar: persian, locale: persianFa });
+}
 
 export default function PersianDateTimePicker({ value, onChange, required = false, withTime = true }: { value: string; onChange: (value: string) => void; required?: boolean; withTime?: boolean }) {
-  const pickerRef = useRef<{ closeCalendar: () => void }>(null);
-  return <DatePicker ref={pickerRef} calendar={persian} locale={persianFa} weekDays={["ش", "ی", "د", "س", "چ", "پ", "ج"]} format={withTime ? "YYYY/MM/DD HH:mm" : "YYYY/MM/DD"} plugins={withTime ? [<TimePicker key="time" position="bottom" hideSeconds />] : []} value={value ? new Date(value) : undefined} onChange={(date: DateObject | null) => { onChange(date ? date.toDate().toISOString() : ""); if (!withTime) pickerRef.current?.closeCalendar(); }} inputClass="w-full px-4 py-3 rounded-xl border border-surface-variant bg-white text-sm font-bold text-primary outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary-fixed" containerClassName="w-full" className="persian-date-picker" editable={false} required={required} calendarPosition="bottom-right" />;
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(() => persianDate(value));
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const selected = value ? persianDate(value) : null;
+  const selectedKey = selected?.format("YYYY/MM/DD");
+  const startOffset = new DateObject(view).toFirstOfMonth().weekDay.index;
+  const days = Array.from({ length: view.month.length }, (_, index) => index + 1);
+
+  useEffect(() => { if (value) setView(persianDate(value)); }, [value]);
+  useEffect(() => {
+    const close = (event: MouseEvent) => { if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  function selectDay(day: number) {
+    const currentTime = selected?.toDate() || new Date();
+    const next = new DateObject({ year: view.year, month: view.month.number, day, hour: currentTime.getHours(), minute: currentTime.getMinutes(), second: 0, calendar: persian, locale: persianFa });
+    onChange(next.toDate().toISOString());
+    if (!withTime) setOpen(false);
+  }
+
+  function changeTime(nextTime: string) {
+    if (!selected) return;
+    const [hour, minute] = nextTime.split(":").map(Number);
+    const next = selected.toDate();
+    next.setHours(hour, minute, 0, 0);
+    onChange(next.toISOString());
+  }
+
+  return <div className="relative w-full" ref={wrapperRef}>
+    <button type="button" onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition hover:border-secondary focus:border-secondary focus:ring-2 focus:ring-secondary-fixed" aria-expanded={open} aria-required={required}>
+      <span className={value ? "" : "text-outline"}>{value ? `${selected?.format("YYYY/MM/DD")}${withTime ? `، ${selected?.format("HH:mm")}` : ""}` : "انتخاب تاریخ"}</span>
+      <CalendarDays size={18} className="text-secondary" />
+    </button>
+    {open && <div className="absolute z-[110] mt-2 w-[min(25rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-primary/10 bg-white p-4 shadow-[0_24px_55px_-28px_rgba(3,0,75,0.55)]" dir="rtl">
+      <div className="mb-4 flex items-center justify-between rounded-xl bg-primary px-3 py-2.5 text-white">
+        <button type="button" onClick={() => setView((current) => new DateObject(current).add(1, "month"))} className="rounded-lg p-1.5 transition hover:bg-white/10" aria-label="ماه بعد"><ChevronRight size={18} /></button>
+        <div className="text-center"><p className="font-black">{view.month.name} {view.year.toLocaleString("fa-IR")}</p><button type="button" onClick={() => setView(persianDate())} className="mt-0.5 text-[10px] text-secondary-fixed hover:text-white">بازگشت به امروز</button></div>
+        <button type="button" onClick={() => setView((current) => new DateObject(current).subtract(1, "month"))} className="rounded-lg p-1.5 transition hover:bg-white/10" aria-label="ماه قبل"><ChevronLeft size={18} /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center">{weekDays.map((name, index) => <span key={name} className={`py-2 text-[10px] font-black ${index === 6 ? "text-error" : "text-outline"}`}>{name}</span>)}{Array.from({ length: startOffset }).map((_, index) => <span key={`empty-${index}`} />)}{days.map((day) => { const key = `${view.year}/${String(view.month.number).padStart(2, "0")}/${String(day).padStart(2, "0")}`; const active = key === selectedKey; return <button key={day} type="button" onClick={() => selectDay(day)} className={`aspect-square rounded-xl text-sm font-bold transition ${active ? "bg-primary text-white shadow-md" : "text-primary hover:bg-secondary-fixed hover:text-primary"}`}>{day.toLocaleString("fa-IR")}</button>; })}</div>
+      {withTime && <div className="mt-4 flex items-center gap-3 border-t border-surface-variant pt-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary-fixed text-primary"><Clock3 size={17} /></span><label className="flex-1 text-xs font-bold text-primary">ساعت برگزاری<input type="time" value={selected?.format("HH:mm") || ""} onChange={(event) => changeTime(event.target.value)} disabled={!selected} className="mt-1.5 w-full rounded-lg border border-surface-variant px-2 py-2 text-sm disabled:bg-surface-low" /></label></div>}
+    </div>}
+  </div>;
 }
