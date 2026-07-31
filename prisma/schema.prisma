@@ -17,6 +17,7 @@ model User {
   role      String   @default("user")    // superadmin | admin | user
   userType  String   @default("student") // student | instructor | alumni | admin
   phone     String?
+  nationalCode String? @unique
   phoneVerified Boolean @default(false)
   birthDate String?
   province  String?
@@ -177,6 +178,7 @@ model CourseApplication {
   fullName             String
   email                String
   phone                String
+  nationalCode         String?
   birthDate            String?
   province             String
   city                 String

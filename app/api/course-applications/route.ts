@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { isValidIranianNationalCode, normalizeIranianNationalCode } from "@/lib/iranian-national-code";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -38,9 +39,11 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "برای ثبت‌نام ابتدا وارد حساب کاربری شوید" }, { status: 401 });
   try {
     const body = await req.json();
-     const requiredFields = ["courseId", "fullName", "email", "phone", "birthDate", "province", "city", "address", "educationLevel", "educationField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
+     const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "province", "city", "address", "educationLevel", "educationField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
-    if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
+     if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
+    const nationalCode = normalizeIranianNationalCode(body.nationalCode);
+    if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
     const course = await prisma.course.findUnique({ where: { id: body.courseId } });
     if (!course || !course.published) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     if (course.scheduleStatus !== "upcoming" || course.registrationMode !== "registration") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
@@ -49,17 +52,17 @@ export async function POST(req: NextRequest) {
     const email = body.email.trim().toLowerCase();
     const fullName = body.fullName.trim();
     const phone = body.phone.trim();
-    const profileUpdated = existingUser.name !== fullName || existingUser.email !== email || existingUser.phone !== phone;
+    const profileUpdated = existingUser.name !== fullName || existingUser.email !== email || existingUser.phone !== phone || existingUser.nationalCode !== nationalCode;
 
     const application = await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
          name: fullName, email, phone, birthDate: body.birthDate.trim(), province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), instagramId: body.instagramId?.trim() || null,
-        virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
+        virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null, nationalCode,
       } });
       return tx.courseApplication.create({ data: {
-        userId: token.id, courseId: body.courseId, fullName, email, phone,
+        userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
          province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), reason: body.reason.trim(),
@@ -71,7 +74,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
       const target = String((error as { meta?: { target?: unknown } }).meta?.target || "");
-      return NextResponse.json({ error: target.includes("email") ? "این ایمیل متعلق به حساب دیگری است" : "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
+       return NextResponse.json({ error: target.includes("email") ? "این ایمیل متعلق به حساب دیگری است" : target.includes("nationalCode") ? "این کد ملی پیش‌تر برای حساب دیگری ثبت شده است" : "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
     }
     console.error("Course application POST error:", error);
     return NextResponse.json({ error: "خطا در ارسال فرم ثبت‌نام" }, { status: 500 });
