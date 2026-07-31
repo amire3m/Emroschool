@@ -61,8 +61,8 @@ export default function ComprehensiveCoursePath({ title, children }: Comprehensi
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-sm font-black text-secondary-fixed ring-1 ring-white/10 sm:mb-2">{(index + 1).toLocaleString("fa-IR")}</div>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${isCompleted ? "bg-emerald-400/15 text-emerald-200" : "bg-secondary-fixed/15 text-secondary-fixed"}`}>{isCompleted ? <Check size={12} /> : <CalendarDays size={12} />}{isCompleted ? "برگزار شده" : "آماده ثبت‌نام"}</span>
                   </div>
-                  <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-white/10 sm:w-36">
-                    {child.thumbnail ? <img src={child.thumbnail} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" /> : <div className="flex h-full items-center justify-center text-white/35"><PlayCircle size={28} /></div>}
+                  <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl bg-white/10 sm:w-36">
+                    {child.thumbnail ? <><div className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-xl" style={{ backgroundImage: `url(${child.thumbnail})` }} /><img src={child.thumbnail} alt="" className="relative h-full w-full object-contain transition duration-500 group-hover:scale-105" /></> : <div className="flex h-full items-center justify-center text-white/35"><PlayCircle size={28} /></div>}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><h3 className="text-base font-black leading-7 text-white md:text-lg">{child.title}</h3>{isUpcoming && child.startDate && <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/65">شروع {new Date(child.startDate).toLocaleDateString("fa-IR")}</span>}</div>
