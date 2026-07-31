@@ -1,4 +1,5 @@
 export const primaryCourseCategories = [
+  { name: "دوره جامع", slug: "comprehensive-course", icon: "Layers3", description: "مجموعه‌های آموزشی چندمرحله‌ای و مسیرهای کامل یادگیری" },
   { name: "مستند", slug: "documentary", icon: "Film", description: "روایت واقعیت با نگاه خلاق و مستندسازانه" },
   { name: "برنامه تلویزیونی", slug: "tv-program", icon: "Tv", description: "طراحی، تولید و کارگردانی قالب‌های تلویزیونی" },
   { name: "داستانی", slug: "narrative", icon: "BookOpen", description: "روایت داستانی، فیلم کوتاه و سینمای داستان‌گو" },
