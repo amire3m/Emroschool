@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "حریم خصوصی | آکادمی هنر و رسانه امام روح‌الله (ره)",
+  description: "سیاست حفظ حریم خصوصی آکادمی هنر و رسانه امام روح‌الله (ره).",
+};
+
+export default function PrivacyPolicyPage() {
+  return <main className="min-h-screen bg-surface pt-28 pb-20"><article className="mx-auto max-w-4xl px-5 md:px-8"><div className="rounded-[2rem] border border-outline-variant/40 bg-white p-7 shadow-sm md:p-12"><p className="text-sm font-bold tracking-[.18em] text-secondary">حریم خصوصی</p><h1 className="mt-4 text-3xl font-black text-primary md:text-4xl">سیاست حفظ حریم خصوصی</h1><p className="mt-3 text-sm text-outline">آخرین بروزرسانی: ۱۰ مرداد ۱۴۰۵</p><div className="mt-10 space-y-8 text-sm leading-8 text-on-background/80"><section><h2 className="text-xl font-black text-primary">اطلاعاتی که دریافت می‌کنیم</h2><p className="mt-3">آکادمی هنر و رسانه امام روح‌الله (ره) اطلاعاتی مانند نام، ایمیل، شماره تماس و اطلاعاتی که کاربر برای ثبت‌نام دوره یا تکمیل پروفایل وارد می‌کند را فقط برای ارائه خدمات آموزشی دریافت می‌کند.</p></section><section><h2 className="text-xl font-black text-primary">نحوه استفاده از اطلاعات</h2><p className="mt-3">اطلاعات کاربران برای ایجاد و حفاظت از حساب کاربری، ثبت‌نام و پیگیری دوره‌ها، اطلاع‌رسانی رویدادها، پاسخ‌گویی پشتیبانی و بهبود خدمات آموزشی استفاده می‌شود.</p></section><section><h2 className="text-xl font-black text-primary">ورود اختیاری با گوگل</h2><p className="mt-3">ورود با گوگل اختیاری است و کاربران می‌توانند با ایمیل و رمز عبور نیز حساب بسازند. در صورت انتخاب ورود گوگل، فقط نام، ایمیل تأییدشده و تصویر پروفایل برای ایجاد یا ورود به حساب کاربری دریافت می‌شود. این اطلاعات فروخته یا برای تبلیغات در اختیار اشخاص ثالث قرار نمی‌گیرد.</p></section><section><h2 className="text-xl font-black text-primary">حفاظت از اطلاعات</h2><p className="mt-3">ما برای حفاظت از اطلاعات حساب کاربری از تدابیر فنی و مدیریتی متعارف استفاده می‌کنیم. کاربران مسئول حفظ محرمانگی رمز عبور و اطلاعات ورود خود هستند.</p></section><section><h2 className="text-xl font-black text-primary">تماس با ما</h2><p className="mt-3">برای پرسش درباره حریم خصوصی یا اطلاعات حساب خود، از طریق <Link href="/about#contact" className="font-bold text-secondary underline">صفحه تماس با ما</Link> ارتباط برقرار کنید.</p></section></div></div></article></main>;
+}

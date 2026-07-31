@@ -11,6 +11,13 @@ export interface ReleaseNote {
 
 const unsortedReleaseNotes: ReleaseNote[] = [
   {
+    id: "public-privacy-policy-page",
+    title: "صفحه عمومی حریم خصوصی",
+    summary: "سیاست حفظ حریم خصوصی به‌صورت عمومی اضافه و فقط از صفحه درباره ما و تماس با ما در دسترس قرار گرفت.",
+    publishedAt: "2026-07-31T03:30:00+03:30",
+    type: "feature",
+  },
+  {
     id: "remove-temporary-oauth-branding-pages",
     title: "حذف صفحات موقت Branding گوگل",
     summary: "صفحه‌های معرفی و حریم خصوصی موقت OAuth از سایت حذف شدند؛ ورود اختیاری با گوگل باقی مانده است.",

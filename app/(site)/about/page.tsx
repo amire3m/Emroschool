@@ -62,9 +62,10 @@ export default function AboutPage() {
               <div className="flex items-start gap-3 rounded-2xl bg-white p-4"><MapPin className="mt-1 shrink-0 text-secondary" size={20} /><span className="text-sm leading-7 text-primary">{address}</span></div>
               <div className="flex items-center gap-3 rounded-2xl bg-white p-4"><Phone className="shrink-0 text-secondary" size={20} /><span className="text-sm text-primary">پاسخ‌گویی از طریق شبکه‌های اجتماعی</span></div>
             </div>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><Instagram size={20} /></Link>
               <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank" rel="noopener noreferrer" aria-label="بله" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><MessageCircle size={20} /></Link>
+              <Link href="/privacy-policy" className="rounded-xl border border-primary/20 px-4 py-3 text-sm font-bold text-primary transition hover:border-secondary hover:text-secondary">حریم خصوصی</Link>
             </div>
           </div>
           <div className="overflow-hidden rounded-[2rem] border border-white bg-white p-2 shadow-xl">
