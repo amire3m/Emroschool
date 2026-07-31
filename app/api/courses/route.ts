@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
+import { sortCoursesBySchedule } from "@/lib/course-order";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = courses.map((course) => ({
+    const result = sortCoursesBySchedule(courses).map((course) => ({
       ...course,
       galleryCount: course._count.gallery,
       childCount: course._count.children,

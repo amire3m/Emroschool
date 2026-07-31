@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
+import { sortCoursesBySchedule } from "@/lib/course-order";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -30,7 +31,7 @@ export async function GET(
       return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     }
 
-    return NextResponse.json({ course });
+    return NextResponse.json({ course: { ...course, children: sortCoursesBySchedule(course.children) } });
   } catch (error) {
     return NextResponse.json({ error: "خطا در دریافت دوره" }, { status: 500 });
   }
