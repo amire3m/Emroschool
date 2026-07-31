@@ -181,12 +181,9 @@ export default function CourseDetailPage() {
 
         <div className="course-detail-layout grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           <div className="lg:col-span-2">
-            <div className="relative aspect-[21/9] rounded-2xl overflow-hidden mb-6">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-primary mb-6 sm:aspect-[16/10]">
               {course.thumbnail ? (
-                <div
-                  className="w-full h-full bg-cover bg-center"
-                  style={{ backgroundImage: `url(${course.thumbnail})` }}
-                />
+                <><div className="absolute inset-0 scale-110 bg-cover bg-center opacity-45 blur-2xl" style={{ backgroundImage: `url(${course.thumbnail})` }} /><img src={course.thumbnail} alt={course.title} className="relative h-full w-full object-contain" /></>
               ) : (
                 <div className="w-full h-full bg-surface-variant flex items-center justify-center">
                   <ImageIcon size={48} className="text-outline-variant" />
