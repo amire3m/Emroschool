@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (!valid) {
       return NextResponse.json({ error: "ایمیل یا رمز عبور اشتباه است" }, { status: 401 });
     }
-    if (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !user.emailVerified) return NextResponse.json({ error: "ایمیل شما هنوز تأیید نشده است", verificationRequired: true, email: user.email }, { status: 403 });
+    if (!user.emailVerified && !user.phoneVerified && !user.balePhone) return NextResponse.json({ error: "حساب شما هنوز تأیید نشده است", verificationRequired: true, email: user.email }, { status: 403 });
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
 

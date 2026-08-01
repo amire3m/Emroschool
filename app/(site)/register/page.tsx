@@ -22,7 +22,7 @@ export default function RegisterPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationChannel, setVerificationChannel] = useState("email");
   const [balePhone, setBalePhone] = useState("");
-  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) { setVerificationEmail(pendingEmail); setVerificationChannel("email"); } }, []);
+  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) { setVerificationEmail(pendingEmail); setVerificationChannel(""); } }, []);
 
   function validateForm(): string | null {
     if (!name.trim()) return "لطفاً نام و نام خانوادگی خود را وارد کنید";
