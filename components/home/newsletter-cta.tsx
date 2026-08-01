@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { ArrowLeft, Check, Mail, SendHorizontal, Sparkles } from "lucide-react";
+import { Check, LogIn, Mail, SendHorizontal, Sparkles, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -38,13 +38,12 @@ export default function NewsletterCta({ title, description, isLoggedIn }: { titl
         <div className="relative mx-auto w-full max-w-[320px]">
           <div className="absolute -inset-5 rounded-[2rem] border border-secondary-fixed/20" />
           <div className="relative rounded-[2rem] border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur-xl">
-            <div className="mb-5 flex items-center gap-3"><div className="rounded-2xl bg-secondary-fixed p-3 text-primary"><Mail size={22} /></div><div><p className="font-bold">{isLoggedIn ? "عضویت در خبرنامه" : "ورود به جمع ما"}</p><p className="mt-1 text-xs text-white/55">فقط یک حرکت تا شروع مسیر</p></div></div>
+            <div className="mb-5 flex items-center gap-3"><div className="rounded-2xl bg-secondary-fixed p-3 text-primary">{isLoggedIn ? <Mail size={22} /> : <LogIn size={22} />}</div><div><p className="font-bold">{isLoggedIn ? "عضویت در خبرنامه" : "ورود به جمع ما"}</p><p className="mt-1 text-xs text-white/55">فقط یک حرکت تا شروع مسیر</p></div></div>
             <div className="relative h-14 rounded-full bg-black/20 p-1" dir="ltr">
               <motion.div className="absolute inset-y-1 left-1 rounded-full bg-secondary-fixed/20" style={{ width: fillWidth }} />
-              {!completed ? <motion.button type="button" drag="x" dragConstraints={{ left: 0, right: 170 }} dragElastic={0.04} dragMomentum={false} style={{ x: springX }} onDragEnd={finish} className="absolute left-1 top-1 z-10 flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-secondary-fixed text-primary shadow-lg active:cursor-grabbing"><SendHorizontal size={20} /></motion.button> : <motion.div initial={{ scale: .7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute inset-0 flex items-center justify-center gap-2 text-secondary-fixed"><Check size={20} /> آماده شد!</motion.div>}
+              {!completed ? <motion.button type="button" drag="x" dragConstraints={{ left: 0, right: 170 }} dragElastic={0.04} dragMomentum={false} style={{ x: springX }} onDragEnd={finish} className="absolute left-1 top-1 z-10 flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-secondary-fixed text-primary shadow-lg active:cursor-grabbing">{isLoggedIn ? <SendHorizontal size={20} /> : <UserPlus size={20} />}</motion.button> : <motion.div initial={{ scale: .7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute inset-0 flex items-center justify-center gap-2 text-secondary-fixed"><Check size={20} /> آماده شد!</motion.div>}
               {!completed && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/60">برای عضویت بکشید ←</span>}
             </div>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-white/45"><span>بدون پیام اضافی</span><ArrowLeft size={14} /></div>
           </div>
         </div>
       </div>
