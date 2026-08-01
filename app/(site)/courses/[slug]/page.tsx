@@ -43,7 +43,7 @@ interface CourseDetail {
   price: number;
   oldPrice?: number;
   instructor?: string;
-  instructorProfile?: { id: string; name?: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
+  instructorProfile?: { id: string; name?: string | null; avatar?: string | null; bio?: string | null; expertise?: string | null; user?: { id: string; name: string; avatar?: string | null; bio?: string | null; expertise?: string | null } | null } | null;
   categoryName?: string;
   level?: string;
   thumbnail?: string;
@@ -235,12 +235,7 @@ export default function CourseDetailPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h1 className="text-2xl md:text-3xl font-bold text-primary">{course.title}</h1><CopyLinkButton path={`/courses/${course.slug}`} /></div>
 
-            {course.instructor && (
-              <div className="flex items-center gap-2 text-outline mb-4">
-                <User size={16} />
-                {course.instructorProfile?.user ? <Link href={`/profile/${course.instructorProfile.user.id}`} className="text-sm text-secondary font-bold hover:underline">{course.instructor}</Link> : <span className="text-sm">{course.instructor}</span>}
-              </div>
-            )}
+            {course.instructorProfile ? <Link href={`/instructors/${course.instructorProfile.id}`} className="mb-6 flex items-center gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-4 transition hover:border-secondary hover:shadow-md"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-variant">{(course.instructorProfile.avatar || course.instructorProfile.user?.avatar) ? <img src={course.instructorProfile.avatar || course.instructorProfile.user?.avatar || ""} alt={course.instructor || ""} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-outline"><User size={28} /></div>}</div><div className="min-w-0"><p className="text-xs font-bold text-secondary">مدرس دوره</p><h2 className="mt-1 font-black text-primary">{course.instructor}</h2>{(course.instructorProfile.expertise || course.instructorProfile.user?.expertise) && <p className="mt-1 text-sm text-outline">{course.instructorProfile.expertise || course.instructorProfile.user?.expertise}</p>}<p className="mt-2 text-xs font-bold text-secondary">مشاهده پروفایل استاد</p></div></Link> : course.instructor && <div className="mb-4 flex items-center gap-2 text-outline"><User size={16} /><span className="text-sm">{course.instructor}</span></div>}
 
             <div className="flex items-center gap-1 text-secondary mb-6">
               <Star size={16} className="fill-current" />

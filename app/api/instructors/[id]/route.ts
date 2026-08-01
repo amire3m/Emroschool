@@ -10,6 +10,22 @@ async function getAdminUser(req: NextRequest) {
   return payload;
 }
 
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const instructor = await prisma.instructor.findUnique({
+      where: { id: params.id },
+      include: {
+        user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true, socialLinks: true } },
+        courses: { where: { published: true }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, price: true, scheduleStatus: true }, orderBy: { createdAt: "desc" } },
+      },
+    });
+    if (!instructor || !instructor.showOnSite) return NextResponse.json({ error: "استاد پیدا نشد" }, { status: 404 });
+    return NextResponse.json({ instructor });
+  } catch {
+    return NextResponse.json({ error: "خطا در دریافت اطلاعات استاد" }, { status: 500 });
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }

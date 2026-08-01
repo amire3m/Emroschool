@@ -128,7 +128,7 @@ export default function InstructorsPage() {
                 </div>
               </div>
               );
-              return instructor.user?.id ? <Link key={instructor.id} href={`/profile/${instructor.user.id}`}>{card}</Link> : card;
+               return <Link key={instructor.id} href={`/instructors/${instructor.id}`}>{card}</Link>;
             })}
           </div>
         )}
