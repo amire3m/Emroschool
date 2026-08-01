@@ -21,6 +21,7 @@ export async function GET(
       where: { id: params.id, ...(admin ? {} : { published: true }) },
       include: {
         gallery: true,
+        instructorProfile: { select: { id: true, name: true, avatar: true, user: { select: { id: true, name: true, avatar: true } } } },
         parent: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         _count: { select: { enrollments: true, applications: true, children: true } },
@@ -59,7 +60,8 @@ export async function PUT(
       description,
       price,
       oldPrice,
-      instructor,
+        instructor,
+        instructorId,
       categoryId,
       categoryName,
       level,
@@ -105,6 +107,8 @@ export async function PUT(
     if (categoryId && !category) {
       return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
     }
+    const instructorProfile = instructorId !== undefined && instructorId ? await prisma.instructor.findUnique({ where: { id: instructorId }, include: { user: { select: { name: true } } } }) : null;
+    if (instructorId && !instructorProfile) return NextResponse.json({ error: "استاد انتخاب‌شده پیدا نشد" }, { status: 400 });
 
     const course = await prisma.course.update({
       where: { id: params.id },
@@ -114,7 +118,8 @@ export async function PUT(
         ...(description !== undefined && { description }),
         ...(price !== undefined && { price }),
         ...(oldPrice !== undefined && { oldPrice }),
-        ...(instructor !== undefined && { instructor }),
+        ...(instructorId !== undefined && { instructorId: instructorProfile?.id ?? null, instructor: instructorProfile?.name || instructorProfile?.user?.name || null }),
+        ...(instructorId === undefined && instructor !== undefined && { instructor }),
         ...(categoryId !== undefined && { categoryId: category?.id ?? null }),
         ...(categoryId !== undefined
           ? { categoryName: category?.name ?? null }

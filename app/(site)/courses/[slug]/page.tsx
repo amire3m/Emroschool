@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Star,
   Clock,
@@ -20,6 +21,7 @@ import CourseRegistrationModal from "@/components/courses/course-registration-mo
 import ComprehensiveCoursePath from "@/components/courses/comprehensive-course-path";
 import CopyLinkButton from "@/components/ui/copy-link-button";
 import toast from "react-hot-toast";
+import { useInitialData } from "@/components/seo/initial-data-provider";
 
 interface GalleryImage {
   id: string;
@@ -41,6 +43,7 @@ interface CourseDetail {
   price: number;
   oldPrice?: number;
   instructor?: string;
+  instructorProfile?: { id: string; name?: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
   categoryName?: string;
   level?: string;
   thumbnail?: string;
@@ -81,9 +84,10 @@ export default function CourseDetailPage() {
   const router = useRouter();
   const slug = params.slug as string;
 
-  const [course, setCourse] = useState<CourseDetail | null>(null);
+  const initialCourse = useInitialData<CourseDetail>("course");
+  const [course, setCourse] = useState<CourseDetail | null>(initialCourse);
   const [courseImages, setCourseImages] = useState<CourseImage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCourse);
   const [notFound, setNotFound] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
@@ -234,7 +238,7 @@ export default function CourseDetailPage() {
             {course.instructor && (
               <div className="flex items-center gap-2 text-outline mb-4">
                 <User size={16} />
-                <span className="text-sm">{course.instructor}</span>
+                {course.instructorProfile?.user ? <Link href={`/profile/${course.instructorProfile.user.id}`} className="text-sm text-secondary font-bold hover:underline">{course.instructor}</Link> : <span className="text-sm">{course.instructor}</span>}
               </div>
             )}
 

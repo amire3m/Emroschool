@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Shield } from "lucide-react";
+import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Shield, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 
@@ -45,6 +45,8 @@ export default function AdminUsers() {
   const [editUser, setEditUser] = useState<UserData | null>(null);
   const [editForm, setEditForm] = useState({ role: "", userType: "", permissions: "", profileVisible: true, password: "" });
   const [saving, setSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", email: "", password: "", userType: "student" });
 
   const getToken = () => getCookie("token") || "";
 
@@ -61,6 +63,26 @@ export default function AdminUsers() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("create") === "instructor") {
+      setCreateForm((form) => ({ ...form, userType: "instructor" }));
+      setShowCreate(true);
+    }
+  }, []);
+
+  const createUser = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${getToken()}` }, body: JSON.stringify(createForm) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "خطا در ایجاد کاربر");
+      toast.success(createForm.userType === "instructor" ? "کاربر مدرس و پروفایل استاد ایجاد شد" : "کاربر ایجاد شد");
+      setShowCreate(false);
+      setCreateForm({ name: "", email: "", password: "", userType: "student" });
+      fetchUsers();
+    } catch (err) { toast.error(err instanceof Error ? err.message : "خطا در ایجاد کاربر"); }
+    finally { setSaving(false); }
+  };
 
   const openEdit = (user: UserData) => {
     setEditUser(user);
@@ -129,8 +151,9 @@ export default function AdminUsers() {
             <option value="admin">مدیر</option>
           </select>
         </div>
-        <div className="text-sm text-outline">
+        <div className="flex items-center gap-3 text-sm text-outline">
           <span className="font-medium text-primary">{users.length.toLocaleString("fa-IR")}</span> کاربر
+          <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white"><Plus size={15} />ایجاد کاربر</button>
         </div>
       </div>
 
@@ -273,6 +296,7 @@ export default function AdminUsers() {
           </div>
         </div>
       )}
+      {showCreate && <div className="modal-overlay" onClick={() => !saving && setShowCreate(false)}><div className="modal-content max-w-md" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h3 className="text-lg font-bold text-primary">ایجاد کاربر جدید</h3><button onClick={() => setShowCreate(false)} className="text-outline"><X size={20} /></button></div><div className="space-y-4"><div><label className="mb-1 block text-sm font-medium text-primary">نام و نام خانوادگی</label><input value={createForm.name} onChange={(event) => setCreateForm((form) => ({ ...form, name: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">ایمیل</label><input type="email" value={createForm.email} onChange={(event) => setCreateForm((form) => ({ ...form, email: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">رمز عبور</label><input type="password" minLength={6} value={createForm.password} onChange={(event) => setCreateForm((form) => ({ ...form, password: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">نوع کاربر</label><select value={createForm.userType} onChange={(event) => setCreateForm((form) => ({ ...form, userType: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm"><option value="student">دانشجو</option><option value="instructor">مدرس</option></select><p className="mt-1 text-xs text-outline">با انتخاب مدرس، پروفایل استاد نیز خودکار ایجاد و قابل اتصال به دوره می‌شود.</p></div><button onClick={createUser} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={16} className="animate-spin" />}ایجاد کاربر</button></div></div></div>}
     </div>
   );
 }

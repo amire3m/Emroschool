@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     }
 
-    if (!user.profileVisible) {
+    if (!user.profileVisible && !(user.userType === "instructor" && user.instructor?.showOnSite)) {
       return NextResponse.json({ error: "این پروفایل عمومی نیست" }, { status: 403 });
     }
 

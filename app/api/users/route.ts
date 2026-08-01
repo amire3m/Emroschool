@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { isAdminRole, verifyToken } from "@/lib/auth";
+import { hashPassword, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -44,5 +44,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ users: result });
   } catch (error) {
     return NextResponse.json({ error: "خطا در دریافت کاربران" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  const payload = authHeader?.startsWith("Bearer ") ? verifyToken(authHeader.slice(7)) : null;
+  if (!payload || !isAdminRole(payload.role)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+
+  try {
+    const { name, email, password, userType = "student" } = await req.json();
+    if (!name?.trim() || !email?.trim() || typeof password !== "string" || password.length < 6) {
+      return NextResponse.json({ error: "نام، ایمیل و رمز عبور حداقل ۶ کاراکتری الزامی است" }, { status: 400 });
+    }
+    if (!["student", "instructor", "alumni", "admin"].includes(userType)) return NextResponse.json({ error: "نوع کاربر نامعتبر است" }, { status: 400 });
+
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { name: name.trim(), email: email.trim().toLowerCase(), password: await hashPassword(password), userType, profileVisible: userType === "instructor" } });
+      if (userType === "instructor") await tx.instructor.create({ data: { userId: created.id, name: created.name, showOnSite: true } });
+      return created;
+    });
+    return NextResponse.json({ user }, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این ایمیل قبلاً ثبت شده است" }, { status: 409 });
+    return NextResponse.json({ error: "خطا در ایجاد کاربر" }, { status: 500 });
   }
 }

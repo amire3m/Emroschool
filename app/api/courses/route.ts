@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         parent: { select: { id: true, title: true, slug: true } },
+        instructorProfile: { select: { id: true, name: true, avatar: true, user: { select: { id: true, name: true, avatar: true } } } },
         _count: { select: { gallery: true, children: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
       price,
       oldPrice,
       instructor,
+      instructorId,
       categoryId,
       categoryName,
       level,
@@ -96,6 +98,8 @@ export async function POST(req: NextRequest) {
     if (categoryId && !category) {
       return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
     }
+    const instructorProfile = instructorId ? await prisma.instructor.findUnique({ where: { id: instructorId }, include: { user: { select: { name: true } } } }) : null;
+    if (instructorId && !instructorProfile) return NextResponse.json({ error: "استاد انتخاب‌شده پیدا نشد" }, { status: 400 });
 
     const course = await prisma.course.create({
       data: {
@@ -104,7 +108,8 @@ export async function POST(req: NextRequest) {
         description,
         price: price ?? 0,
         oldPrice: oldPrice ?? null,
-        instructor: instructor ?? null,
+        instructor: instructorProfile?.name || instructorProfile?.user?.name || instructor || null,
+        instructorId: instructorProfile?.id ?? null,
         categoryId: category?.id ?? null,
         categoryName: category?.name ?? categoryName ?? null,
         level: level ?? null,

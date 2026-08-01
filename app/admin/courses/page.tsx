@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import Link from "next/link";
 import ImageUpload from "@/components/ui/ImageUpload";
 import PersianDateTimePicker from "@/components/ui/persian-date-time-picker";
 
@@ -27,6 +28,8 @@ interface Course {
   price: number;
   oldPrice: number | null;
   instructor: string | null;
+  instructorId: string | null;
+  instructorProfile?: { id: string; name: string | null; user?: { id: string; name: string } | null } | null;
   categoryName: string | null;
   categoryId: string | null;
   level: string | null;
@@ -138,6 +141,7 @@ function PriceField({ label, value, onChange, optional = false }: { label: strin
 export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [instructors, setInstructors] = useState<Array<{ id: string; name: string | null; user?: { id: string; name: string } | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -154,6 +158,7 @@ export default function AdminCourses() {
     price: "",
     oldPrice: "",
     instructor: "",
+    instructorId: "",
     category: "",
     level: "",
     thumbnail: "",
@@ -176,10 +181,12 @@ export default function AdminCourses() {
     Promise.all([
       fetch("/api/courses", { headers: { authorization: `Bearer ${token}` } }).then((response) => response.json()),
       fetch("/api/categories").then((response) => response.json()),
+      fetch("/api/instructors", { headers: { authorization: `Bearer ${token}` } }).then((response) => response.json()),
     ])
-      .then(([courseData, categoryData]) => {
+      .then(([courseData, categoryData, instructorData]) => {
         if (courseData.courses) setCourses(courseData.courses);
         setCategories(categoryData.categories || []);
+        setInstructors(instructorData.instructors || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -200,6 +207,7 @@ export default function AdminCourses() {
       price: "",
       oldPrice: "",
       instructor: "",
+      instructorId: "",
       category: "",
       level: "",
       thumbnail: "",
@@ -224,7 +232,7 @@ export default function AdminCourses() {
   const openCreateChildCourse = (parent: Course) => {
     setEditingCourse(null);
     setForm({
-      title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
+      title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorId: "", category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
       courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", parentId: parent.id,
     });
   };
@@ -251,6 +259,7 @@ export default function AdminCourses() {
       price: formatPrice(String(course.price)),
       oldPrice: course.oldPrice ? formatPrice(String(course.oldPrice)) : "",
       instructor: course.instructor || "",
+      instructorId: course.instructorId || "",
       category: course.categoryId || categories.find((category) => category.name === course.categoryName)?.id || "",
       level: reverseLevelMap[course.level || ""] || course.level || "",
       thumbnail: course.thumbnail || "",
@@ -289,6 +298,7 @@ export default function AdminCourses() {
       price: Number(normalizePrice(form.price)) || 0,
       oldPrice: normalizePrice(form.oldPrice) ? Number(normalizePrice(form.oldPrice)) : null,
       instructor: form.instructor || null,
+      instructorId: form.instructorId || null,
       categoryId: selectedCategory?.id || null,
       categoryName: selectedCategory?.name || null,
       level: levelMap[form.level] || form.level || null,
@@ -428,7 +438,7 @@ export default function AdminCourses() {
                     <div className="font-medium text-primary">{course.title}</div>
                     <div className="flex flex-wrap gap-1.5 mt-1"><span className="text-[10px] text-outline">{course.slug}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.courseType === "comprehensive" ? "bg-secondary-fixed text-secondary" : "bg-surface-container text-outline"}`}>{course.courseType === "comprehensive" ? `جامع · ${(course.childCount || 0).toLocaleString("fa-IR")} زیر‌دوره` : course.parent ? `فرزند ${course.parent.title}` : "مستقل"}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزارشده" : "در انتظار برگزاری"}</span></div>
                   </td>
-                  <td className="p-3 text-outline hidden md:table-cell">{course.instructor || "—"}</td>
+                  <td className="p-3 text-outline hidden md:table-cell">{course.instructorProfile?.user ? <Link href={`/profile/${course.instructorProfile.user.id}`} className="text-secondary hover:underline">{course.instructor}</Link> : course.instructor || "—"}</td>
                   <td className="p-3 hidden sm:table-cell">
                     <span className="font-medium">{course.price.toLocaleString("fa-IR")}</span>
                     <span className="text-xs text-outline mr-1">تومان</span>
@@ -557,12 +567,15 @@ export default function AdminCourses() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">مدرس</label>
-                  <input
-                    type="text"
-                    value={form.instructor}
-                    onChange={(e) => setForm((p) => ({ ...p, instructor: e.target.value }))}
+                  <select
+                    value={form.instructorId}
+                    onChange={(e) => setForm((p) => ({ ...p, instructorId: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
+                  >
+                    <option value="">انتخاب مدرس</option>
+                    {instructors.map((instructor) => <option key={instructor.id} value={instructor.id}>{instructor.name || instructor.user?.name || "بدون نام"}</option>)}
+                  </select>
+                  <Link href="/admin/users?create=instructor" className="mt-2 inline-block text-xs font-bold text-secondary hover:underline">استاد جدید است؟ ابتدا کاربر مدرس ایجاد کنید</Link>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">دسته‌بندی</label>

@@ -76,6 +76,7 @@ model Instructor {
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   events EventInstructor[]
+  courses Course[]
 }
 
 model Category {
@@ -128,6 +129,8 @@ model Course {
   parentId      String?
   parent        Course?  @relation("CourseHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children      Course[] @relation("CourseHierarchy")
+  instructorId  String?
+  instructorProfile Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
 }
 
 model CourseImage {
