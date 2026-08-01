@@ -90,7 +90,7 @@ export default function EventDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center pt-24">
+      <div className="min-h-[60vh] flex items-center justify-center pt-32">
         <Loader2 size={32} className="animate-spin text-secondary" />
       </div>
     );
@@ -98,7 +98,7 @@ export default function EventDetailPage() {
 
   if (notFound || !event) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center pt-24">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center pt-32">
         <AlertCircle size={48} className="text-outline mb-4" />
         <p className="text-outline text-lg mb-4">رویداد مورد نظر یافت نشد</p>
         <button
@@ -112,7 +112,7 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="min-h-screen pt-32 pb-16">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8">
         <button
           onClick={() => router.push("/events")}

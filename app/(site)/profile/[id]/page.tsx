@@ -73,7 +73,7 @@ export default function PublicProfilePage() {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-16 bg-surface-low" dir="rtl">
+    <div className="min-h-screen pt-32 pb-16 bg-surface-low" dir="rtl">
       <div className="max-w-3xl mx-auto px-5">
         <div className="bg-white rounded-3xl shadow-sm border border-surface-variant overflow-hidden">
           <div className="bg-gradient-to-l from-primary to-primary/80 p-8 text-center">

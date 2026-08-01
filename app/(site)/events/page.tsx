@@ -58,7 +58,7 @@ export default function EventsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="min-h-screen pt-32 pb-16">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8">
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-primary mb-2">رویدادها</h1>

@@ -82,14 +82,14 @@ export default function CoursesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center pt-24">
+      <div className="min-h-[60vh] flex items-center justify-center pt-32">
         <Loader2 size={32} className="animate-spin text-secondary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="min-h-screen pt-32 pb-16">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-primary">همه دوره‌ها</h1>

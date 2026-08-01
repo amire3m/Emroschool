@@ -74,7 +74,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex">
+    <div className="min-h-[calc(100vh-96px)] pt-24 flex">
       {/* Left Panel - Branding */}
       <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-b from-[#03004b] to-[#1a1b5e] flex-col items-center justify-center px-12 py-16 select-none">
         {/* Decorative geometric patterns */}

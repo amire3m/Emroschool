@@ -152,7 +152,7 @@ export default function CourseDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center pt-24">
+      <div className="min-h-[60vh] flex items-center justify-center pt-32">
         <Loader2 size={32} className="animate-spin text-secondary" />
       </div>
     );
@@ -160,7 +160,7 @@ export default function CourseDetailPage() {
 
   if (notFound || !course) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center pt-24">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center pt-32">
         <p className="text-outline text-lg mb-4">دوره مورد نظر یافت نشد</p>
         <button
           onClick={() => router.push("/courses")}
@@ -173,7 +173,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="min-h-screen pt-32 pb-16">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8">
         <button
           onClick={() => router.push("/courses")}
