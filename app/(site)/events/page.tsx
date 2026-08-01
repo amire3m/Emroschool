@@ -7,7 +7,6 @@ import {
   AlertCircle,
   Calendar,
   MapPin,
-  BookOpen,
   Users,
   ImageIcon,
 } from "lucide-react";
@@ -22,7 +21,6 @@ interface EventItem {
   location?: string;
   imageUrl?: string;
   published: boolean;
-  courseCount: number;
   instructorCount: number;
 }
 
@@ -127,10 +125,6 @@ export default function EventsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-4 border-t border-outline-variant/20 pt-3 text-xs text-outline">
-                    <div className="flex items-center gap-1">
-                      <BookOpen size={14} />
-                      <span>{event.courseCount} دوره</span>
-                    </div>
                     <div className="flex items-center gap-1">
                       <Users size={14} />
                       <span>{event.instructorCount} استاد</span>

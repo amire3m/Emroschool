@@ -81,6 +81,7 @@ export default function AdminEvents() {
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null);
   const [saving, setSaving] = useState(false);
+  const [instructorSearch, setInstructorSearch] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -136,10 +137,12 @@ export default function AdminEvents() {
 
   const openCreateModal = () => {
     resetForm();
+    setInstructorSearch("");
     setShowModal(true);
   };
 
   const openEditModal = (event: EventItem) => {
+    setInstructorSearch("");
     setForm({
       title: event.title,
       slug: event.slug,
@@ -496,11 +499,12 @@ export default function AdminEvents() {
               <div>
                   <label className="block text-sm font-medium text-primary mb-2">اساتید رویداد</label>
                   <p className="mb-2 text-xs text-outline">می‌توانید چند استاد را از فهرست اساتید سایت انتخاب کنید.</p>
+                  <input value={instructorSearch} onChange={(event) => setInstructorSearch(event.target.value)} placeholder="جستجوی نام استاد..." className="mb-2 w-full rounded-lg border border-surface-variant px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
                   <div className="max-h-40 overflow-y-auto border border-surface-variant rounded-xl p-2 space-y-1">
                     {instructors.length === 0 && (
                       <p className="text-xs text-outline p-2">استادی یافت نشد</p>
                     )}
-                    {instructors.map((inst) => (
+                    {instructors.filter((inst) => (inst.name || inst.user?.name || "").includes(instructorSearch.trim())).map((inst) => (
                       <label
                         key={inst.id}
                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-low cursor-pointer"
@@ -515,6 +519,7 @@ export default function AdminEvents() {
                         <span className="text-sm text-primary">{inst.name || inst.user?.name || "نامشخص"}</span>
                       </label>
                     ))}
+                    {instructors.length > 0 && !instructors.some((inst) => (inst.name || inst.user?.name || "").includes(instructorSearch.trim())) && <p className="p-2 text-xs text-outline">استادی با این نام یافت نشد</p>}
                   </div>
               </div>
 
