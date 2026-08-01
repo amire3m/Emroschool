@@ -1,4 +1,5 @@
 import { verifyToken } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -21,7 +22,9 @@ export async function POST(req: NextRequest) {
     await mkdir(uploadDir, { recursive: true });
     const fileName = `${token.id}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.webp`;
     await writeFile(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));
-    return NextResponse.json({ url: `/uploads/avatars/${fileName}` });
+    const url = `/uploads/avatars/${fileName}`;
+    await prisma.user.update({ where: { id: token.id }, data: { avatar: url } });
+    return NextResponse.json({ url });
   } catch {
     return NextResponse.json({ error: "خطا در آپلود آواتار" }, { status: 500 });
   }
