@@ -42,6 +42,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   enrollments   Enrollment[]
+  paymentOrders PaymentOrder[] @relation("PaymentOrderUser")
+  reviewedPaymentOrders PaymentOrder[] @relation("PaymentOrderReviewer")
   courseApplications CourseApplication[]
   notifications UserNotification[]
   instructor    Instructor?
@@ -122,6 +124,7 @@ model Course {
 
   gallery      Gallery[]
   enrollments  Enrollment[]
+  paymentOrders PaymentOrder[]
   images       CourseImage[]
   categoryId   String?
   category     Category?   @relation(fields: [categoryId], references: [id])
@@ -175,6 +178,45 @@ model Enrollment {
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
+}
+
+model PaymentOrder {
+  id                   String   @id @default(cuid())
+  orderNumber          String   @unique
+  amountTomans         Int
+  amountRials          Int
+  method               String
+  status               String   @default("pending")
+  receiptUrl           String?
+  balePayload          String?  @unique
+  baleChatId           String?
+  baleTransactionRef   String?  @unique
+  baleInvoiceUrl       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  receiptSubmittedAt   DateTime?
+  reviewedAt           DateTime?
+  paidAt               DateTime?
+  expiresAt            DateTime?
+
+  userId               String
+  user                 User     @relation("PaymentOrderUser", fields: [userId], references: [id], onDelete: Cascade)
+  courseId             String
+  course               Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  reviewerId           String?
+  reviewer             User?    @relation("PaymentOrderReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([courseId, status])
+}
+
+model PaymentSettings {
+  id              Int      @id @default(1)
+  cardNumber      String?
+  cardHolder      String?
+  cardInstructions String?
+  adminChatId     String?
+  updatedAt       DateTime @updatedAt
 }
 
 model CourseApplication {

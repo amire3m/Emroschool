@@ -1,0 +1,31 @@
+import prisma from "@/lib/prisma";
+import { getUserFromToken, isAdminRole } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+
+async function admin(req: NextRequest) {
+  const header = req.headers.get("authorization");
+  const user = header?.startsWith("Bearer ") ? await getUserFromToken(header.slice(7)) : null;
+  if (!user || !isAdminRole(user.role)) return null;
+  if (user.role !== "superadmin" && user.permissions) {
+    try { const permissions = JSON.parse(user.permissions); if (permissions.length && !permissions.includes("payments")) return null; } catch { return null; }
+  }
+  return user;
+}
+
+export async function GET(req: NextRequest) {
+  if (!await admin(req)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+  const [orders, settings] = await Promise.all([
+    prisma.paymentOrder.findMany({ include: { user: { select: { id: true, name: true, email: true, phone: true } }, course: { select: { id: true, title: true, slug: true } }, reviewer: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } }),
+    prisma.paymentSettings.findUnique({ where: { id: 1 } }),
+  ]);
+  return NextResponse.json({ orders, settings });
+}
+
+export async function PATCH(req: NextRequest) {
+  if (!await admin(req)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+  try {
+    const body = await req.json();
+    const settings = await prisma.paymentSettings.upsert({ where: { id: 1 }, create: { id: 1, cardNumber: typeof body.cardNumber === "string" ? body.cardNumber.trim() || null : null, cardHolder: typeof body.cardHolder === "string" ? body.cardHolder.trim() || null : null, cardInstructions: typeof body.cardInstructions === "string" ? body.cardInstructions.trim() || null : null, adminChatId: typeof body.adminChatId === "string" ? body.adminChatId.trim() || null : null }, update: { cardNumber: typeof body.cardNumber === "string" ? body.cardNumber.trim() || null : undefined, cardHolder: typeof body.cardHolder === "string" ? body.cardHolder.trim() || null : undefined, cardInstructions: typeof body.cardInstructions === "string" ? body.cardInstructions.trim() || null : undefined, adminChatId: typeof body.adminChatId === "string" ? body.adminChatId.trim() || null : undefined } });
+    return NextResponse.json({ settings });
+  } catch { return NextResponse.json({ error: "ذخیره تنظیمات انجام نشد" }, { status: 500 }); }
+}

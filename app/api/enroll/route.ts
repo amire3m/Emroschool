@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     }
     if (course.scheduleStatus === "completed") return NextResponse.json({ error: "این دوره به پایان رسیده است" }, { status: 400 });
     if (course.registrationMode === "registration") return NextResponse.json({ error: "ثبت‌نام این دوره فقط از طریق فرم درخواست انجام می‌شود" }, { status: 400 });
+    if (course.price > 0) return NextResponse.json({ error: "ثبت‌نام دوره‌های پولی فقط پس از پرداخت انجام می‌شود" }, { status: 403 });
 
     const existing = await prisma.enrollment.findUnique({
       where: { userId_courseId: { userId: user.id, courseId } },
