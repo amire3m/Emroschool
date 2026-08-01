@@ -43,7 +43,21 @@ interface CourseDetail {
   price: number;
   oldPrice?: number;
   instructor?: string;
-  instructorProfile?: { id: string; profileSlug?: string | null; name?: string | null; avatar?: string | null; bio?: string | null; expertise?: string | null; user?: { id: string; name: string; avatar?: string | null; bio?: string | null; expertise?: string | null } | null } | null;
+  instructorProfile?: {
+    id: string;
+    profileSlug?: string | null;
+    name?: string | null;
+    avatar?: string | null;
+    bio?: string | null;
+    expertise?: string | null;
+    user?: {
+      id: string;
+      name: string;
+      avatar?: string | null;
+      bio?: string | null;
+      expertise?: string | null;
+    } | null;
+  } | null;
   categoryName?: string;
   level?: string;
   thumbnail?: string;
@@ -59,7 +73,19 @@ interface CourseDetail {
   endDate?: string | null;
   registrationMode: "purchase" | "registration";
   parent?: { id: string; title: string; slug: string } | null;
-  children?: Array<{ id: string; title: string; slug: string; thumbnail?: string | null; description?: string; instructor?: string | null; price: number; registrationMode: "purchase" | "registration"; scheduleStatus: string; startDate?: string | null; endDate?: string | null }>;
+  children?: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    thumbnail?: string | null;
+    description?: string;
+    instructor?: string | null;
+    price: number;
+    registrationMode: "purchase" | "registration";
+    scheduleStatus: string;
+    startDate?: string | null;
+    endDate?: string | null;
+  }>;
 }
 
 function formatPrice(price: number) {
@@ -90,9 +116,11 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(!initialCourse);
   const [notFound, setNotFound] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(
+    null,
+  );
+  const [applicationId, setApplicationId] = useState<string | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
-  const [applicationSent, setApplicationSent] = useState(false);
 
   useEffect(() => {
     async function fetchCourse() {
@@ -126,20 +154,29 @@ export default function CourseDetailPage() {
 
         const token = getCookie("token");
         if (token) {
-          const enrollRes = await fetch(
-            `/api/enroll?courseId=${found.id}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          ).catch(() => null);
+          const enrollRes = await fetch(`/api/enroll?courseId=${found.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null);
           if (enrollRes && enrollRes.ok) {
             const enrollData = await enrollRes.json();
             if (enrollData.enrolled) {
               setIsEnrolled(true);
             }
           }
-          const applicationRes = await fetch("/api/course-applications", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
-          if (applicationRes?.ok) { const applicationData = await applicationRes.json(); const application = applicationData.applications?.find((item: { courseId: string }) => item.courseId === found.id); if (application) setApplicationStatus(application.status); }
+          const applicationRes = await fetch("/api/course-applications", {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null);
+          if (applicationRes?.ok) {
+            const applicationData = await applicationRes.json();
+            const application = applicationData.applications?.find(
+              (item: { courseId: string; id: string; status: string }) =>
+                item.courseId === found.id,
+            );
+            if (application) {
+              setApplicationId(application.id);
+              setApplicationStatus(application.status);
+            }
+          }
         }
       } catch {
         setNotFound(true);
@@ -187,7 +224,17 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-2">
             <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-primary mb-6 sm:aspect-[16/10]">
               {course.thumbnail ? (
-                <><div className="absolute inset-0 scale-110 bg-cover bg-center opacity-45 blur-2xl" style={{ backgroundImage: `url(${course.thumbnail})` }} /><img src={course.thumbnail} alt={course.title} className="relative h-full w-full object-contain" /></>
+                <>
+                  <div
+                    className="absolute inset-0 scale-110 bg-cover bg-center opacity-45 blur-2xl"
+                    style={{ backgroundImage: `url(${course.thumbnail})` }}
+                  />
+                  <img
+                    src={course.thumbnail}
+                    alt={course.title}
+                    className="relative h-full w-full object-contain"
+                  />
+                </>
               ) : (
                 <div className="w-full h-full bg-surface-variant flex items-center justify-center">
                   <ImageIcon size={48} className="text-outline-variant" />
@@ -213,7 +260,14 @@ export default function CourseDetailPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
-              {course.parent && <button onClick={() => router.push(`/courses/${course.parent?.slug}`)} className="bg-primary text-secondary-fixed text-xs font-bold px-3 py-1 rounded-full">زیرمجموعه {course.parent.title}</button>}
+              {course.parent && (
+                <button
+                  onClick={() => router.push(`/courses/${course.parent?.slug}`)}
+                  className="bg-primary text-secondary-fixed text-xs font-bold px-3 py-1 rounded-full"
+                >
+                  زیرمجموعه {course.parent.title}
+                </button>
+              )}
               {course.categoryName && (
                 <span className="bg-secondary-fixed/30 text-secondary text-xs font-bold px-3 py-1 rounded-full">
                   {course.categoryName}
@@ -230,12 +284,70 @@ export default function CourseDetailPage() {
                   {course.duration}
                 </span>
               )}
-              <span className={`text-xs font-bold px-3 py-1 rounded-full ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزار شده" : `شروع: ${course.startDate ? new Date(course.startDate).toLocaleDateString("fa-IR") : "به‌زودی"}`}</span>
+              <span
+                className={`text-xs font-bold px-3 py-1 rounded-full ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}
+              >
+                {course.scheduleStatus === "completed"
+                  ? "برگزار شده"
+                  : `شروع: ${course.startDate ? new Date(course.startDate).toLocaleDateString("fa-IR") : "به‌زودی"}`}
+              </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h1 className="text-2xl md:text-3xl font-bold text-primary">{course.title}</h1><CopyLinkButton path={`/courses/${course.slug}`} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-primary">
+                {course.title}
+              </h1>
+              <CopyLinkButton path={`/courses/${course.slug}`} />
+            </div>
 
-            {course.instructorProfile ? <Link href={`/instructors/${course.instructorProfile.profileSlug || course.instructorProfile.id}`} className="mb-6 flex items-center gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-4 transition hover:border-secondary hover:shadow-md"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-variant">{(course.instructorProfile.avatar || course.instructorProfile.user?.avatar) ? <img src={course.instructorProfile.avatar || course.instructorProfile.user?.avatar || ""} alt={course.instructor || ""} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-outline"><User size={28} /></div>}</div><div className="min-w-0"><p className="text-xs font-bold text-secondary">مدرس دوره</p><h2 className="mt-1 font-black text-primary">{course.instructor}</h2>{(course.instructorProfile.expertise || course.instructorProfile.user?.expertise) && <p className="mt-1 text-sm text-outline">{course.instructorProfile.expertise || course.instructorProfile.user?.expertise}</p>}<p className="mt-2 text-xs font-bold text-secondary">مشاهده پروفایل استاد</p></div></Link> : course.instructor && <div className="mb-4 flex items-center gap-2 text-outline"><User size={16} /><span className="text-sm">{course.instructor}</span></div>}
+            {course.instructorProfile ? (
+              <Link
+                href={`/instructors/${course.instructorProfile.profileSlug || course.instructorProfile.id}`}
+                className="mb-6 flex items-center gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-4 transition hover:border-secondary hover:shadow-md"
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-variant">
+                  {course.instructorProfile.avatar ||
+                  course.instructorProfile.user?.avatar ? (
+                    <img
+                      src={
+                        course.instructorProfile.avatar ||
+                        course.instructorProfile.user?.avatar ||
+                        ""
+                      }
+                      alt={course.instructor || ""}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-outline">
+                      <User size={28} />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-secondary">مدرس دوره</p>
+                  <h2 className="mt-1 font-black text-primary">
+                    {course.instructor}
+                  </h2>
+                  {(course.instructorProfile.expertise ||
+                    course.instructorProfile.user?.expertise) && (
+                    <p className="mt-1 text-sm text-outline">
+                      {course.instructorProfile.expertise ||
+                        course.instructorProfile.user?.expertise}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs font-bold text-secondary">
+                    مشاهده پروفایل استاد
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              course.instructor && (
+                <div className="mb-4 flex items-center gap-2 text-outline">
+                  <User size={16} />
+                  <span className="text-sm">{course.instructor}</span>
+                </div>
+              )
+            )}
 
             <div className="flex items-center gap-1 text-secondary mb-6">
               <Star size={16} className="fill-current" />
@@ -248,41 +360,201 @@ export default function CourseDetailPage() {
               </span>
             </div>
 
-            {course.courseType === "comprehensive" && <ComprehensiveCoursePath title={course.title} children={course.children || []} />}
+            {course.courseType === "comprehensive" && (
+              <ComprehensiveCoursePath
+                title={course.title}
+                children={course.children || []}
+              />
+            )}
             <div className="prose prose-sm max-w-none text-on-background leading-relaxed whitespace-pre-line">
               {course.description}
             </div>
-            {course.courseType === "comprehensive" && <section className="mt-10 rounded-[2rem] border border-secondary-fixed/60 bg-gradient-to-br from-[#fffdf8] to-[#f8f5ff] p-5 md:p-7"><div className="flex flex-wrap items-end justify-between gap-4 border-b border-secondary-fixed/50 pb-5"><div><p className="text-xs font-bold text-secondary">مسیر یادگیری این مجموعه</p><h2 className="mt-2 text-2xl font-black text-primary">زیر‌دوره‌ها و زمان‌بندی</h2><p className="mt-2 text-sm text-outline">هر زیر‌دوره به‌صورت مستقل ثبت‌نام و خریداری می‌شود.</p></div><span className="rounded-full bg-primary px-4 py-2 text-xs font-bold text-secondary-fixed">{(course.children?.length || 0).toLocaleString("fa-IR")} زیر‌دوره</span></div>{course.children?.length ? <div className="mt-5 space-y-4">{course.children.map((child, index) => <button key={child.id} onClick={() => router.push(`/courses/${child.slug}`)} className="group flex w-full flex-col gap-4 rounded-2xl border border-outline-variant/40 bg-white p-4 text-right transition hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg sm:flex-row sm:items-center"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-black text-secondary-fixed">{(index + 1).toLocaleString("fa-IR")}</div><div className="h-24 w-full shrink-0 overflow-hidden rounded-xl bg-surface-low sm:w-32">{child.thumbnail ? <img src={child.thumbnail} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-xs text-outline">تصویر ندارد</div>}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-primary">{child.title}</h3><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{child.scheduleStatus === "completed" ? "برگزار شده" : "در انتظار برگزاری"}</span></div>{child.instructor && <p className="mt-1 text-xs text-outline">مدرس: {child.instructor}</p>}{child.description && <p className="mt-2 line-clamp-2 text-xs leading-6 text-outline">{child.description}</p>}</div><div className="flex shrink-0 flex-col gap-2 sm:items-end"><span className="text-xs text-outline">{child.startDate ? `شروع: ${new Date(child.startDate).toLocaleDateString("fa-IR")}` : "تاریخ به‌زودی اعلام می‌شود"}</span><span className="font-black text-primary">{formatPrice(child.price)} <span className="text-xs font-normal">تومان</span></span><span className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">{child.registrationMode === "registration" ? "ثبت‌نام مستقل" : "مشاهده و خرید"}</span></div></button>)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-outline-variant bg-white/70 p-8 text-center text-sm text-outline">زیر‌دوره‌ای برای این مجموعه ثبت نشده است.</div>}</section>}
+            {course.courseType === "comprehensive" && (
+              <section className="mt-10 rounded-[2rem] border border-secondary-fixed/60 bg-gradient-to-br from-[#fffdf8] to-[#f8f5ff] p-5 md:p-7">
+                <div className="flex flex-wrap items-end justify-between gap-4 border-b border-secondary-fixed/50 pb-5">
+                  <div>
+                    <p className="text-xs font-bold text-secondary">
+                      مسیر یادگیری این مجموعه
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black text-primary">
+                      زیر‌دوره‌ها و زمان‌بندی
+                    </h2>
+                    <p className="mt-2 text-sm text-outline">
+                      هر زیر‌دوره به‌صورت مستقل ثبت‌نام و خریداری می‌شود.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-primary px-4 py-2 text-xs font-bold text-secondary-fixed">
+                    {(course.children?.length || 0).toLocaleString("fa-IR")}{" "}
+                    زیر‌دوره
+                  </span>
+                </div>
+                {course.children?.length ? (
+                  <div className="mt-5 space-y-4">
+                    {course.children.map((child, index) => (
+                      <button
+                        key={child.id}
+                        onClick={() => router.push(`/courses/${child.slug}`)}
+                        className="group flex w-full flex-col gap-4 rounded-2xl border border-outline-variant/40 bg-white p-4 text-right transition hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg sm:flex-row sm:items-center"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-black text-secondary-fixed">
+                          {(index + 1).toLocaleString("fa-IR")}
+                        </div>
+                        <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl bg-surface-low sm:w-32">
+                          {child.thumbnail ? (
+                            <img
+                              src={child.thumbnail}
+                              alt=""
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-outline">
+                              تصویر ندارد
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-black text-primary">
+                              {child.title}
+                            </h3>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}
+                            >
+                              {child.scheduleStatus === "completed"
+                                ? "برگزار شده"
+                                : "در انتظار برگزاری"}
+                            </span>
+                          </div>
+                          {child.instructor && (
+                            <p className="mt-1 text-xs text-outline">
+                              مدرس: {child.instructor}
+                            </p>
+                          )}
+                          {child.description && (
+                            <p className="mt-2 line-clamp-2 text-xs leading-6 text-outline">
+                              {child.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                          <span className="text-xs text-outline">
+                            {child.startDate
+                              ? `شروع: ${new Date(child.startDate).toLocaleDateString("fa-IR")}`
+                              : "تاریخ به‌زودی اعلام می‌شود"}
+                          </span>
+                          <span className="font-black text-primary">
+                            {formatPrice(child.price)}{" "}
+                            <span className="text-xs font-normal">تومان</span>
+                          </span>
+                          <span className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">
+                            {child.registrationMode === "registration"
+                              ? "ثبت‌نام مستقل"
+                              : "مشاهده و خرید"}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-dashed border-outline-variant bg-white/70 p-8 text-center text-sm text-outline">
+                    زیر‌دوره‌ای برای این مجموعه ثبت نشده است.
+                  </div>
+                )}
+              </section>
+            )}
           </div>
 
           <div>
             <div className="bg-white rounded-2xl shadow-lg border border-outline-variant/30 p-6 sticky top-28">
-              {course.courseType === "comprehensive" ? <div className="text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed text-primary"><CalendarDays size={25} /></div><h3 className="font-black text-primary">مجموعه معرفی دوره‌ها</h3><p className="mt-3 text-sm leading-7 text-outline">ثبت‌نام این مجموعه انجام نمی‌شود. زیر‌دوره مناسب را از فهرست بالا انتخاب و جداگانه اقدام کنید.</p><div className="mt-5 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white">انتخاب زیر‌دوره</div></div> : <>
-              <div className="mb-6">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-black text-primary">
-                    {formatPrice(course.price)}
-                  </span>
-                  <span className="text-outline text-sm">تومان</span>
+              {course.courseType === "comprehensive" ? (
+                <div className="text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed text-primary">
+                    <CalendarDays size={25} />
+                  </div>
+                  <h3 className="font-black text-primary">
+                    مجموعه معرفی دوره‌ها
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-outline">
+                    ثبت‌نام این مجموعه انجام نمی‌شود. زیر‌دوره مناسب را از فهرست
+                    بالا انتخاب و جداگانه اقدام کنید.
+                  </p>
+                  <div className="mt-5 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white">
+                    انتخاب زیر‌دوره
+                  </div>
                 </div>
-                {course.oldPrice && course.oldPrice > course.price && (
-                  <span className="text-outline line-through text-sm">
-                    {formatPrice(course.oldPrice)} تومان
-                  </span>
-                )}
-              </div>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-3xl font-black text-primary">
+                        {formatPrice(course.price)}
+                      </span>
+                      <span className="text-outline text-sm">تومان</span>
+                    </div>
+                    {course.oldPrice && course.oldPrice > course.price && (
+                      <span className="text-outline line-through text-sm">
+                        {formatPrice(course.oldPrice)} تومان
+                      </span>
+                    )}
+                  </div>
 
-              {course.scheduleStatus === "completed" ? <button disabled className="w-full bg-surface-variant text-outline py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-3"><CheckCircle2 size={18} />این دوره به پایان رسیده است</button> : isEnrolled ? (
-                <button className="w-full bg-secondary text-white py-3 rounded-xl font-bold hover:bg-secondary-container hover:text-on-secondary-fixed transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3">
-                  <Play size={18} />
-                  ادامه یادگیری
-                </button>
-              ) : course.registrationMode === "registration" ? applicationStatus ? <div className={`w-full py-3 rounded-xl font-bold text-center mb-3 ${applicationStatus === "approved" ? "bg-green-50 text-green-700" : applicationStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}>{applicationStatus === "approved" ? "درخواست شما تأیید شده" : applicationStatus === "rejected" ? "درخواست شما رد شده" : "درخواست شما در انتظار بررسی است"}</div> : <button onClick={() => { if (!getCookie("token")) { router.push(`/login?redirect=${encodeURIComponent(`/courses/${slug}`)}`); return; } setRegistrationOpen(true); }} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"><ClipboardEdit size={18} />تکمیل فرم ثبت‌نام</button> : <button onClick={() => router.push(`/checkout?course=${course.id}`)} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"><ShoppingCart size={18} />خرید و ثبت‌نام</button>}
+                  {course.scheduleStatus === "completed" ? (
+                    <button
+                      disabled
+                      className="w-full bg-surface-variant text-outline py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-3"
+                    >
+                      <CheckCircle2 size={18} />
+                      این دوره به پایان رسیده است
+                    </button>
+                  ) : isEnrolled ? (
+                    <button className="w-full bg-secondary text-white py-3 rounded-xl font-bold hover:bg-secondary-container hover:text-on-secondary-fixed transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3">
+                      <Play size={18} />
+                      ادامه یادگیری
+                    </button>
+                  ) : applicationStatus === "pending_payment" &&
+                    applicationId ? (
+                    <button
+                      onClick={() =>
+                        router.push(`/checkout?application=${applicationId}`)
+                      }
+                      className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"
+                    >
+                      <ShoppingCart size={18} />
+                      ادامه پرداخت
+                    </button>
+                  ) : applicationStatus ? (
+                    <div
+                      className={`w-full py-3 rounded-xl font-bold text-center mb-3 ${applicationStatus === "approved" ? "bg-green-50 text-green-700" : applicationStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}
+                    >
+                      {applicationStatus === "approved"
+                        ? "درخواست شما تأیید شده"
+                        : applicationStatus === "rejected"
+                          ? "درخواست شما رد شده"
+                          : "درخواست شما در انتظار بررسی است"}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!getCookie("token")) {
+                          router.push(
+                            `/login?redirect=${encodeURIComponent(`/courses/${slug}`)}`,
+                          );
+                          return;
+                        }
+                        setRegistrationOpen(true);
+                      }}
+                      className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"
+                    >
+                      <ClipboardEdit size={18} />
+                      تکمیل فرم ثبت‌نام
+                    </button>
+                  )}
 
-               <p className="text-xs text-outline text-center">
-                 تضمین کیفیت آموزش
-               </p>
-              </>}
+                  <p className="text-xs text-outline text-center">
+                    تضمین کیفیت آموزش
+                  </p>
+                </>
+              )}
             </div>
 
             {course.gallery && course.gallery.length > 0 && (
@@ -307,8 +579,23 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </div>
-      {registrationOpen && <CourseRegistrationModal courseId={course.id} courseTitle={course.title} onClose={() => setRegistrationOpen(false)} onSuccess={(profileUpdated) => { setRegistrationOpen(false); setApplicationStatus("pending"); setApplicationSent(true); if (profileUpdated) toast.success("نام، ایمیل یا موبایل حساب کاربری شما نیز بروزرسانی شد"); }} />}
-      {applicationSent && <div className="modal-overlay" onClick={() => setApplicationSent(false)}><div className="modal-content max-w-md text-center" onClick={(event) => event.stopPropagation()}><div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto"><CheckCircle2 size={30} /></div><h2 className="text-xl font-black text-primary mt-5">درخواست شما ثبت شد</h2><p className="text-sm text-outline leading-7 mt-2">اطلاعات شما برای دوره «{course.title}» ارسال شد و پس از بررسی، وضعیت آن در پنل کاربری قابل مشاهده است.</p><button onClick={() => setApplicationSent(false)} className="mt-6 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold">متوجه شدم</button></div></div>}
+      {registrationOpen && (
+        <CourseRegistrationModal
+          courseId={course.id}
+          courseTitle={course.title}
+          onClose={() => setRegistrationOpen(false)}
+          onSuccess={({
+            applicationId: createdApplicationId,
+            profileUpdated,
+          }) => {
+            if (profileUpdated)
+              toast.success(
+                "نام، ایمیل یا موبایل حساب کاربری شما نیز بروزرسانی شد",
+              );
+            router.push(`/checkout?application=${createdApplicationId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

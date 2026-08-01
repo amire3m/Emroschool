@@ -24,6 +24,7 @@ import {
   History,
   ClipboardList,
   WalletCards,
+  BadgePercent,
   type LucideIcon,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
@@ -49,6 +50,7 @@ const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
   { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "applications" },
   { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: "payments" },
+  { href: "/admin/discount-codes", label: "کدهای تخفیف", icon: BadgePercent, permission: "discounts" },
   { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
   { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
@@ -85,6 +87,7 @@ const pageTitles: Record<string, string> = {
   "/admin/courses": "مدیریت دوره‌ها",
   "/admin/applications": "درخواست‌های ثبت‌نام دوره‌ها",
   "/admin/payments": "مدیریت پرداخت‌ها",
+  "/admin/discount-codes": "مدیریت کدهای تخفیف",
   "/admin/categories": "دسته‌بندی دوره‌ها",
   "/admin/events": "مدیریت رویدادها",
   "/admin/instructors": "مدیریت اساتید",

@@ -3,6 +3,7 @@ import { getUserFromToken, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidIranianNationalCode, normalizeIranianNationalCode } from "@/lib/iranian-national-code";
 import { isValidIranianMobile, normalizeIranianMobile } from "@/lib/iranian-mobile";
+import { ensureDiscountCodes, findActiveDiscountCode } from "@/lib/discount-codes";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -40,6 +41,15 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "برای ثبت‌نام ابتدا وارد حساب کاربری شوید" }, { status: 401 });
   try {
     const body = await req.json();
+    if (typeof body.courseId !== "string" || !body.courseId) return NextResponse.json({ error: "شناسه دوره الزامی است" }, { status: 400 });
+    const course = await prisma.course.findUnique({ where: { id: body.courseId } });
+    if (!course || !course.published) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
+    if (course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
+    const existingApplication = await prisma.courseApplication.findUnique({ where: { userId_courseId: { userId: token.id, courseId: body.courseId } } });
+    if (existingApplication) {
+      if (existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
+      return NextResponse.json({ error: "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
+    }
      const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "province", "city", "address", "educationLevel", "educationField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
      if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
@@ -47,9 +57,11 @@ export async function POST(req: NextRequest) {
     if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
     const normalizedPhone = normalizeIranianMobile(body.phone);
     if (!isValidIranianMobile(normalizedPhone)) return NextResponse.json({ error: "شماره تلفن همراه واردشده معتبر نیست" }, { status: 400 });
-    const course = await prisma.course.findUnique({ where: { id: body.courseId } });
-    if (!course || !course.published) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
-    if (course.scheduleStatus !== "upcoming" || course.registrationMode !== "registration") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
+    await ensureDiscountCodes();
+    const discount = typeof body.discountGroup === "string" && body.discountGroup.trim()
+      ? await findActiveDiscountCode(body.discountGroup)
+      : null;
+    if (typeof body.discountGroup === "string" && body.discountGroup.trim() && !discount) return NextResponse.json({ error: "گروه تخفیف معتبر نیست" }, { status: 400 });
     const existingUser = await prisma.user.findUnique({ where: { id: token.id } });
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();
@@ -66,14 +78,17 @@ export async function POST(req: NextRequest) {
       } });
       return tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
+         birthDate: body.birthDate.trim(),
          province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), reason: body.reason.trim(),
         knowsInstructors: Boolean(body.knowsInstructors), familiarityDetails: body.knowsInstructors ? body.familiarityDetails.trim() : null,
          instagramId: body.instagramId.trim(), virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
+        discountCode: discount?.code || null, discountLabel: discount?.label || null, discountPercent: discount?.percent || 0,
+        finalAmountTomans: Math.round(course.price * (100 - (discount?.percent || 0)) / 100),
       } });
     });
-    return NextResponse.json({ application, profileUpdated }, { status: 201 });
+    return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
       const target = String((error as { meta?: { target?: unknown } }).meta?.target || "");

@@ -23,7 +23,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (!order) return null;
       if (order.method !== "card_to_card" || order.status !== "under_review") throw new Error("INVALID_STATUS");
       const updated = await tx.paymentOrder.update({ where: { id: order.id }, data: { status: action === "approve" ? "paid" : "rejected", reviewerId: reviewer.id, reviewedAt: new Date(), ...(action === "approve" ? { paidAt: new Date() } : {}) } });
-      if (action === "approve") await tx.enrollment.upsert({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } }, update: {}, create: { userId: order.userId, courseId: order.courseId } });
+      if (action === "approve") {
+        if (order.applicationId) await tx.courseApplication.update({ where: { id: order.applicationId }, data: { status: "approved" } });
+        await tx.enrollment.upsert({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } }, update: {}, create: { userId: order.userId, courseId: order.courseId } });
+      }
       return updated;
     });
     if (!result) return NextResponse.json({ error: "سفارش پیدا نشد" }, { status: 404 });

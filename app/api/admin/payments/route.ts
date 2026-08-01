@@ -15,7 +15,7 @@ async function admin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!await admin(req)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   const [orders, settings] = await Promise.all([
-    prisma.paymentOrder.findMany({ include: { user: { select: { id: true, name: true, email: true, phone: true } }, course: { select: { id: true, title: true, slug: true } }, reviewer: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } }),
+    prisma.paymentOrder.findMany({ include: { user: { select: { id: true, name: true, email: true, phone: true } }, course: { select: { id: true, title: true, slug: true } }, application: { select: { discountLabel: true, discountPercent: true } }, reviewer: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } }),
     prisma.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
   return NextResponse.json({ orders, settings });

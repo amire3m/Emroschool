@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (admin.role !== "superadmin" && admin.permissions) { try { const permissions = JSON.parse(admin.permissions); if (permissions.length > 0 && !permissions.includes("applications")) return NextResponse.json({ error: "دسترسی مدیریت ثبت‌نام را ندارید" }, { status: 403 }); } catch { return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } }
   try {
     const { status } = await req.json();
-    if (!["pending", "approved", "rejected"].includes(status)) return NextResponse.json({ error: "وضعیت نامعتبر است" }, { status: 400 });
+    if (!["pending_payment", "pending", "approved", "rejected"].includes(status)) return NextResponse.json({ error: "وضعیت نامعتبر است" }, { status: 400 });
     const existing = await prisma.courseApplication.findUnique({ where: { id: params.id } });
     if (!existing) return NextResponse.json({ error: "درخواست پیدا نشد" }, { status: 404 });
     const application = await prisma.$transaction(async (tx) => {
