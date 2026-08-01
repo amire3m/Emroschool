@@ -37,6 +37,9 @@ model User {
   expertise String?
   socialLinks String?
   profileVisible Boolean @default(false)
+  profileApprovalStatus String @default("pending") // pending | approved | rejected
+  profileReviewedAt DateTime?
+  profileReviewerId String?
   permissions   String?                  // JSON array for content admins
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,6 +47,9 @@ model User {
   enrollments   Enrollment[]
   paymentOrders PaymentOrder[] @relation("PaymentOrderUser")
   reviewedPaymentOrders PaymentOrder[] @relation("PaymentOrderReviewer")
+  reviewedProfiles User[] @relation("ProfileReviewer")
+  profileReviewer User? @relation("ProfileReviewer", fields: [profileReviewerId], references: [id], onDelete: SetNull)
+  createdPaymentOrders PaymentOrder[] @relation("PaymentOrderCreator")
   courseApplications CourseApplication[]
   notifications UserNotification[]
   instructor    Instructor?
@@ -209,6 +215,10 @@ model PaymentOrder {
   application          CourseApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   reviewerId           String?
   reviewer             User?    @relation("PaymentOrderReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  manualReference      String?
+  manualNote           String?
+  createdById          String?
+  createdBy            User?    @relation("PaymentOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([courseId, status])

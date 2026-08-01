@@ -7,7 +7,7 @@ async function admin(req: NextRequest) {
   const user = header?.startsWith("Bearer ") ? await getUserFromToken(header.slice(7)) : null;
   if (!user || !isAdminRole(user.role)) return null;
   if (user.role !== "superadmin" && user.permissions) {
-    try { const permissions = JSON.parse(user.permissions); if (permissions.length && !permissions.includes("payments")) return null; } catch { return null; }
+    try { const permissions = JSON.parse(user.permissions); if (permissions.length && !permissions.includes("payments") && !permissions.includes("support")) return null; } catch { return null; }
   }
   return user;
 }

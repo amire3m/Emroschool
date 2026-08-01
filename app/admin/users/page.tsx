@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Shield, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Plus, Check, LogIn } from "lucide-react";
 import toast from "react-hot-toast";
-import { getCookie } from "@/lib/cookie";
+import { getCookie, setCookie } from "@/lib/cookie";
 
 interface UserData {
   id: string;
@@ -13,6 +14,8 @@ interface UserData {
   userType: string;
   permissions: string | null;
   profileVisible: boolean;
+  profileApprovalStatus: string;
+  profileReviewedAt: string | null;
   createdAt: string;
   enrollmentCount: number;
 }
@@ -37,16 +40,20 @@ function formatDate(dateStr: string) {
 }
 
 export default function AdminUsers() {
+  const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [profileFilter, setProfileFilter] = useState<"all" | "pending">("all");
   const [editUser, setEditUser] = useState<UserData | null>(null);
   const [editForm, setEditForm] = useState({ role: "", userType: "", permissions: "", profileVisible: true, password: "" });
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", email: "", password: "", userType: "student" });
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   const getToken = () => getCookie("token") || "";
 
@@ -119,10 +126,39 @@ export default function AdminUsers() {
     }
   };
 
+  const reviewProfile = async (user: UserData, status: "approved" | "rejected") => {
+    setReviewingId(user.id);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/profile-review`, { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ status }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "بررسی پروفایل انجام نشد");
+      toast.success(status === "approved" ? "پروفایل تایید شد" : "درخواست پروفایل رد شد");
+      fetchUsers();
+    } catch (err) { toast.error(err instanceof Error ? err.message : "بررسی پروفایل انجام نشد"); }
+    finally { setReviewingId(null); }
+  };
+
+  const impersonate = async (user: UserData) => {
+    if (user.role !== "user" || !confirm(`ورود به حساب ${user.name} انجام شود؟`)) return;
+    setImpersonatingId(user.id);
+    try {
+      const currentToken = getToken();
+      const response = await fetch(`/api/admin/users/${user.id}/impersonate`, { method: "POST", headers: { authorization: `Bearer ${currentToken}` } });
+      const data = await response.json();
+      if (!response.ok || !data.token) throw new Error(data.error || "ورود به حساب کاربر انجام نشد");
+      sessionStorage.setItem("impersonator-token", currentToken);
+      setCookie("token", data.token);
+      window.dispatchEvent(new Event("auth-changed"));
+      router.push("/dashboard");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "ورود به حساب کاربر انجام نشد"); }
+    finally { setImpersonatingId(null); }
+  };
+
   const filtered = users.filter((u) => {
     const matchSearch = u.name.includes(search) || u.email.includes(search) || u.role.includes(search);
     const matchType = filterType === "all" || u.userType === filterType;
-    return matchSearch && matchType;
+    const matchProfile = profileFilter === "all" || u.profileApprovalStatus === "pending";
+    return matchSearch && matchType && matchProfile;
   });
 
   if (loading) {
@@ -151,6 +187,10 @@ export default function AdminUsers() {
             <option value="admin">مدیر</option>
           </select>
         </div>
+        <div className="flex gap-2">
+          <button onClick={() => setProfileFilter("all")} className={`rounded-xl px-3 py-2 text-xs font-bold ${profileFilter === "all" ? "bg-primary text-white" : "border border-surface-variant bg-white text-outline"}`}>همه کاربران</button>
+          <button onClick={() => setProfileFilter("pending")} className={`rounded-xl px-3 py-2 text-xs font-bold ${profileFilter === "pending" ? "bg-primary text-white" : "border border-surface-variant bg-white text-outline"}`}>درخواست‌های پروفایل ({users.filter((user) => user.profileApprovalStatus === "pending").length.toLocaleString("fa-IR")})</button>
+        </div>
         <div className="flex items-center gap-3 text-sm text-outline">
           <span className="font-medium text-primary">{users.length.toLocaleString("fa-IR")}</span> کاربر
           <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white"><Plus size={15} />ایجاد کاربر</button>
@@ -166,6 +206,7 @@ export default function AdminUsers() {
                 <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">ایمیل</th>
                 <th className="text-center p-3 font-medium text-outline">نقش</th>
                 <th className="text-center p-3 font-medium text-outline hidden md:table-cell">نوع کاربر</th>
+                <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">پروفایل</th>
                 <th className="text-right p-3 font-medium text-outline hidden md:table-cell">تاریخ ثبت‌نام</th>
                 <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">دوره‌ها</th>
                 <th className="text-left p-3 font-medium text-outline">عملیات</th>
@@ -201,6 +242,7 @@ export default function AdminUsers() {
                       {userTypeLabels[user.userType] || user.userType}
                     </span>
                   </td>
+                  <td className="p-3 text-center hidden lg:table-cell"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${user.profileApprovalStatus === "approved" ? "bg-green-50 text-green-700" : user.profileApprovalStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}>{user.profileApprovalStatus === "approved" ? "تایید شده" : user.profileApprovalStatus === "rejected" ? "رد شده" : "در انتظار"}</span></td>
                   <td className="p-3 text-outline hidden md:table-cell">
                     <div className="flex items-center gap-1.5">
                       <Calendar size={13} />
@@ -215,6 +257,8 @@ export default function AdminUsers() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-2 justify-end">
+                      {user.profileApprovalStatus === "pending" && <><button onClick={() => reviewProfile(user, "approved")} disabled={reviewingId === user.id} className="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-50" title="تایید پروفایل"><Check size={14} /></button><button onClick={() => reviewProfile(user, "rejected")} disabled={reviewingId === user.id} className="rounded-lg bg-error px-2 py-1 text-xs font-bold text-white disabled:opacity-50" title="رد پروفایل">رد</button></>}
+                      {user.role === "user" && <button onClick={() => impersonate(user)} disabled={impersonatingId === user.id} className="inline-flex items-center gap-1 rounded-lg border border-secondary px-2 py-1 text-xs font-bold text-secondary disabled:opacity-50" title="ورود به حساب کاربر">{impersonatingId === user.id ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}<span className="hidden xl:inline">ورود به حساب</span></button>}
                       <button onClick={() => openEdit(user)}
                         className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-colors" title="ویرایش">
                         <Pencil size={16} />
@@ -224,7 +268,7 @@ export default function AdminUsers() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-outline">کاربری یافت نشد</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-outline">کاربری یافت نشد</td></tr>
               )}
             </tbody>
           </table>
@@ -268,7 +312,7 @@ export default function AdminUsers() {
                 <input type="text" value={editForm.permissions} onChange={(e) => setEditForm(p => ({ ...p, permissions: e.target.value }))}
                   placeholder='["courses", "events"]'
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed font-mono" />
-                <p className="text-xs text-outline mt-1">مقادیر مجاز: courses, applications, events, news, instructors, gallery, files, slider, notifications, users, settings</p>
+                <p className="text-xs text-outline mt-1">مقادیر مجاز: courses, applications, events, news, instructors, gallery, files, slider, notifications, users, settings, payments, support, impersonate</p>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
                 <div>

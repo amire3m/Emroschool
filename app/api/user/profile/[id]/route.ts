@@ -15,6 +15,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         role: true,
         userType: true,
         profileVisible: true,
+        profileApprovalStatus: true,
         createdAt: true,
         instructor: {
           select: { specialties: true, showOnSite: true },
@@ -29,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     }
 
-    if (!user.profileVisible && !(user.userType === "instructor" && user.instructor?.showOnSite)) {
+    if (user.profileApprovalStatus !== "approved" || !user.profileVisible) {
       return NextResponse.json({ error: "این پروفایل عمومی نیست" }, { status: 403 });
     }
 

@@ -12,7 +12,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { getCookie, removeCookie } from "@/lib/cookie";
+import { getCookie, removeCookie, setCookie } from "@/lib/cookie";
 
 const menuItems = [
   { label: "داشبورد", href: "/dashboard", icon: LayoutDashboard },
@@ -26,6 +26,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ name: string; email: string; avatar?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -53,10 +54,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("profile-updated", fetchUser);
   }, [router]);
 
+  useEffect(() => {
+    setIsImpersonating(Boolean(sessionStorage.getItem("impersonator-token")));
+  }, []);
+
   function handleLogout() {
     removeCookie("token");
     window.dispatchEvent(new Event("auth-changed"));
     router.push("/login");
+  }
+
+  function exitImpersonation() {
+    const adminToken = sessionStorage.getItem("impersonator-token");
+    if (!adminToken) return;
+    setCookie("token", adminToken);
+    sessionStorage.removeItem("impersonator-token");
+    setIsImpersonating(false);
+    window.dispatchEvent(new Event("auth-changed"));
+    router.push("/admin/users");
   }
 
   if (loading) {
@@ -122,6 +137,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex-1 mr-0 md:mr-64">
+        {isImpersonating && <div className="sticky top-24 z-30 flex items-center justify-between gap-3 bg-amber-100 px-6 py-3 text-sm font-bold text-amber-950"><span>شما در حالت ورود به حساب کاربر هستید.</span><button onClick={exitImpersonation} className="rounded-lg bg-primary px-3 py-1.5 text-white">بازگشت به پنل مدیریت</button></div>}
         <div className="md:hidden fixed top-24 left-4 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}

@@ -46,11 +46,19 @@ interface MenuGroup {
 
 const menuItems: Array<MenuLink | MenuGroup> = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
-  { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
+  {
+    key: "education",
+    label: "آموزش",
+    icon: BookOpen,
+    children: [
+      { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
+      { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
+      { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
+    ],
+  },
   { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "applications" },
   { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: "payments" },
-  { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
-  { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
+  { href: "/admin/support", label: "پشتیبانی کاربران", icon: Users, permission: "support" },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
@@ -93,6 +101,7 @@ const pageTitles: Record<string, string> = {
   "/admin/gallery": "گالری تصاویر",
   "/admin/files": "مدیریت فایل‌ها",
   "/admin/users": "مدیریت کاربران",
+  "/admin/support": "پشتیبانی کاربران",
   "/admin/notifications": "اعلان‌ها",
   "/admin/email": "ارسال ایمیل از دامنه آکادمی",
   "/admin/updates": "بروزرسانی‌ها",

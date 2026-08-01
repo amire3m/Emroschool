@@ -16,15 +16,22 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export function generateToken(user: { id: string; email: string; role: string }) {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET, {
-    expiresIn: "7d",
-  });
+export type AuthToken = { id: string; email: string; role: string; impersonatedBy?: string };
+
+export function generateToken(
+  user: { id: string; email: string; role: string },
+  options: { expiresIn?: "2h" | "7d"; impersonatedBy?: string } = {},
+) {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role, ...(options.impersonatedBy ? { impersonatedBy: options.impersonatedBy } : {}) },
+    SECRET,
+    { expiresIn: options.expiresIn || "7d" },
+  );
 }
 
 export function verifyToken(token: string) {
   try {
-    return jwt.verify(token, SECRET) as { id: string; email: string; role: string };
+    return jwt.verify(token, SECRET) as AuthToken;
   } catch {
     return null;
   }

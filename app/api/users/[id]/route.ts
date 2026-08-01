@@ -10,7 +10,7 @@ function getAdmin(token: string | null) {
 
 const roles = ["user", "admin", "superadmin"];
 const userTypes = ["student", "instructor", "alumni", "admin"];
-const allowedPermissions = ["courses", "applications", "events", "news", "instructors", "gallery", "files", "slider", "notifications", "users", "settings"];
+const allowedPermissions = ["courses", "applications", "events", "news", "instructors", "gallery", "files", "slider", "notifications", "users", "settings", "payments", "discounts", "support", "impersonate"];
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = req.headers.get("authorization");
@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
     const body = await req.json();
     const { role, userType, permissions, profileVisible, password } = body;
-    const targetUser = await prisma.user.findUnique({ where: { id: params.id }, select: { role: true } });
+    const targetUser = await prisma.user.findUnique({ where: { id: params.id }, select: { role: true, profileApprovalStatus: true } });
     if (!targetUser) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
 
     if (role !== undefined && !roles.includes(role)) {
@@ -60,7 +60,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (role !== undefined) data.role = role;
     if (userType !== undefined) data.userType = userType;
     if (normalizedPermissions !== undefined) data.permissions = normalizedPermissions;
-    if (profileVisible !== undefined && typeof profileVisible === "boolean") data.profileVisible = profileVisible;
+    if (profileVisible !== undefined && typeof profileVisible === "boolean") {
+      if (profileVisible && targetUser.profileApprovalStatus !== "approved") return NextResponse.json({ error: "نمایش عمومی پروفایل فقط پس از تایید مجاز است" }, { status: 409 });
+      data.profileVisible = profileVisible;
+    }
     if (password) data.password = await hashPassword(password);
 
     const user = await prisma.$transaction(async (tx) => {
@@ -69,7 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         data,
         select: {
           id: true, name: true, email: true, role: true, userType: true,
-          permissions: true, profileVisible: true,
+          permissions: true, profileVisible: true, profileApprovalStatus: true, profileReviewedAt: true,
         },
       });
 

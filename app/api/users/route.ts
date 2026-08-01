@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
         userType: true,
         permissions: true,
         profileVisible: true,
+        profileApprovalStatus: true,
+        profileReviewedAt: true,
         createdAt: true,
         _count: { select: { enrollments: true } },
       },
@@ -37,6 +39,8 @@ export async function GET(req: NextRequest) {
       userType: user.userType,
       permissions: user.permissions,
       profileVisible: user.profileVisible,
+      profileApprovalStatus: user.profileApprovalStatus,
+      profileReviewedAt: user.profileReviewedAt,
       createdAt: user.createdAt,
       enrollmentCount: user._count.enrollments,
     }));
@@ -60,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (!["student", "instructor", "alumni", "admin"].includes(userType)) return NextResponse.json({ error: "نوع کاربر نامعتبر است" }, { status: 400 });
 
     const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({ data: { name: name.trim(), email: email.trim().toLowerCase(), password: await hashPassword(password), userType, profileVisible: userType === "instructor" } });
+      const created = await tx.user.create({ data: { name: name.trim(), email: email.trim().toLowerCase(), password: await hashPassword(password), userType, profileVisible: false } });
       if (userType === "instructor") await tx.instructor.create({ data: { userId: created.id, name: created.name, showOnSite: true } });
       return created;
     });

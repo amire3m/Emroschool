@@ -7,7 +7,7 @@ async function admin(req: NextRequest) {
   const user = header?.startsWith("Bearer ") ? await getUserFromToken(header.slice(7)) : null;
   if (!user || !isAdminRole(user.role)) return null;
   if (user.role !== "superadmin" && user.permissions) {
-    try { const permissions = JSON.parse(user.permissions); if (permissions.length && !permissions.includes("payments")) return null; } catch { return null; }
+    try { const permissions = JSON.parse(user.permissions); if (permissions.length && !permissions.includes("payments") && !permissions.includes("support")) return null; } catch { return null; }
   }
   return user;
 }
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         course: true,
         application: { select: { id: true, status: true, userId: true, courseId: true, fullName: true, email: true, phone: true, nationalCode: true, birthDate: true, province: true, city: true, address: true, postalCode: true, workHistory: true, artHistory: true, educationLevel: true, educationField: true, reason: true, knowsInstructors: true, familiarityDetails: true, instagramId: true, virtualPhone: true, landline: true, discountCode: true, discountLabel: true, discountPercent: true, finalAmountTomans: true, discountDocumentUrl: true, createdAt: true, updatedAt: true } },
         reviewer: { select: { id: true, name: true, email: true, role: true, userType: true, createdAt: true, updatedAt: true } },
+        createdBy: { select: { id: true, name: true, email: true, role: true } },
       },
       orderBy: { createdAt: "desc" },
     }),

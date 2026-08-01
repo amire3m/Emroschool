@@ -31,7 +31,9 @@ export async function GET(req: NextRequest) {
         socialLinks: true,
         role: true,
         userType: true,
-        profileVisible: true,
+         profileVisible: true,
+         profileApprovalStatus: true,
+         profileReviewedAt: true,
         permissions: true,
         createdAt: true,
       },
@@ -85,7 +87,21 @@ export async function PUT(req: NextRequest) {
     if (bio !== undefined) data.bio = bio;
     if (expertise !== undefined) data.expertise = expertise;
     if (socialLinks !== undefined) data.socialLinks = socialLinks;
-    if (profileVisible !== undefined && typeof profileVisible === "boolean") data.profileVisible = profileVisible;
+    const profileContentChanged = [
+      [name, existing.name], [birthDate === undefined ? undefined : birthDate || null, existing.birthDate], [province === undefined ? undefined : province || null, existing.province],
+      [city === undefined ? undefined : city || null, existing.city], [address === undefined ? undefined : address || null, existing.address], [postalCode === undefined ? undefined : postalCode || null, existing.postalCode],
+      [workHistory === undefined ? undefined : workHistory || null, existing.workHistory], [artHistory === undefined ? undefined : artHistory || null, existing.artHistory], [educationLevel === undefined ? undefined : educationLevel || null, existing.educationLevel],
+      [educationField === undefined ? undefined : educationField || null, existing.educationField], [instagramId === undefined ? undefined : instagramId || null, existing.instagramId], [virtualPhone === undefined ? undefined : virtualPhone || null, existing.virtualPhone],
+      [landline === undefined ? undefined : landline || null, existing.landline], [avatar, existing.avatar], [bio, existing.bio], [expertise, existing.expertise], [socialLinks, existing.socialLinks],
+    ].some(([nextValue, currentValue]) => nextValue !== undefined && nextValue !== currentValue);
+    if (profileContentChanged) {
+      data.profileApprovalStatus = "pending";
+      data.profileVisible = false;
+      data.profileReviewedAt = null;
+      data.profileReviewerId = null;
+    }
+    // Users cannot publish their own profile; approval is required even without a content edit.
+    if (profileVisible === false) data.profileVisible = false;
     if (newsletterSubscribed !== undefined && typeof newsletterSubscribed === "boolean") data.newsletterSubscribed = newsletterSubscribed;
     if (password !== undefined) {
       data.password = await hashPassword(password);
@@ -109,7 +125,9 @@ export async function PUT(req: NextRequest) {
         socialLinks: true,
         role: true,
         userType: true,
-        profileVisible: true,
+         profileVisible: true,
+         profileApprovalStatus: true,
+         profileReviewedAt: true,
         permissions: true,
       },
     });
