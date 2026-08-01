@@ -25,9 +25,11 @@ interface InstructorUser {
 
 interface InstructorInfo {
   id: string;
+  name?: string | null;
+  avatar?: string | null;
   bio?: string;
   expertise?: string;
-  user: InstructorUser;
+  user?: InstructorUser | null;
 }
 
 interface EventInstructor {
@@ -168,10 +170,10 @@ export default function EventDetailPage() {
                       key={ei.instructor.id}
                       className="flex items-center gap-4 p-4 bg-white rounded-xl border border-outline-variant/30"
                     >
-                      {ei.instructor.user.avatar ? (
+                      {ei.instructor.avatar || ei.instructor.user?.avatar ? (
                         <img
-                          src={ei.instructor.user.avatar}
-                          alt={ei.instructor.user.name}
+                          src={ei.instructor.avatar || ei.instructor.user?.avatar || ""}
+                          alt={ei.instructor.name || ei.instructor.user?.name || "استاد رویداد"}
                           className="w-14 h-14 rounded-full object-cover shrink-0"
                         />
                       ) : (
@@ -181,7 +183,7 @@ export default function EventDetailPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-primary">
-                          {ei.instructor.user.name}
+                          {ei.instructor.name || ei.instructor.user?.name || "استاد رویداد"}
                         </p>
                         {ei.instructor.expertise && (
                           <p className="text-secondary text-xs">
