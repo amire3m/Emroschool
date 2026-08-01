@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Instagram, MapPin, MessageCircle, Phone } from "lucide-react";
+import { ArrowLeft, Instagram, MapPin, Phone } from "lucide-react";
 import VintagePhotoSlideshow from "@/components/about/vintage-photo-slideshow";
+import BaleIcon from "@/components/icons/bale-icon";
 
 const address = "تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72";
 
@@ -60,7 +61,7 @@ export default function AboutPage() {
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><Instagram size={20} /></Link>
-              <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank" rel="noopener noreferrer" aria-label="بله" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><MessageCircle size={20} /></Link>
+              <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank" rel="noopener noreferrer" aria-label="کانال بله آکادمی" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><BaleIcon className="h-5 w-5" /></Link>
               <Link href="/privacy-policy" className="rounded-xl border border-primary/20 px-4 py-3 text-sm font-bold text-primary transition hover:border-secondary hover:text-secondary">حریم خصوصی</Link>
             </div>
           </div>
