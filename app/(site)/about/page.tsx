@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Instagram, MapPin, MessageCircle, Phone } from "lucide-react";
+import VintagePhotoSlideshow from "@/components/about/vintage-photo-slideshow";
 
 const address = "تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72";
 
@@ -27,12 +28,7 @@ export default function AboutPage() {
               </Link>
             </div>
           </div>
-          <div className="relative mx-auto flex h-64 w-64 items-center justify-center rounded-[2rem] border border-secondary-fixed/30 bg-white/5 shadow-2xl shadow-black/20 md:h-80 md:w-80">
-            <div className="absolute inset-5 rounded-[1.5rem] border border-white/10" />
-            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-secondary-fixed shadow-xl shadow-black/20">
-              <span className="text-6xl font-black text-primary">ه</span>
-            </div>
-          </div>
+          <VintagePhotoSlideshow />
         </div>
       </section>
 
