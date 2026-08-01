@@ -2,6 +2,23 @@ import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole, verifyToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const authorization = req.headers.get("authorization");
+  const user = authorization?.startsWith("Bearer ") ? verifyToken(authorization.slice(7)) : null;
+  if (!user) return NextResponse.json({ error: "ابتدا وارد حساب کاربری شوید" }, { status: 401 });
+  try {
+    const application = await prisma.courseApplication.findFirst({
+      where: { id: params.id, userId: user.id },
+      include: { course: true },
+    });
+    if (!application) return NextResponse.json({ error: "درخواست ثبت‌نام پیدا نشد" }, { status: 404 });
+    return NextResponse.json({ application });
+  } catch (error) {
+    console.error("Course application GET error:", error);
+    return NextResponse.json({ error: "خطا در دریافت درخواست" }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const authorization = req.headers.get("authorization");
   const user = authorization?.startsWith("Bearer ") ? verifyToken(authorization.slice(7)) : null;

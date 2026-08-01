@@ -15,7 +15,15 @@ async function admin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!await admin(req)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   const [orders, settings] = await Promise.all([
-    prisma.paymentOrder.findMany({ include: { user: { select: { id: true, name: true, email: true, phone: true } }, course: { select: { id: true, title: true, slug: true } }, application: { select: { discountLabel: true, discountPercent: true } }, reviewer: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } }),
+    prisma.paymentOrder.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true, emailVerified: true, role: true, userType: true, phone: true, balePhone: true, nationalCode: true, phoneVerified: true, createdAt: true, updatedAt: true } },
+        course: true,
+        application: { select: { id: true, status: true, userId: true, courseId: true, fullName: true, email: true, phone: true, nationalCode: true, birthDate: true, province: true, city: true, address: true, postalCode: true, workHistory: true, artHistory: true, educationLevel: true, educationField: true, reason: true, knowsInstructors: true, familiarityDetails: true, instagramId: true, virtualPhone: true, landline: true, discountCode: true, discountLabel: true, discountPercent: true, finalAmountTomans: true, discountDocumentUrl: true, createdAt: true, updatedAt: true } },
+        reviewer: { select: { id: true, name: true, email: true, role: true, userType: true, createdAt: true, updatedAt: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
   return NextResponse.json({ orders, settings });

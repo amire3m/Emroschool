@@ -515,12 +515,12 @@ export default function CourseDetailPage() {
                     applicationId ? (
                     <button
                       onClick={() =>
-                        router.push(`/checkout?application=${applicationId}`)
+                        router.push(`/invoice?application=${applicationId}`)
                       }
                       className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"
                     >
                       <ShoppingCart size={18} />
-                      ادامه پرداخت
+                      مشاهده فاکتور و پرداخت
                     </button>
                   ) : applicationStatus ? (
                     <div
@@ -592,7 +592,7 @@ export default function CourseDetailPage() {
               toast.success(
                 "نام، ایمیل یا موبایل حساب کاربری شما نیز بروزرسانی شد",
               );
-            router.push(`/checkout?application=${createdApplicationId}`);
+            router.push(`/invoice?application=${createdApplicationId}`);
           }}
         />
       )}
