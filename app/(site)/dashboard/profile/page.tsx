@@ -21,6 +21,9 @@ interface UserProfile {
   name: string;
   email: string;
   phone?: string;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
+  balePhone?: string;
   province?: string; city?: string; address?: string; postalCode?: string; workHistory?: string; artHistory?: string;
   educationLevel?: string; educationField?: string; instagramId?: string; virtualPhone?: string; landline?: string;
   avatar?: string;
@@ -52,6 +55,7 @@ export default function ProfilePage() {
   const [socialLinks, setSocialLinks] = useState("");
   const [profileVisible, setProfileVisible] = useState(false);
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+  const [contactVerification, setContactVerification] = useState<{ field: "email" | "phone"; method: "email" | "bale" | "sms" | "call"; value: string; code: string } | null>(null);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -100,7 +104,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, email, phone, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed };
+      const body: Record<string, unknown> = { name, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed };
       if (password) body.password = password;
 
       const res = await fetch("/api/user/profile", {
@@ -126,6 +130,34 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function sendContactCode(field: "email" | "phone", method: "email" | "bale" | "sms" | "call") {
+    const value = field === "email" ? email : phone;
+    const token = getCookie("token");
+    if (!token) return;
+    setError(""); setSuccess(""); setSaving(true);
+    try {
+      const res = await fetch("/api/user/contact-verification", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ field, method, value }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setContactVerification({ field, method, value, code: "" });
+      setSuccess("کد تأیید ارسال شد");
+    } catch (err) { setError(err instanceof Error ? err.message : "ارسال کد ناموفق بود"); }
+    finally { setSaving(false); }
+  }
+
+  async function confirmContactCode() {
+    if (!contactVerification) return;
+    const token = getCookie("token"); if (!token) return;
+    setError(""); setSaving(true);
+    try {
+      const res = await fetch("/api/user/contact-verification", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(contactVerification) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setProfile((current) => current ? { ...current, ...data.user } : current);
+      if (contactVerification.field === "email") setEmail(data.user.email); else setPhone(data.user.phone);
+      setContactVerification(null); setSuccess("اطلاعات تماس با موفقیت تأیید و ذخیره شد");
+    } catch (err) { setError(err instanceof Error ? err.message : "تأیید کد ناموفق بود"); }
+    finally { setSaving(false); }
   }
 
   if (loading) {
@@ -189,6 +221,7 @@ export default function ProfilePage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
             />
+            <div className="mt-2 flex items-center justify-between gap-2"><span className={`text-xs font-bold ${profile?.emailVerified ? "text-green-700" : "text-outline"}`}>{profile?.emailVerified ? "تأییدشده" : "تأییدنشده"}</span>{email !== profile?.email && <button type="button" onClick={() => sendContactCode("email", "email")} disabled={saving} className="text-xs font-bold text-secondary">ارسال کد تأیید</button>}</div>
           </div>
 
           <div>
@@ -202,6 +235,7 @@ export default function ProfilePage() {
               onChange={(e) => setPhone(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
             />
+            <div className="mt-2 flex flex-wrap items-center gap-2"><span className={`text-xs font-bold ${profile?.phoneVerified ? "text-green-700" : "text-outline"}`}>{profile?.phoneVerified ? `تأییدشده${profile?.balePhone ? " با بله" : ""}` : "تأییدنشده"}</span>{phone !== profile?.phone && <><button type="button" onClick={() => sendContactCode("phone", "bale")} disabled={saving} className="text-xs font-bold text-secondary">کد در بله</button><button type="button" onClick={() => sendContactCode("phone", "sms")} disabled={saving} className="text-xs font-bold text-secondary">کد پیامکی</button><button type="button" onClick={() => sendContactCode("phone", "call")} disabled={saving} className="text-xs font-bold text-secondary">تماس گویای کد</button></>}</div>
           </div>
 
         </div>
@@ -322,6 +356,8 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {contactVerification && <div className="rounded-2xl border border-secondary-fixed bg-[#fff8e9] p-4"><p className="text-sm font-bold text-primary">کد تأیید {contactVerification.method === "bale" ? "بله" : contactVerification.method === "sms" ? "پیامکی" : contactVerification.method === "call" ? "تماس تلفنی" : "ایمیل"} را وارد کنید</p><div className="mt-3 flex gap-3"><input autoFocus inputMode="numeric" maxLength={6} value={contactVerification.code} onChange={(event) => setContactVerification((current) => current ? { ...current, code: event.target.value.replace(/\D/g, "") } : current)} className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-white px-3 py-2.5 text-center text-lg font-bold tracking-[.4em]" dir="ltr" /><button type="button" onClick={confirmContactCode} disabled={saving || contactVerification.code.length !== 6} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">تأیید</button></div></div>}
 
         <button
           type="submit"
