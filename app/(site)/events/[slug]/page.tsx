@@ -25,6 +25,7 @@ interface InstructorUser {
 
 interface InstructorInfo {
   id: string;
+  profileSlug?: string | null;
   name?: string | null;
   avatar?: string | null;
   bio?: string;
@@ -166,8 +167,9 @@ export default function EventDetailPage() {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {event.instructors.map((ei) => (
-                    <div
+                    <Link
                       key={ei.instructor.id}
+                      href={`/instructors/${ei.instructor.profileSlug || ei.instructor.id}`}
                       className="flex items-center gap-4 p-4 bg-white rounded-xl border border-outline-variant/30"
                     >
                       {ei.instructor.avatar || ei.instructor.user?.avatar ? (
@@ -191,7 +193,7 @@ export default function EventDetailPage() {
                           </p>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
