@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import BaleIcon from "@/components/icons/bale-icon";
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 
@@ -56,7 +55,7 @@ export default function Footer() {
                 aria-label="کانال بله آکادمی"
                 className="w-11 h-11 rounded-xl bg-white/10 text-secondary-fixed flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-colors"
               >
-                <BaleIcon className="h-5 w-5" />
+                <img src="/bale-logo.svg" alt="" className="h-6 w-6 rounded-md bg-white" />
               </Link>
             </div>
           </div>
