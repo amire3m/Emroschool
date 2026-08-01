@@ -12,8 +12,8 @@ async function getAdminUser(req: NextRequest) {
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const instructor = await prisma.instructor.findUnique({
-      where: { id: params.id },
+    const instructor = await prisma.instructor.findFirst({
+      where: { OR: [{ id: params.id }, { profileSlug: params.id }] },
       include: {
         user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true, socialLinks: true } },
         courses: { where: { published: true }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, price: true, scheduleStatus: true }, orderBy: { createdAt: "desc" } },
@@ -42,7 +42,8 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { userId, name, bio, expertise, specialties, socialLinks, avatar, showOnSite } = body;
+    const { userId, name, bio, expertise, specialties, socialLinks, profileSlug, avatar, showOnSite } = body;
+    if (profileSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(profileSlug)) return NextResponse.json({ error: "آدرس صفحه فقط باید شامل حروف انگلیسی کوچک، عدد و خط تیره باشد" }, { status: 400 });
 
     if (userId) {
       const linked = await prisma.instructor.findUnique({ where: { userId } });
@@ -59,6 +60,7 @@ export async function PUT(
         ...(expertise !== undefined && { expertise }),
         ...(specialties !== undefined && { specialties }),
         ...(socialLinks !== undefined && { socialLinks }),
+        ...(profileSlug !== undefined && { profileSlug: profileSlug || null }),
         ...(avatar !== undefined && { avatar }),
         ...(showOnSite !== undefined && { showOnSite }),
         ...(userId !== undefined && { userId: userId || null }),

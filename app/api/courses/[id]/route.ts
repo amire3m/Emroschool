@@ -21,7 +21,7 @@ export async function GET(
       where: { id: params.id, ...(admin ? {} : { published: true }) },
       include: {
         gallery: true,
-        instructorProfile: { select: { id: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
+        instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
         parent: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         _count: { select: { enrollments: true, applications: true, children: true } },

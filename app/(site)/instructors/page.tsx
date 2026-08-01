@@ -20,6 +20,7 @@ interface Instructor {
   bio?: string;
   expertise?: string;
   specialties?: string;
+  profileSlug?: string | null;
   socialLinks?: string;
   showOnSite: boolean;
   eventCount: number;
@@ -128,7 +129,7 @@ export default function InstructorsPage() {
                 </div>
               </div>
               );
-               return <Link key={instructor.id} href={`/instructors/${instructor.id}`}>{card}</Link>;
+               return <Link key={instructor.id} href={`/instructors/${instructor.profileSlug || instructor.id}`}>{card}</Link>;
             })}
           </div>
         )}

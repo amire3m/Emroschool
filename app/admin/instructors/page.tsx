@@ -17,6 +17,7 @@ interface Instructor {
   bio: string | null;
   expertise: string | null;
   specialties: string | null;
+  profileSlug: string | null;
   showOnSite: boolean;
   user: { id: string; name: string; email: string; avatar: string | null } | null;
   createdAt: string;
@@ -46,7 +47,7 @@ export default function AdminInstructors() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    userId: "", name: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "",
+    userId: "", name: "", bio: "", expertise: "", specialties: "", profileSlug: "", showOnSite: true, avatar: "",
   });
   const [manualMode, setManualMode] = useState(false);
 
@@ -76,7 +77,7 @@ export default function AdminInstructors() {
   const availableUsers = users.filter((u) => !instructorUserIds.has(u.id));
 
   const resetForm = () => {
-    setForm({ userId: "", name: "", bio: "", expertise: "", specialties: "", showOnSite: true, avatar: "" });
+    setForm({ userId: "", name: "", bio: "", expertise: "", specialties: "", profileSlug: "", showOnSite: true, avatar: "" });
     setEditingInstructor(null);
     setManualMode(false);
     setMergeDialog(null);
@@ -94,6 +95,7 @@ export default function AdminInstructors() {
       bio: instructor.bio || "",
       expertise: instructor.expertise || "",
       specialties: instructor.specialties || "",
+      profileSlug: instructor.profileSlug || "",
       showOnSite: instructor.showOnSite,
       avatar: instructor.avatar || instructor.user?.avatar || "",
     });
@@ -144,6 +146,7 @@ export default function AdminInstructors() {
       bio: form.bio || null,
       expertise: form.expertise || null,
       specialties: form.specialties || null,
+      profileSlug: form.profileSlug.trim().toLowerCase() || null,
       avatar: form.avatar || null,
       showOnSite: form.showOnSite,
     };
@@ -328,8 +331,14 @@ export default function AdminInstructors() {
 
               <ImageUpload value={form.avatar} onChange={(url) => setForm((previous) => ({ ...previous, avatar: url }))} label="تصویر پروفایل" sizeHint="۶۰۰ × ۶۰۰ پیکسل" aspectRatio="1:1" />
 
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">بیوگرافی</label>
+               <div>
+                 <label className="block text-sm font-medium text-primary mb-1">آدرس صفحه استاد</label>
+                 <div className="flex overflow-hidden rounded-xl border border-surface-variant"><span className="bg-surface-low px-3 py-2.5 text-xs text-outline" dir="ltr">/instructors/</span><input type="text" dir="ltr" value={form.profileSlug} onChange={(e) => setForm((p) => ({ ...p, profileSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} placeholder="javad-gharaei" className="min-w-0 flex-1 px-3 py-2.5 text-sm focus:outline-none" /></div>
+                 <p className="mt-1 text-xs text-outline">اختیاری؛ حروف انگلیسی کوچک، عدد و خط تیره. در صورت خالی‌بودن، آدرس پیش‌فرض استفاده می‌شود.</p>
+               </div>
+
+               <div>
+                 <label className="block text-sm font-medium text-primary mb-1">بیوگرافی</label>
                 <textarea rows={3} value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
               </div>

@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         parent: { select: { id: true, title: true, slug: true } },
-        instructorProfile: { select: { id: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
+        instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
         _count: { select: { gallery: true, children: true } },
       },
       orderBy: { createdAt: "desc" },

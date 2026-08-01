@@ -67,6 +67,7 @@ model Instructor {
   expertise  String?
   specialties String?
   socialLinks String?
+  profileSlug String? @unique
   avatar     String?
   showOnSite Boolean  @default(true)
   createdAt  DateTime @default(now())

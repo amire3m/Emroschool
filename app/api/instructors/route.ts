@@ -49,11 +49,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, name, bio, expertise, specialties, avatar, showOnSite } = body;
+    const { userId, name, bio, expertise, specialties, profileSlug, avatar, showOnSite } = body;
 
     if (!userId && !name) {
       return NextResponse.json({ error: "نام استاد یا انتخاب کاربر الزامی است" }, { status: 400 });
     }
+    if (profileSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(profileSlug)) return NextResponse.json({ error: "آدرس صفحه فقط باید شامل حروف انگلیسی کوچک، عدد و خط تیره باشد" }, { status: 400 });
 
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
           bio: bio ?? null,
           expertise: expertise ?? null,
           specialties: specialties ?? null,
+          profileSlug: profileSlug || null,
           showOnSite: showOnSite ?? true,
         },
         include: {
