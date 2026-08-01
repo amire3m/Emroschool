@@ -77,7 +77,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { title, slug, description, startDate, endDate, location, imageUrl, published, courseIds, instructorIds } = body;
+    const { title, slug, description, startDate, endDate, location, imageUrl, published, instructorIds } = body;
 
     const data: Record<string, unknown> = {};
     if (title !== undefined) data.title = title;
@@ -88,15 +88,6 @@ export async function PUT(
     if (location !== undefined) data.location = location;
     if (imageUrl !== undefined) data.imageUrl = imageUrl;
     if (published !== undefined) data.published = published;
-
-    if (courseIds !== undefined) {
-      await prisma.eventCourse.deleteMany({ where: { eventId: params.id } });
-      if (courseIds.length > 0) {
-        await prisma.eventCourse.createMany({
-          data: courseIds.map((courseId: string) => ({ eventId: params.id, courseId })),
-        });
-      }
-    }
 
     if (instructorIds !== undefined) {
       await prisma.eventInstructor.deleteMany({ where: { eventId: params.id } });

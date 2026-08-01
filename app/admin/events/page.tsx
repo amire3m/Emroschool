@@ -32,20 +32,15 @@ interface EventItem {
   location: string | null;
   imageUrl: string | null;
   published: boolean;
-  courseCount: number;
   instructorCount: number;
-  courses?: { id: string; title: string }[];
-  instructors?: { id: string; name: string }[];
-}
-
-interface Course {
-  id: string;
-  title: string;
+  instructors?: { id: string; name: string; avatar?: string | null }[];
 }
 
 interface Instructor {
   id: string;
-  user: { name: string };
+  name: string | null;
+  avatar: string | null;
+  user?: { name: string; avatar?: string | null } | null;
 }
 
 function toSlug(str: string) {
@@ -78,7 +73,6 @@ function formatDate(dateStr: string) {
 
 export default function AdminEvents() {
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,7 +91,6 @@ export default function AdminEvents() {
     location: "",
     imageUrl: "",
     published: false,
-    courseIds: [] as string[],
     instructorIds: [] as string[],
   });
 
@@ -108,13 +101,11 @@ export default function AdminEvents() {
     const token = getToken();
     Promise.all([
       fetch("/api/events", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json()),
-      fetch("/api/courses", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json()),
       fetch("/api/instructors", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json()),
     ])
-      .then(([eventsData, coursesData, instructorsData]) => {
+      .then(([eventsData, instructorsData]) => {
         const items = eventsData.events || eventsData || [];
         setEvents(Array.isArray(items) ? items : []);
-        if (coursesData.courses) setCourses(coursesData.courses);
         if (instructorsData.instructors) setInstructors(instructorsData.instructors);
         setLoading(false);
       })
@@ -138,7 +129,6 @@ export default function AdminEvents() {
       location: "",
       imageUrl: "",
       published: false,
-      courseIds: [],
       instructorIds: [],
     });
     setEditingEvent(null);
@@ -159,7 +149,6 @@ export default function AdminEvents() {
       location: event.location || "",
       imageUrl: event.imageUrl || "",
       published: event.published,
-      courseIds: event.courses?.map((c) => c.id) || [],
       instructorIds: event.instructors?.map((i) => i.id) || [],
     });
     setEditingEvent(event);
@@ -171,15 +160,6 @@ export default function AdminEvents() {
       ...prev,
       title: value,
       slug: editingEvent ? prev.slug : toSlug(value),
-    }));
-  };
-
-  const toggleCourseId = (id: string) => {
-    setForm((prev) => ({
-      ...prev,
-      courseIds: prev.courseIds.includes(id)
-        ? prev.courseIds.filter((c) => c !== id)
-        : [...prev.courseIds, id],
     }));
   };
 
@@ -206,7 +186,6 @@ export default function AdminEvents() {
       location: form.location || null,
       imageUrl: form.imageUrl || null,
       published: form.published,
-      courseIds: form.courseIds,
       instructorIds: form.instructorIds,
     };
 
@@ -321,7 +300,7 @@ export default function AdminEvents() {
                 <th className="text-right p-3 font-medium text-outline">عنوان</th>
                 <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">تاریخ شروع</th>
                 <th className="text-right p-3 font-medium text-outline hidden md:table-cell">مکان</th>
-                <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">دوره‌ها</th>
+                <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">اساتید</th>
                 <th className="text-center p-3 font-medium text-outline">وضعیت</th>
                 <th className="text-left p-3 font-medium text-outline">عملیات</th>
               </tr>
@@ -348,7 +327,7 @@ export default function AdminEvents() {
                     ) : "—"}
                   </td>
                   <td className="p-3 text-center hidden lg:table-cell">
-                    <span className="font-medium">{event.courseCount}</span>
+                      <span className="font-medium">{event.instructorCount}</span>
                   </td>
                   <td className="p-3 text-center">
                     <span
@@ -514,31 +493,9 @@ export default function AdminEvents() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-2">دوره‌های مرتبط</label>
-                  <div className="max-h-40 overflow-y-auto border border-surface-variant rounded-xl p-2 space-y-1">
-                    {courses.length === 0 && (
-                      <p className="text-xs text-outline p-2">دوره‌ای یافت نشد</p>
-                    )}
-                    {courses.map((course) => (
-                      <label
-                        key={course.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-low cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.courseIds.includes(course.id)}
-                          onChange={() => toggleCourseId(course.id)}
-                          className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
-                        />
-                        <span className="text-sm text-primary">{course.title}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-2">اساتید مرتبط</label>
+              <div>
+                  <label className="block text-sm font-medium text-primary mb-2">اساتید رویداد</label>
+                  <p className="mb-2 text-xs text-outline">می‌توانید چند استاد را از فهرست اساتید سایت انتخاب کنید.</p>
                   <div className="max-h-40 overflow-y-auto border border-surface-variant rounded-xl p-2 space-y-1">
                     {instructors.length === 0 && (
                       <p className="text-xs text-outline p-2">استادی یافت نشد</p>
@@ -554,11 +511,11 @@ export default function AdminEvents() {
                           onChange={() => toggleInstructorId(inst.id)}
                           className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
                         />
-                        <span className="text-sm text-primary">{inst.user?.name || "نامشخص"}</span>
+                        {inst.avatar || inst.user?.avatar ? <img src={inst.avatar || inst.user?.avatar || ""} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-variant text-xs text-outline">{(inst.name || inst.user?.name || "؟").charAt(0)}</span>}
+                        <span className="text-sm text-primary">{inst.name || inst.user?.name || "نامشخص"}</span>
                       </label>
                     ))}
                   </div>
-                </div>
               </div>
 
               <div className="flex items-center gap-3 pt-2">

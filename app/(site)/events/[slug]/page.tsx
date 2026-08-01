@@ -4,26 +4,17 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import CopyLinkButton from "@/components/ui/copy-link-button";
+import { useInitialData } from "@/components/seo/initial-data-provider";
 import {
   Loader2,
   AlertCircle,
   Calendar,
   MapPin,
-  BookOpen,
   Users,
   ChevronRight,
   ImageIcon,
   User,
 } from "lucide-react";
-
-interface CourseInfo {
-  id: string;
-  title: string;
-  slug: string;
-  thumbnail?: string;
-  price: number;
-  level?: string;
-}
 
 interface InstructorUser {
   id: string;
@@ -37,10 +28,6 @@ interface InstructorInfo {
   bio?: string;
   expertise?: string;
   user: InstructorUser;
-}
-
-interface EventCourse {
-  course: CourseInfo;
 }
 
 interface EventInstructor {
@@ -57,7 +44,6 @@ interface EventDetail {
   location?: string;
   imageUrl?: string;
   published: boolean;
-  courses: EventCourse[];
   instructors: EventInstructor[];
 }
 
@@ -70,26 +56,14 @@ function formatDate(dateStr: string) {
   });
 }
 
-function getLevelLabel(level?: string) {
-  switch (level) {
-    case "beginner":
-      return "مقدماتی";
-    case "intermediate":
-      return "پیشرفته";
-    case "advanced":
-      return "تخصصی";
-    default:
-      return level || "عمومی";
-  }
-}
-
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
 
-  const [event, setEvent] = useState<EventDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialEvent = useInitialData<EventDetail>("event");
+  const [event, setEvent] = useState<EventDetail | null>(initialEvent);
+  const [loading, setLoading] = useState(!initialEvent);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -182,48 +156,6 @@ export default function EventDetailPage() {
               {event.description}
             </div>
 
-            {event.courses.length > 0 && (
-              <div className="mb-10">
-                <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                  <BookOpen size={20} />
-                  دوره‌های مرتبط
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {event.courses.map((ec) => (
-                    <Link
-                      key={ec.course.id}
-                      href={`/courses/${ec.course.slug}`}
-                      className="flex items-center gap-4 p-4 bg-white rounded-xl border border-outline-variant/30 hover:shadow-md transition-all"
-                    >
-                      {ec.course.thumbnail ? (
-                        <div
-                          className="w-16 h-16 rounded-xl bg-cover bg-center shrink-0"
-                          style={{
-                            backgroundImage: `url(${ec.course.thumbnail})`,
-                          }}
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-surface-variant flex items-center justify-center shrink-0">
-                          <BookOpen size={20} className="text-outline" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-primary text-sm line-clamp-1">
-                          {ec.course.title}
-                        </p>
-                        <p className="text-outline text-xs mt-0.5">
-                          {getLevelLabel(ec.course.level)}
-                        </p>
-                        <p className="text-primary font-bold text-sm mt-0.5">
-                          {ec.course.price.toLocaleString("fa-IR")} تومان
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {event.instructors.length > 0 && (
               <div>
                 <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
@@ -305,17 +237,6 @@ export default function EventDetailPage() {
                     </div>
                   </div>
                 )}
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-secondary-fixed/30 flex items-center justify-center shrink-0">
-                    <BookOpen size={18} className="text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-outline">تعداد دوره‌ها</p>
-                    <p className="text-sm font-bold text-primary">
-                      {event.courses.length}
-                    </p>
-                  </div>
-                </div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-secondary-fixed/30 flex items-center justify-center shrink-0">
                     <Users size={18} className="text-secondary" />

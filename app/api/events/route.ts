@@ -15,6 +15,7 @@ export async function GET() {
     const events = await prisma.event.findMany({
       include: {
         _count: { select: { courses: true, instructors: true } },
+        instructors: { include: { instructor: { include: { user: { select: { name: true, avatar: true } } } } } },
       },
       orderBy: { startDate: "desc" },
     });
@@ -23,6 +24,7 @@ export async function GET() {
       ...event,
       courseCount: event._count.courses,
       instructorCount: event._count.instructors,
+      instructors: event.instructors.map((item) => ({ id: item.instructor.id, name: item.instructor.name || item.instructor.user?.name || "بدون نام", avatar: item.instructor.avatar || item.instructor.user?.avatar || null })),
       _count: undefined,
     }));
 
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, slug, description, startDate, endDate, location, imageUrl, published, courseIds, instructorIds } = body;
+    const { title, slug, description, startDate, endDate, location, imageUrl, published, instructorIds } = body;
 
     if (!title || !slug || !description || !startDate) {
       return NextResponse.json({ error: "عنوان، اسلاگ، توضیحات و تاریخ شروع الزامی است" }, { status: 400 });
@@ -56,9 +58,6 @@ export async function POST(req: NextRequest) {
         location: location ?? null,
         imageUrl: imageUrl ?? null,
         published: published ?? false,
-        courses: courseIds?.length
-          ? { create: courseIds.map((courseId: string) => ({ courseId })) }
-          : undefined,
         instructors: instructorIds?.length
           ? { create: instructorIds.map((instructorId: string) => ({ instructorId })) }
           : undefined,
