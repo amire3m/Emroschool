@@ -257,38 +257,38 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="border-t border-outline-variant/20 pt-6">
-           <div className="flex items-center justify-between gap-4 p-4 mb-6 rounded-2xl bg-surface-low border border-outline-variant/30">
+        <div className="border-t border-outline-variant/20 pt-6 space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-outline-variant/30 bg-surface-low p-4">
             <div className="flex items-start gap-3">
-              {profileVisible ? <Eye size={20} className="text-green-600 mt-0.5" /> : <EyeOff size={20} className="text-outline mt-0.5" />}
+              {profileVisible ? <Eye size={20} className="mt-0.5 text-green-600" /> : <EyeOff size={20} className="mt-0.5 text-outline" />}
               <div>
                 <h3 className="text-sm font-bold text-primary">نمایش عمومی پروفایل</h3>
-                <p className="text-xs text-outline mt-1">
+                <p className="mt-1 text-xs text-outline">
                   {profileVisible ? "پروفایل شما برای عموم قابل مشاهده است." : "پروفایل شما از دید عموم مخفی است."}
                 </p>
-           </div>
-
-           <div className="flex items-center justify-between gap-4 p-4 mb-6 rounded-2xl bg-[#fff8e9] border border-secondary-fixed/60">
-             <div className="flex items-start gap-3">
-               <Mail size={20} className="text-secondary mt-0.5" />
-               <div>
-                 <h3 className="text-sm font-bold text-primary">عضویت در خبرنامه آکادمی</h3>
-                 <p className="text-xs text-outline mt-1">از دوره‌ها، رویدادها و فرصت‌های تازه آکادمی باخبر شوید.</p>
-               </div>
-             </div>
-             <button type="button" role="switch" aria-checked={newsletterSubscribed} onClick={() => setNewsletterSubscribed((value) => !value)} className={`relative w-12 h-6 rounded-full shrink-0 transition-colors ${newsletterSubscribed ? "bg-secondary" : "bg-outline-variant"}`}>
-               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${newsletterSubscribed ? "translate-x-6" : "translate-x-0.5"}`} />
-             </button>
-           </div>
+              </div>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={profileVisible}
               onClick={() => setProfileVisible((visible) => !visible)}
-              className={`relative w-12 h-6 rounded-full shrink-0 transition-colors ${profileVisible ? "bg-green-500" : "bg-outline-variant"}`}
+              className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${profileVisible ? "bg-green-500" : "bg-outline-variant"}`}
             >
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${profileVisible ? "translate-x-6" : "translate-x-0.5"}`} />
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${profileVisible ? "translate-x-6" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fff8e9] p-4">
+            <div className="flex items-start gap-3">
+              <Mail size={20} className="mt-0.5 text-secondary" />
+              <div>
+                <h3 className="text-sm font-bold text-primary">عضویت در خبرنامه آکادمی</h3>
+                <p className="mt-1 text-xs text-outline">از دوره‌ها، رویدادها و فرصت‌های تازه آکادمی باخبر شوید.</p>
+              </div>
+            </div>
+            <button type="button" role="switch" aria-checked={newsletterSubscribed} onClick={() => setNewsletterSubscribed((value) => !value)} className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${newsletterSubscribed ? "bg-secondary" : "bg-outline-variant"}`}>
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${newsletterSubscribed ? "translate-x-6" : "translate-x-0.5"}`} />
             </button>
           </div>
 
