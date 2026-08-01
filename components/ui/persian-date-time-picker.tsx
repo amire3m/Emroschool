@@ -7,6 +7,7 @@ import persian from "react-date-object/calendars/persian";
 import persianFa from "react-date-object/locales/persian_fa";
 
 const weekDays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const monthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 
 function persianDate(value?: string) {
   return new DateObject({ date: value ? new Date(value) : new Date(), calendar: persian, locale: persianFa });
@@ -20,6 +21,8 @@ export default function PersianDateTimePicker({ value, onChange, required = fals
   const selectedKey = selected?.format("YYYY/MM/DD");
   const startOffset = new DateObject(view).toFirstOfMonth().weekDay.index;
   const days = Array.from({ length: view.month.length }, (_, index) => index + 1);
+  const currentYear = persianDate().year;
+  const years = Array.from({ length: 121 }, (_, index) => currentYear - index);
 
   useEffect(() => { if (value) setView(persianDate(value)); }, [value]);
   useEffect(() => {
@@ -43,15 +46,19 @@ export default function PersianDateTimePicker({ value, onChange, required = fals
     onChange(next.toISOString());
   }
 
+  function setMonthOrYear(year: number, month: number) {
+    setView(new DateObject({ year, month, day: 1, calendar: persian, locale: persianFa }));
+  }
+
   return <div className="relative w-full" ref={wrapperRef}>
     <button type="button" onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition hover:border-secondary focus:border-secondary focus:ring-2 focus:ring-secondary-fixed" aria-expanded={open} aria-required={required}>
       <span className={value ? "" : "text-outline"}>{value ? `${selected?.format("YYYY/MM/DD")}${withTime ? `، ${selected?.format("HH:mm")}` : ""}` : "انتخاب تاریخ"}</span>
       <CalendarDays size={18} className="text-secondary" />
     </button>
-    {open && <div className="absolute right-0 top-full z-[110] mt-2 w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-primary/10 bg-white p-3 shadow-[0_20px_42px_-26px_rgba(3,0,75,0.5)]" dir="rtl">
+    {open && <div className={`absolute right-0 z-[110] w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-primary/10 bg-white p-3 shadow-[0_20px_42px_-26px_rgba(3,0,75,0.5)] ${withTime ? "top-full mt-2" : "bottom-full mb-2"}`} dir="rtl">
       <div className="mb-3 flex items-center justify-between rounded-xl bg-primary px-3 py-2 text-white">
         <button type="button" onClick={() => setView((current) => new DateObject(current).add(1, "month"))} className="rounded-lg p-1.5 transition hover:bg-white/10" aria-label="ماه بعد"><ChevronRight size={18} /></button>
-        <div className="text-center"><p className="font-black">{view.month.name} {view.year.toLocaleString("fa-IR")}</p><button type="button" onClick={() => setView(persianDate())} className="mt-0.5 text-[10px] text-secondary-fixed hover:text-white">بازگشت به امروز</button></div>
+        <div className="flex items-center gap-1"><select value={view.month.number} onChange={(event) => setMonthOrYear(view.year, Number(event.target.value))} className="max-w-24 bg-transparent text-center text-xs font-black text-white outline-none"><>{monthNames.map((name, index) => <option key={name} value={index + 1} className="text-primary">{name}</option>)}</></select><select value={view.year} onChange={(event) => setMonthOrYear(Number(event.target.value), view.month.number)} className="w-16 bg-transparent text-center text-xs font-black text-white outline-none"><>{years.map((year) => <option key={year} value={year} className="text-primary">{year.toLocaleString("fa-IR")}</option>)}</></select></div>
         <button type="button" onClick={() => setView((current) => new DateObject(current).subtract(1, "month"))} className="rounded-lg p-1.5 transition hover:bg-white/10" aria-label="ماه قبل"><ChevronLeft size={18} /></button>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center">{weekDays.map((name, index) => <span key={name} className={`py-1.5 text-[9px] font-black ${index === 6 ? "text-error" : "text-outline"}`}>{name}</span>)}{Array.from({ length: startOffset }).map((_, index) => <span key={`empty-${index}`} />)}{days.map((day) => { const key = `${view.year}/${String(view.month.number).padStart(2, "0")}/${String(day).padStart(2, "0")}`; const active = key === selectedKey; return <button key={day} type="button" onClick={() => selectDay(day)} className={`aspect-square rounded-lg text-xs font-bold transition ${active ? "bg-primary text-white shadow-md" : "text-primary hover:bg-secondary-fixed hover:text-primary"}`}>{day.toLocaleString("fa-IR")}</button>; })}</div>
