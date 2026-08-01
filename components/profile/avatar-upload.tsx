@@ -27,6 +27,7 @@ export default function AvatarUpload({ value, onChange }: { value: string; onCha
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "خطا در آپلود آواتار");
       onChange(`${data.url}?v=${Date.now()}`);
+      window.dispatchEvent(new Event("profile-updated"));
       setSource("");
       toast.success("آواتار با موفقیت ذخیره شد");
     } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در آپلود آواتار"); throw error; }
