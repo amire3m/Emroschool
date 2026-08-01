@@ -149,6 +149,7 @@ function InteractiveCourseLink({ text }: { text: string }) {
         <span>{text}</span>
         <ArrowLeft size={17} />
       </span>
+      <span className="absolute inset-0 z-10 scale-0 rounded-full bg-primary opacity-0 transition-all duration-300 group-hover/course-button:scale-100 group-hover/course-button:opacity-100" />
     </span>
   );
 }
