@@ -3,7 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff, Loader2, ChevronLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, ChevronLeft, Phone, KeyRound } from "lucide-react";
 import { setCookie } from "@/lib/cookie";
 import GoogleAuthButton from "@/components/auth/google-auth-button";
 
@@ -15,6 +15,11 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [baleMode, setBaleMode] = useState<"login" | "reset" | null>(null);
+  const [balePhone, setBalePhone] = useState("");
+  const [baleCode, setBaleCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -53,6 +58,18 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function sendBaleCode() {
+    if (!baleMode) return;
+    setError(""); setLoading(true);
+    try { const res = await fetch("/api/auth/bale/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: balePhone, purpose: baleMode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCodeSent(true); } catch (error) { setError(error instanceof Error ? error.message : "ارسال کد ناموفق بود"); } finally { setLoading(false); }
+  }
+
+  async function verifyBaleCode(event: FormEvent) {
+    event.preventDefault(); if (!baleMode) return;
+    setError(""); setLoading(true);
+    try { const res = await fetch("/api/auth/bale/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: balePhone, code: baleCode, purpose: baleMode, password: newPassword }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push(baleMode === "reset" ? "/dashboard/profile" : "/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "تأیید کد ناموفق بود"); } finally { setLoading(false); }
   }
 
   return (
@@ -137,7 +154,7 @@ export default function LoginPage() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {baleMode ? <form onSubmit={verifyBaleCode} className="space-y-5"><div className="text-center"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed text-secondary"><KeyRound size={26} /></div><h2 className="text-xl font-black text-primary">{baleMode === "login" ? "ورود با رمز بله" : "بازنشانی رمز با بله"}</h2><p className="mt-2 text-sm text-outline">رمز یک‌بارمصرف به شماره ثبت‌شده در بله ارسال می‌شود.</p></div><div><label className="mb-2 block text-sm font-bold text-primary">شماره موبایل</label><div className="relative"><Phone size={18} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-outline" /><input value={balePhone} onChange={(event) => setBalePhone(event.target.value)} inputMode="numeric" dir="ltr" placeholder="09123456789" className="w-full rounded-xl border border-outline-variant bg-white py-3.5 pl-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-secondary" /></div></div>{codeSent && <><div><label className="mb-2 block text-sm font-bold text-primary">رمز یک‌بارمصرف بله</label><input value={baleCode} onChange={(event) => setBaleCode(event.target.value.replace(/\D/g, ""))} inputMode="numeric" maxLength={6} dir="ltr" className="w-full rounded-xl border border-outline-variant bg-white px-4 py-3.5 text-center text-xl font-black tracking-[.5em] outline-none focus:ring-2 focus:ring-secondary" /></div>{baleMode === "reset" && <div><label className="mb-2 block text-sm font-bold text-primary">رمز جدید</label><input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={6} className="w-full rounded-xl border border-outline-variant bg-white px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-secondary" /></div>}<button disabled={loading || baleCode.length !== 6 || (baleMode === "reset" && newPassword.length < 6)} className="w-full rounded-xl bg-primary py-3.5 font-bold text-white disabled:opacity-60">تأیید و ادامه</button></>}<button type="button" disabled={loading} onClick={sendBaleCode} className="w-full rounded-xl border border-secondary py-3 font-bold text-secondary disabled:opacity-60">{codeSent ? "ارسال مجدد رمز بله" : "ارسال رمز در بله"}</button><button type="button" onClick={() => { setBaleMode(null); setCodeSent(false); setBaleCode(""); setError(""); }} className="w-full text-sm text-outline">بازگشت به ورود با رمز</button></form> : <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-primary mb-2">
                 ایمیل
@@ -227,7 +244,9 @@ export default function LoginPage() {
                 "ورود"
               )}
             </button>
-          </form>
+          </form>}
+
+          {!baleMode && <div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClick={() => setBaleMode("login")} className="rounded-xl border border-secondary px-3 py-2.5 text-xs font-bold text-secondary">ورود با رمز بله</button><button type="button" onClick={() => setBaleMode("reset")} className="rounded-xl border border-outline-variant px-3 py-2.5 text-xs font-bold text-outline">فراموشی رمز</button></div>}
 
           {/* Divider */}
            <div className="flex items-center gap-3 my-7">

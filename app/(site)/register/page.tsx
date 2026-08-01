@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft, KeyRound } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft, KeyRound, Phone } from "lucide-react";
 import { setCookie } from "@/lib/cookie";
 import GoogleAuthButton from "@/components/auth/google-auth-button";
 
@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -19,11 +20,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [verificationChannel, setVerificationChannel] = useState("email");
   useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) setVerificationEmail(pendingEmail); }, []);
 
   function validateForm(): string | null {
     if (!name.trim()) return "لطفاً نام و نام خانوادگی خود را وارد کنید";
     if (!email.trim()) return "لطفاً ایمیل خود را وارد کنید";
+    if (!/^09\d{9}$/.test(phone.replace(/[^0-9]/g, ""))) return "شماره موبایل معتبر وارد کنید";
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return "فرمت ایمیل وارد شده صحیح نیست";
     if (!password) return "لطفاً رمز عبور را وارد کنید";
@@ -48,7 +51,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, phone, password }),
       });
 
       const data = await res.json();
@@ -58,7 +61,7 @@ export default function RegisterPage() {
         return;
       }
 
-       if (data.requiresVerification) setVerificationEmail(data.destination);
+        if (data.requiresVerification) { setVerificationEmail(data.destination); setVerificationChannel(data.channel || "email"); }
        else {
          setCookie("token", data.token);
          window.dispatchEvent(new Event("auth-changed"));
@@ -73,12 +76,12 @@ export default function RegisterPage() {
 
   async function verifyCode(e: FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
-     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
+     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { phone: verificationEmail, code: verificationCode, channel: "bale" } : { email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
   }
 
   async function resendCode() {
     setError(""); setLoading(true);
-    try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setError("کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
+     try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { phone: verificationEmail, channel: "bale" } : { email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setError(verificationChannel === "bale" ? "کد جدید در بله ارسال شد" : "کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
   }
 
   return (
@@ -160,7 +163,7 @@ export default function RegisterPage() {
           )}
 
           {/* Form */}
-          {verificationEmail ? <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید ایمیل</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده به <span dir="ltr" className="font-bold text-primary">{verificationEmail}</span> را وارد کنید.</p></div><input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={resendCode} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationEmail(""); setVerificationCode(""); setError(""); }} className="text-outline">اصلاح ایمیل</button></div></form> : <form onSubmit={handleSubmit} className="space-y-5">
+          {verificationEmail ? <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید {verificationChannel === "bale" ? "بله" : "ایمیل"}</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده {verificationChannel === "bale" ? "در پیام‌رسان بله" : "به"} <span dir="ltr" className="font-bold text-primary">{verificationChannel === "bale" ? "" : verificationEmail}</span> را وارد کنید.</p></div><input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={resendCode} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationEmail(""); setVerificationCode(""); setError(""); }} className="text-outline">اصلاح اطلاعات</button></div></form> : <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-primary mb-2">
                 نام و نام خانوادگی
@@ -179,6 +182,12 @@ export default function RegisterPage() {
                   placeholder="محمدرضا حسینی"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-primary mb-2">شماره موبایل متصل به بله</label>
+              <div className="relative"><Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none" /><input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" placeholder="09123456789" className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none" /></div>
+              <p className="mt-1 text-xs text-outline">رمز یک‌بارمصرف ثبت‌نام در بله ارسال می‌شود.</p>
             </div>
 
             <div>

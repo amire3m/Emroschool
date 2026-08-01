@@ -1,10 +1,15 @@
 import prisma from "@/lib/prisma";
 import { issueEmailVerificationCode } from "@/lib/verification";
+import { issueBaleOtp } from "@/lib/bale-otp";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const { email, phone, channel = "email" } = await req.json();
+    if (channel === "bale") {
+      await issueBaleOtp(phone || "", "register");
+      return NextResponse.json({ message: "رمز جدید در بله ارسال شد" });
+    }
     const normalized = String(email || "").trim().toLowerCase();
     const user = await prisma.user.findUnique({ where: { email: normalized } });
     if (!user || user.emailVerified) return NextResponse.json({ error: "درخواست تأیید معتبری پیدا نشد" }, { status: 400 });
