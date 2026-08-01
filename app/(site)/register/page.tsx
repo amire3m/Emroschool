@@ -21,7 +21,8 @@ export default function RegisterPage() {
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationChannel, setVerificationChannel] = useState("email");
-  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) setVerificationEmail(pendingEmail); }, []);
+  const [balePhone, setBalePhone] = useState("");
+  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) { setVerificationEmail(pendingEmail); setVerificationChannel("email"); } }, []);
 
   function validateForm(): string | null {
     if (!name.trim()) return "لطفاً نام و نام خانوادگی خود را وارد کنید";
@@ -61,7 +62,7 @@ export default function RegisterPage() {
         return;
       }
 
-        if (data.requiresVerification) { setVerificationEmail(data.destination); setVerificationChannel(data.channel || "email"); }
+        if (data.requiresVerification) { setVerificationEmail(data.email); setVerificationChannel(""); setBalePhone(""); }
        else {
          setCookie("token", data.token);
          window.dispatchEvent(new Event("auth-changed"));
@@ -76,12 +77,12 @@ export default function RegisterPage() {
 
   async function verifyCode(e: FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
-     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { phone: verificationEmail, code: verificationCode, channel: "bale" } : { email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
+     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { email: verificationEmail, phone: balePhone || phone, code: verificationCode, channel: "bale" } : { email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
   }
 
-  async function resendCode() {
+   async function resendCode(channel = verificationChannel) {
     setError(""); setLoading(true);
-     try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { phone: verificationEmail, channel: "bale" } : { email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setError(verificationChannel === "bale" ? "کد جدید در بله ارسال شد" : "کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
+     try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channel === "bale" ? { email: verificationEmail, phone: balePhone || phone, channel: "bale" } : { email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setVerificationChannel(channel); setError(channel === "bale" ? "کد جدید در بله ارسال شد" : "کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
   }
 
   return (
@@ -163,7 +164,7 @@ export default function RegisterPage() {
           )}
 
           {/* Form */}
-          {verificationEmail ? <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید {verificationChannel === "bale" ? "بله" : "ایمیل"}</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده {verificationChannel === "bale" ? "در پیام‌رسان بله" : "به"} <span dir="ltr" className="font-bold text-primary">{verificationChannel === "bale" ? "" : verificationEmail}</span> را وارد کنید.</p></div><input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={resendCode} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationEmail(""); setVerificationCode(""); setError(""); }} className="text-outline">اصلاح اطلاعات</button></div></form> : <form onSubmit={handleSubmit} className="space-y-5">
+          {verificationEmail ? (!verificationChannel ? <div className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">روش تأیید حساب</h2><p className="text-sm text-outline leading-7 mt-2">روش دریافت رمز یک‌بارمصرف را انتخاب کنید.</p></div><button type="button" disabled={loading} onClick={() => resendCode("email")} className="w-full rounded-xl border border-outline-variant bg-white px-4 py-4 text-right"><span className="block font-bold text-primary">تأیید از طریق ایمیل</span><span className="mt-1 block text-xs text-outline" dir="ltr">{verificationEmail}</span></button><button type="button" disabled={loading} onClick={() => resendCode("bale")} className="w-full rounded-xl border border-secondary bg-[#fff8e9] px-4 py-4 text-right"><span className="block font-bold text-primary">تأیید از طریق پیام‌رسان بله</span><span className="mt-1 block text-xs text-outline">ابتدا با شماره موبایل ثبت‌شده امتحان می‌شود.</span></button></div> : <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید {verificationChannel === "bale" ? "بله" : "ایمیل"}</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده {verificationChannel === "bale" ? "در پیام‌رسان بله" : "به"} <span dir="ltr" className="font-bold text-primary">{verificationChannel === "bale" ? "" : verificationEmail}</span> را وارد کنید.</p></div>{verificationChannel === "bale" && <div><label className="block text-sm font-bold text-primary mb-2">شماره متصل به بله</label><input inputMode="numeric" dir="ltr" value={balePhone} onChange={(event) => setBalePhone(event.target.value)} placeholder={phone || "09123456789"} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-secondary" /><p className="mt-1 text-xs text-outline">اگر شماره اصلی شما بله ندارد، شماره بله را اینجا وارد و «ارسال مجدد کد» را بزنید.</p></div>}<input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={() => resendCode()} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationChannel(""); setVerificationCode(""); setError(""); }} className="text-outline">تغییر روش</button></div></form>) : <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-primary mb-2">
                 نام و نام خانوادگی
@@ -185,9 +186,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-primary mb-2">شماره موبایل متصل به بله</label>
+              <label className="block text-sm font-bold text-primary mb-2">شماره موبایل</label>
               <div className="relative"><Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none" /><input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" placeholder="09123456789" className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none" /></div>
-              <p className="mt-1 text-xs text-outline">رمز یک‌بارمصرف ثبت‌نام در بله ارسال می‌شود.</p>
+              <p className="mt-1 text-xs text-outline">برای تکمیل ثبت‌نام، روش تأیید را در مرحله بعد انتخاب می‌کنید.</p>
             </div>
 
             <div>
