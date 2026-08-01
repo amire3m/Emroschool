@@ -55,7 +55,7 @@ export default function Footer() {
                 aria-label="کانال بله آکادمی"
                 className="w-11 h-11 rounded-xl bg-white/10 text-secondary-fixed flex items-center justify-center hover:bg-secondary-fixed hover:text-primary transition-colors"
               >
-                <img src="/bale-logo.svg" alt="" className="h-6 w-6 rounded-md bg-white" />
+                <img src="/bale-logo.svg" alt="" className="h-5 w-5 object-contain" />
               </Link>
             </div>
           </div>
