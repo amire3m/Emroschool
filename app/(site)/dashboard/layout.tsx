@@ -76,8 +76,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-secondary-fixed bg-secondary-fixed [clip-path:circle(50%)]">
-              {user?.avatar ? <img src={user.avatar} alt="آواتار کاربر" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-primary font-bold">{user?.name?.charAt(0) || "U"}</span>}
+            <div className="h-10 w-10 shrink-0 overflow-hidden border-2 border-secondary-fixed bg-secondary-fixed" style={{ borderRadius: "50%", aspectRatio: "1 / 1" }}>
+              {user?.avatar ? <img src={user.avatar} alt="آواتار کاربر" className="block h-full w-full object-cover" style={{ borderRadius: "50%" }} /> : <span className="flex h-full w-full items-center justify-center text-primary font-bold">{user?.name?.charAt(0) || "U"}</span>}
             </div>
             <div className="text-right">
               <p className="text-secondary-fixed font-bold text-sm">
