@@ -60,7 +60,7 @@ export default function AboutPage() {
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="https://www.instagram.com/imamruhollahschool/" target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><Instagram size={20} /></Link>
-              <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank" rel="noopener noreferrer" aria-label="کانال بله آکادمی" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><img src="/bale-logo.svg" alt="" className="h-5 w-5 object-contain" /></Link>
+              <Link href="https://ble.ir/ImamRuhollahSchool" target="_blank" rel="noopener noreferrer" aria-label="کانال بله آکادمی" className="rounded-xl bg-primary p-3 text-secondary-fixed transition hover:bg-secondary hover:text-white"><img src="/bale-logo.svg?v=2" alt="" className="h-5 w-5 object-contain" /></Link>
               <Link href="/privacy-policy" className="rounded-xl border border-primary/20 px-4 py-3 text-sm font-bold text-primary transition hover:border-secondary hover:text-secondary">حریم خصوصی</Link>
             </div>
           </div>
