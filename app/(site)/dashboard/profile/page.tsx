@@ -34,6 +34,9 @@ interface UserProfile {
   userType: string;
   profileVisible: boolean;
   newsletterSubscribed: boolean;
+  notificationEmailEnabled: boolean;
+  notificationSmsEnabled: boolean;
+  notificationBaleEnabled: boolean;
 }
 
 export default function ProfilePage() {
@@ -55,6 +58,8 @@ export default function ProfilePage() {
   const [socialLinks, setSocialLinks] = useState("");
   const [profileVisible, setProfileVisible] = useState(false);
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+  const [notificationEmailEnabled, setNotificationEmailEnabled] = useState(true);
+  const [notificationChannel, setNotificationChannel] = useState<"sms" | "bale">("sms");
   const [contactVerification, setContactVerification] = useState<{ field: "email" | "phone"; method: "email" | "bale" | "sms" | "call"; value: string; code: string } | null>(null);
 
   useEffect(() => {
@@ -80,6 +85,8 @@ export default function ProfilePage() {
         setSocialLinks(user.socialLinks || "");
         setProfileVisible(Boolean(user.profileVisible));
         setNewsletterSubscribed(Boolean(user.newsletterSubscribed));
+        setNotificationEmailEnabled(user.notificationEmailEnabled !== false);
+        setNotificationChannel(user.notificationBaleEnabled ? "bale" : "sms");
       } catch {
         setError("خطا در بارگذاری پروفایل");
       } finally {
@@ -104,7 +111,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed };
+      const body: Record<string, unknown> = { name, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled: notificationChannel === "sms", notificationBaleEnabled: notificationChannel === "bale" };
       if (password) body.password = password;
 
       const res = await fetch("/api/user/profile", {
@@ -325,6 +332,8 @@ export default function ProfilePage() {
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${newsletterSubscribed ? "translate-x-6" : "translate-x-0.5"}`} />
             </button>
           </div>
+
+          <section className="rounded-2xl border border-secondary-fixed/60 bg-[#fff8e9] p-4"><h3 className="text-sm font-bold text-primary">ترجیحات دریافت اعلان</h3><p className="mt-1 text-xs leading-6 text-outline">یک روش از پیامک یا پیام‌رسان بله الزامی است؛ دریافت اعلان ایمیلی اختیاری است و نشانی ایمیل حساب شما را تغییر نمی‌دهد.</p><label className="mt-4 flex items-center justify-between gap-3 text-sm font-bold text-primary"><span>دریافت اعلان از طریق ایمیل</span><input type="checkbox" checked={notificationEmailEnabled} onChange={(event) => setNotificationEmailEnabled(event.target.checked)} className="h-5 w-5 accent-primary" /></label><div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "sms" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="profileNotificationChannel" checked={notificationChannel === "sms"} onChange={() => setNotificationChannel("sms")} />پیامک</label><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "bale" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="profileNotificationChannel" checked={notificationChannel === "bale"} onChange={() => setNotificationChannel("bale")} />پیام‌رسان بله</label></div></section>
 
           <h3 className="text-sm font-bold text-primary mb-4">
             تغییر کلمه عبور (اختیاری)

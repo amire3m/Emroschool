@@ -643,7 +643,7 @@ export default function AdminCourses() {
                     onChange={(e) => setForm((p) => ({ ...p, featured: e.target.checked }))}
                     className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
                   />
-                  <span className="text-sm text-primary">ویژه</span>
+                   <span className="text-sm text-primary">نمایش در دوره‌های منتخب صفحه اصلی</span>
                 </label>
               </div>
 

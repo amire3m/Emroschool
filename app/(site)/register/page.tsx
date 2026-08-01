@@ -22,6 +22,8 @@ export default function RegisterPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationChannel, setVerificationChannel] = useState("email");
   const [balePhone, setBalePhone] = useState("");
+  const [notificationEmailEnabled, setNotificationEmailEnabled] = useState(true);
+  const [notificationChannel, setNotificationChannel] = useState<"sms" | "bale">("sms");
   useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) { setVerificationEmail(pendingEmail); setVerificationChannel(""); } }, []);
 
   function validateForm(): string | null {
@@ -52,7 +54,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password }),
+        body: JSON.stringify({ name, email, phone, password, notificationEmailEnabled, notificationChannel }),
       });
 
       const data = await res.json();
@@ -184,6 +186,13 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+
+            <fieldset className="rounded-2xl border border-secondary-fixed/70 bg-[#fff8e9] p-4">
+              <legend className="px-1 text-sm font-bold text-primary">ترجیحات دریافت اعلان</legend>
+              <p className="mb-3 text-xs leading-6 text-outline">یکی از روش‌های پیامکی یا بله را انتخاب کنید. دریافت ایمیل اختیاری است و ایمیل حساب شما تغییری نمی‌کند.</p>
+              <label className="flex items-center justify-between gap-3 border-b border-secondary-fixed/50 pb-3 text-sm font-bold text-primary"><span>دریافت اعلان از طریق ایمیل</span><input type="checkbox" checked={notificationEmailEnabled} onChange={(e) => setNotificationEmailEnabled(e.target.checked)} className="h-5 w-5 accent-primary" /></label>
+              <div className="mt-3 grid grid-cols-2 gap-2"><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "sms" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="notificationChannel" value="sms" checked={notificationChannel === "sms"} onChange={() => setNotificationChannel("sms")} />پیامک</label><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "bale" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="notificationChannel" value="bale" checked={notificationChannel === "bale"} onChange={() => setNotificationChannel("bale")} />پیام‌رسان بله</label></div>
+            </fieldset>
 
             <div>
               <label className="block text-sm font-bold text-primary mb-2">شماره موبایل</label>

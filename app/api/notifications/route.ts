@@ -68,32 +68,33 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, message, type, channel, sendToAll, courseId } = body;
+    const { title, message, type, sendToAll, courseId, userIds } = body;
 
     if (!title || !message) {
       return NextResponse.json({ error: "عنوان و پیام الزامی است" }, { status: 400 });
     }
 
-    const notification = await prisma.notification.create({
-      data: {
-        title,
-        message,
-        type: type ?? "in-app",
-        channel: channel ?? null,
-        sendToAll: sendToAll ?? false,
-        courseId: courseId ?? null,
-      },
-    });
-
-    if (sendToAll) {
-      const users = await prisma.user.findMany({ select: { id: true } });
-      await prisma.userNotification.createMany({
-        data: users.map((user) => ({
-          userId: user.id,
-          notificationId: notification.id,
-        })),
-      });
+    if (typeof sendToAll !== "boolean") return NextResponse.json({ error: "مخاطبان اعلان نامعتبر است" }, { status: 400 });
+    if (!sendToAll && (!Array.isArray(userIds) || userIds.length === 0 || userIds.some((id) => typeof id !== "string"))) {
+      return NextResponse.json({ error: "حداقل یک مخاطب انتخاب کنید" }, { status: 400 });
     }
+    const requestedUserIds: string[] | undefined = sendToAll ? undefined : [...new Set(userIds as string[])];
+    const recipients = await prisma.user.findMany({
+      where: requestedUserIds ? { id: { in: requestedUserIds } } : undefined,
+      select: { id: true },
+    });
+    if (requestedUserIds && recipients.length !== requestedUserIds.length) return NextResponse.json({ error: "یکی از مخاطبان انتخاب‌شده پیدا نشد" }, { status: 400 });
+
+    const notification = await prisma.$transaction(async (tx) => {
+      // There is no generic external sender; every admin notification is in-app.
+      const created = await tx.notification.create({
+        data: { title, message, type: type ?? "in-app", channel: "in-app", sendToAll, courseId: courseId ?? null },
+      });
+      await tx.userNotification.createMany({
+        data: recipients.map((user) => ({ userId: user.id, notificationId: created.id })),
+      });
+      return created;
+    });
 
     const created = await prisma.notification.findUnique({
       where: { id: notification.id },

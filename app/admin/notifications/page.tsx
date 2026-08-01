@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import EmailComposer from "@/components/admin/email-composer";
 
 interface Notification {
   id: string;
@@ -65,6 +66,7 @@ export default function AdminNotifications() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"notifications" | "email">("notifications");
 
   const [form, setForm] = useState({
     title: "",
@@ -206,6 +208,8 @@ export default function AdminNotifications() {
 
   return (
     <div>
+      <div className="mb-6 flex gap-2 border-b border-surface-variant"><button onClick={() => setTab("notifications")} className={`px-5 py-3 text-sm font-bold ${tab === "notifications" ? "border-b-2 border-primary text-primary" : "text-outline"}`}>اعلان‌ها</button><button onClick={() => setTab("email")} className={`px-5 py-3 text-sm font-bold ${tab === "email" ? "border-b-2 border-primary text-primary" : "text-outline"}`}>ارسال ایمیل</button></div>
+      {tab === "email" ? <EmailComposer /> : <>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
         <div className="relative w-full sm:w-64">
           <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -436,6 +440,7 @@ export default function AdminNotifications() {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }

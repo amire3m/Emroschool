@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
       where: { id: payload.id },
       select: {
          id: true,
-         newsletterSubscribed: true,
+          newsletterSubscribed: true,
+          notificationEmailEnabled: true,
+          notificationSmsEnabled: true,
+          notificationBaleEnabled: true,
         name: true,
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
@@ -67,7 +70,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed } = body;
+    const { name, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
@@ -103,6 +106,22 @@ export async function PUT(req: NextRequest) {
     // Users cannot publish their own profile; approval is required even without a content edit.
     if (profileVisible === false) data.profileVisible = false;
     if (newsletterSubscribed !== undefined && typeof newsletterSubscribed === "boolean") data.newsletterSubscribed = newsletterSubscribed;
+    const notificationPreferencesProvided = notificationEmailEnabled !== undefined || notificationSmsEnabled !== undefined || notificationBaleEnabled !== undefined;
+    if (notificationPreferencesProvided) {
+      if ([notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled].some((value) => value !== undefined && typeof value !== "boolean")) {
+        return NextResponse.json({ error: "تنظیمات اعلان نامعتبر است" }, { status: 400 });
+      }
+      const nextSmsEnabled = notificationSmsEnabled ?? existing.notificationSmsEnabled;
+      const nextBaleEnabled = notificationBaleEnabled ?? existing.notificationBaleEnabled;
+      if (nextSmsEnabled === nextBaleEnabled) {
+        return NextResponse.json({ error: "دقیقاً یکی از روش‌های پیامکی یا بله را انتخاب کنید" }, { status: 400 });
+      }
+      if (nextSmsEnabled && !existing.phone) return NextResponse.json({ error: "برای دریافت پیامک، شماره موبایل لازم است" }, { status: 400 });
+      if (nextBaleEnabled && !(existing.balePhone || existing.phone)) return NextResponse.json({ error: "برای دریافت اعلان بله، شماره بله یا موبایل لازم است" }, { status: 400 });
+      if (notificationEmailEnabled !== undefined) data.notificationEmailEnabled = notificationEmailEnabled;
+      if (notificationSmsEnabled !== undefined) data.notificationSmsEnabled = notificationSmsEnabled;
+      if (notificationBaleEnabled !== undefined) data.notificationBaleEnabled = notificationBaleEnabled;
+    }
     if (password !== undefined) {
       data.password = await hashPassword(password);
     }
@@ -112,7 +131,10 @@ export async function PUT(req: NextRequest) {
       data,
       select: {
          id: true,
-         newsletterSubscribed: true,
+          newsletterSubscribed: true,
+          notificationEmailEnabled: true,
+          notificationSmsEnabled: true,
+          notificationBaleEnabled: true,
         name: true,
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
