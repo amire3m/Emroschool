@@ -333,7 +333,7 @@ export default function AdminInstructors() {
 
                <div>
                  <label className="block text-sm font-medium text-primary mb-1">آدرس صفحه استاد</label>
-                 <div className="flex overflow-hidden rounded-xl border border-surface-variant"><span className="bg-surface-low px-3 py-2.5 text-xs text-outline" dir="ltr">/instructors/</span><input type="text" dir="ltr" value={form.profileSlug} onChange={(e) => setForm((p) => ({ ...p, profileSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} placeholder="javad-gharaei" className="min-w-0 flex-1 px-3 py-2.5 text-sm focus:outline-none" /></div>
+                 <div className="flex overflow-hidden rounded-xl border border-surface-variant"><input type="text" dir="ltr" value={form.profileSlug} onChange={(e) => setForm((p) => ({ ...p, profileSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} placeholder="javad-gharaei" className="min-w-0 flex-1 px-3 py-2.5 text-sm focus:outline-none" /><span className="bg-surface-low px-3 py-2.5 text-xs text-outline" dir="ltr">/instructors/</span></div>
                  <p className="mt-1 text-xs text-outline">اختیاری؛ حروف انگلیسی کوچک، عدد و خط تیره. در صورت خالی‌بودن، آدرس پیش‌فرض استفاده می‌شود.</p>
                </div>
 
