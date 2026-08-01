@@ -14,6 +14,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
+import AvatarUpload from "@/components/profile/avatar-upload";
 
 interface UserProfile {
   id: string;
@@ -160,23 +161,8 @@ export default function ProfilePage() {
         className="max-w-2xl bg-white rounded-2xl shadow-sm border border-outline-variant/30 p-6 md:p-8 space-y-6"
       >
         <div className="flex items-center gap-4 pb-6 border-b border-outline-variant/20">
-          <div className="w-16 h-16 rounded-full bg-surface-variant overflow-hidden shrink-0">
-            {avatar ? (
-              <img
-                src={avatar}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <User size={28} className="text-outline-variant" />
-              </div>
-            )}
-          </div>
-          <div>
-            <p className="font-bold text-primary">{profile?.name}</p>
-            <p className="text-outline text-sm">{profile?.email}</p>
-          </div>
+          <AvatarUpload value={avatar} onChange={setAvatar} />
+          <div><p className="font-bold text-primary">{profile?.name}</p><p className="text-outline text-sm">{profile?.email}</p></div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -218,18 +204,6 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-primary mb-1.5">
-              آواتار (آدرس تصویر)
-            </label>
-            <input
-              type="url"
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="https://example.com/avatar.jpg"
-              className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
-            />
-          </div>
         </div>
 
         <div>
