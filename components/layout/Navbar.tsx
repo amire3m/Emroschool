@@ -37,6 +37,7 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const [sidebarColor, setSidebarColor] = useState("#03004b");
   const [sidebarLayout, setSidebarLayout] = useState("default");
@@ -110,6 +111,7 @@ export default function Navbar() {
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  async function openNotification(notification: NotificationItem) { setSelectedNotification(notification); if (!notification.read) { const token = getCookie("token"); await fetch(`/api/notifications/${notification.id}`, { method: "PUT", headers: { Authorization: `Bearer ${token}` } }); setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read: true } : item)); } }
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -188,9 +190,9 @@ export default function Navbar() {
                           </div>
                         ) : (
                           notifications.map((notif) => (
-                            <div
+                            <button type="button" onClick={() => openNotification(notif)}
                               key={notif.id}
-                              className={`p-4 border-b border-outline-variant/10 text-sm transition-colors ${
+                              className={`w-full p-4 border-b border-outline-variant/10 text-right text-sm transition-colors ${
                                 notif.read ? "" : "bg-secondary-fixed/10"
                               }`}
                             >
@@ -213,7 +215,7 @@ export default function Navbar() {
                                   </p>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           ))
                         )}
                       </div>
@@ -257,6 +259,7 @@ export default function Navbar() {
           </div>
         )}
       </nav>
+      {selectedNotification && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-primary/60 p-4" onClick={() => setSelectedNotification(null)}><section className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-4 flex items-start justify-between gap-4"><h2 className="text-lg font-black text-primary">{selectedNotification.title}</h2><button onClick={() => setSelectedNotification(null)} className="text-outline"><X size={20} /></button></div><p className="whitespace-pre-line text-sm leading-8 text-outline">{selectedNotification.message}</p><p className="mt-5 text-xs text-outline">{new Date(selectedNotification.createdAt).toLocaleDateString("fa-IR")}</p></section></div>}
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden pt-16">

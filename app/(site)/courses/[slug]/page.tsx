@@ -82,6 +82,7 @@ interface CourseDetail {
   registrationMode: "purchase" | "registration";
   deliveryModes?: string;
   parent?: { id: string; title: string; slug: string } | null;
+  prerequisite?: { id: string; title: string; slug: string } | null;
   children?: Array<{
     id: string;
     title: string;
@@ -279,6 +280,7 @@ export default function CourseDetailPage() {
                   زیرمجموعه {course.parent.title}
                 </button>
               )}
+              {course.prerequisite && <button onClick={() => router.push(`/courses/${course.prerequisite?.slug}`)} className="bg-orange-50 text-xs font-bold text-orange-700 px-3 py-1 rounded-full">پیش‌نیاز: {course.prerequisite.title}</button>}
               {course.categoryName && (
                 <span className="bg-secondary-fixed/30 text-secondary text-xs font-bold px-3 py-1 rounded-full">
                   {course.categoryName}
@@ -468,10 +470,7 @@ export default function CourseDetailPage() {
                 <>
                   <div className="mb-6">
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-3xl font-black text-primary">
-                        {formatPrice(course.price)}
-                      </span>
-                      <span className="text-outline text-sm">تومان</span>
+                      {course.price > 0 ? <><span className="text-3xl font-black text-primary">{formatPrice(course.price)}</span><span className="text-outline text-sm">تومان</span></> : <span className="text-3xl font-black text-primary">رایگان</span>}
                     </div>
                     {course.oldPrice && course.oldPrice > course.price && (
                       <span className="text-outline line-through text-sm">

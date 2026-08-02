@@ -33,7 +33,7 @@ interface Course {
   oldPrice: number | null;
   instructor: string | null;
   instructorId: string | null;
-  instructorProfile?: { id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
+  instructorProfile?: { id: string; profileSlug?: string | null; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
   instructors?: Array<{ instructor: { id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } }>;
   categoryName: string | null;
   categoryId: string | null;
@@ -476,7 +476,7 @@ export default function AdminCourses() {
             {isExpanded && <div className="divide-y divide-surface-variant border-t border-surface-variant">
               {children.map((child) => <div key={child.id} className="flex flex-wrap items-center gap-3 px-4 py-3 pr-7 hover:bg-surface-low/60">
                 <GitBranch size={16} className="shrink-0 text-secondary" />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={child.instructor} avatar={child.instructorProfile?.avatar || child.instructorProfile?.user?.avatar} />{child.instructor || "بدون مدرس"}<span>· {child.price.toLocaleString("fa-IR")} تومان</span></p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={child.instructor} avatar={child.instructorProfile?.avatar || child.instructorProfile?.user?.avatar} />{child.instructorProfile ? <Link href={`/instructors/${child.instructorProfile.profileSlug || child.instructorProfile.id}`} target="_blank" className="font-bold text-secondary hover:underline">{child.instructor || "بدون مدرس"}</Link> : <span>{child.instructor || "بدون مدرس"}</span>}<span>· {child.price.toLocaleString("fa-IR")} تومان</span></p></div>
                 <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{child.published ? "منتشر شده" : "پیش‌نویس"}</span>
                 <div className="flex items-center gap-1"><button onClick={() => showStudents(child)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="دانشجویان دوره"><User size={15} /></button><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
               </div>)}

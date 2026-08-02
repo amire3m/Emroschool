@@ -198,10 +198,7 @@ export default function CoursesPage() {
                           {formatPrice(course.oldPrice)}
                         </span>
                       )}
-                      <div className="text-primary font-black text-lg">
-                        {formatPrice(course.price)}{" "}
-                        <span className="text-xs font-normal">تومان</span>
-                      </div>
+                      {course.price > 0 ? <div className="text-primary font-black text-lg">{formatPrice(course.price)} <span className="text-xs font-normal">تومان</span></div> : <div className="text-primary font-black text-lg">رایگان</div>}
                     </div>
                     <div className="bg-primary/5 hover:bg-primary/10 p-2 rounded-full transition-colors">
                       <span className="text-primary text-sm font-bold">
