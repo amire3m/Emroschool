@@ -468,16 +468,16 @@ export default function CourseDetailPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-6">
+                  {course.price > 0 && <div className="mb-6">
                     <div className="flex items-baseline gap-2 mb-1">
-                      {course.price > 0 ? <><span className="text-3xl font-black text-primary">{formatPrice(course.price)}</span><span className="text-outline text-sm">تومان</span></> : <span className="text-3xl font-black text-primary">رایگان</span>}
+                      <span className="text-3xl font-black text-primary">{formatPrice(course.price)}</span><span className="text-outline text-sm">تومان</span>
                     </div>
                     {course.oldPrice && course.oldPrice > course.price && (
                       <span className="text-outline line-through text-sm">
                         {formatPrice(course.oldPrice)} تومان
                       </span>
                     )}
-                  </div>
+                  </div>}
 
                   {course.scheduleStatus === "completed" ? (
                     <button
