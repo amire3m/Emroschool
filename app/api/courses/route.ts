@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         parent: { select: { id: true, title: true, slug: true } },
+        prerequisite: { select: { id: true, title: true, slug: true } },
         instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
         instructors: { include: { instructor: { select: { id: true, profileSlug: true, name: true, avatar: true, expertise: true, user: { select: { id: true, name: true, avatar: true, expertise: true } } } } } },
         _count: { select: { gallery: true, children: true, enrollments: true } },
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       registrationMode,
       deliveryModes,
       parentId,
+      prerequisiteId,
     } = body;
 
     if (!title || !slug || !description) {
@@ -97,6 +99,8 @@ export async function POST(req: NextRequest) {
     if (scheduleStatus === "completed" && (!parsedEndDate || Number.isNaN(parsedEndDate.getTime()))) return NextResponse.json({ error: "تاریخ پایان دوره برگزارشده الزامی است" }, { status: 400 });
     const parent = parentId ? await prisma.course.findUnique({ where: { id: parentId } }) : null;
     if (parentId && (!parent || parent.courseType !== "comprehensive")) return NextResponse.json({ error: "دوره والد باید یک دوره جامع معتبر باشد" }, { status: 400 });
+    const prerequisite = prerequisiteId ? await prisma.course.findUnique({ where: { id: prerequisiteId } }) : null;
+    if (prerequisiteId && !prerequisite) return NextResponse.json({ error: "دوره پیش‌نیاز پیدا نشد" }, { status: 400 });
 
     const category = categoryId
       ? await prisma.category.findUnique({ where: { id: categoryId } })
@@ -134,6 +138,7 @@ export async function POST(req: NextRequest) {
         registrationMode,
         deliveryModes: selectedDeliveryModes.join(","),
         parentId: courseType === "single" ? parentId || null : null,
+        prerequisiteId: prerequisite?.id || null,
       },
     });
 

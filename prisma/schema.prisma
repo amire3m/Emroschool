@@ -24,6 +24,7 @@ model User {
   nationalCode String? @unique
   phoneVerified Boolean @default(false)
   birthDate String?
+  gender    String?
   province  String?
   city      String?
   district  String?
@@ -129,6 +130,7 @@ model Course {
   notifyOnPublish Boolean @default(false)
   notifyChannel  String?  // email | sms | both
   courseType     String   @default("single") // comprehensive | single
+  prerequisiteId String?
   scheduleStatus String   @default("upcoming") // upcoming | completed
   startDate      DateTime?
   endDate        DateTime?
@@ -149,6 +151,8 @@ model Course {
   parentId      String?
   parent        Course?  @relation("CourseHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children      Course[] @relation("CourseHierarchy")
+  prerequisite Course? @relation("CoursePrerequisite", fields: [prerequisiteId], references: [id], onDelete: SetNull)
+  unlockedCourses Course[] @relation("CoursePrerequisite")
   instructorId  String?
   instructorProfile Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   instructors CourseInstructor[]
@@ -260,6 +264,7 @@ model CourseApplication {
   phone                String
   nationalCode         String?
   birthDate            String?
+  gender               String?
   province             String
   city                 String
   district             String?

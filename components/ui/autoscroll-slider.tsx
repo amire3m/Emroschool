@@ -23,7 +23,7 @@ export default function AutoScrollSlider({
 }) {
   const autoScroll = useRef(
     AutoScroll({
-      speed: 2,
+      speed: 0.7,
       stopOnInteraction: false,
       stopOnMouseEnter: true,
       startDelay: 100,

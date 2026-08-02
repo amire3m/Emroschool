@@ -51,6 +51,8 @@ interface Course {
   deliveryModes?: string;
   parentId: string | null;
   parent?: { id: string; title: string } | null;
+  prerequisiteId?: string | null;
+  prerequisite?: { id: string; title: string; slug: string } | null;
   childCount?: number;
   enrollmentCount?: number;
 }
@@ -189,6 +191,7 @@ export default function AdminCourses() {
     registrationMode: "purchase",
     deliveryModes: ["in_person"] as string[],
     parentId: "",
+    prerequisiteId: "",
   });
 
   const getToken = () => getCookie("token") || "";
@@ -240,6 +243,7 @@ export default function AdminCourses() {
       registrationMode: "purchase",
       deliveryModes: ["in_person"],
       parentId: "",
+      prerequisiteId: "",
     });
     setEditingCourse(null);
   };
@@ -253,7 +257,7 @@ export default function AdminCourses() {
     setEditingCourse(null);
     setForm({
       title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorIds: [], category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
-      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", deliveryModes: ["in_person"], parentId: parent.id,
+      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", deliveryModes: ["in_person"], parentId: parent.id, prerequisiteId: "",
     });
     setShowModal(true);
   };
@@ -294,6 +298,7 @@ export default function AdminCourses() {
       registrationMode: course.registrationMode || "purchase",
       deliveryModes: (course.deliveryModes || "in_person").split(",").filter(Boolean),
       parentId: course.parentId || "",
+      prerequisiteId: course.prerequisiteId || "",
     });
     setEditingCourse(course);
     setShowModal(true);
@@ -335,6 +340,7 @@ export default function AdminCourses() {
       registrationMode: form.registrationMode,
       deliveryModes: form.deliveryModes,
       parentId: form.courseType === "single" ? form.parentId || null : null,
+      prerequisiteId: form.prerequisiteId || null,
     };
 
     try {
@@ -548,6 +554,7 @@ export default function AdminCourses() {
                    {form.courseType === "comprehensive" && <div className="sm:col-span-2 rounded-xl border border-secondary-fixed/70 bg-[#fff8e9] p-3 text-xs leading-6 text-secondary">این مجموعه بعد از ساخت زیر‌دوره‌ها قابل انتشار است. کاربران فقط در صفحه زیر‌دوره‌ها خرید یا فرم ثبت‌نام را می‌بینند.</div>}
                    {form.courseType === "comprehensive" && editingCourse && <div className="sm:col-span-2 rounded-2xl border border-surface-variant bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h5 className="font-black text-primary text-sm">زیر‌دوره‌های این مجموعه</h5><p className="text-xs text-outline mt-1">هر زیر‌دوره صفحه و ثبت‌نام مستقل دارد.</p></div><button type="button" onClick={() => openCreateChildCourse(editingCourse)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white"><Plus size={16} />افزودن زیر‌دوره جدید</button></div><div className="mt-4 rounded-xl border border-dashed border-secondary/40 bg-[#fffaf0] p-3"><p className="text-xs font-bold text-secondary">افزودن از دوره‌های قبلی</p><div className="mt-2 flex flex-col gap-2 sm:flex-row"><select value={existingChildId} onChange={(event) => setExistingChildId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-surface-variant bg-white px-3 py-2.5 text-sm"><option value="">یک دوره مستقل را انتخاب کنید</option>{courses.filter((item) => item.courseType === "single" && !item.parentId && item.id !== editingCourse.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><button type="button" disabled={!existingChildId || saving} onClick={() => attachExistingCourse(editingCourse)} className="rounded-lg border border-secondary bg-white px-4 py-2.5 text-sm font-bold text-secondary disabled:opacity-50">افزودن به مجموعه</button></div></div><div className="mt-4 space-y-2">{courses.filter((item) => item.parentId === editingCourse.id).length ? courses.filter((item) => item.parentId === editingCourse.id).map((child) => <button type="button" key={child.id} onClick={() => openEditModal(child)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-surface-low px-3 py-2.5 text-right hover:bg-secondary-fixed/30"><span className="font-bold text-primary text-sm">{child.title}</span><span className="text-xs text-outline">ویرایش زیر‌دوره</span></button>) : <p className="rounded-xl bg-surface-low p-3 text-xs text-outline">هنوز زیر‌دوره‌ای برای این مجموعه ثبت نشده است.</p>}</div></div>}
                   {form.courseType === "single" && <div><label className="block text-sm font-medium text-primary mb-1">دوره جامع والد (اختیاری)</label><select value={form.parentId} onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="">دوره مستقل؛ بدون والد</option>{courses.filter((item) => item.courseType === "comprehensive" && item.id !== editingCourse?.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
+                  <div><label className="block text-sm font-medium text-primary mb-1">پیش‌نیاز دوره (اختیاری)</label><select value={form.prerequisiteId} onChange={(e) => setForm((p) => ({ ...p, prerequisiteId: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="">این دوره پیش‌نیاز ندارد</option>{courses.filter((item) => item.courseType === "single" && item.id !== editingCourse?.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>
                   <div><label className="block text-sm font-medium text-primary mb-1">وضعیت برگزاری</label><select value={form.scheduleStatus} onChange={(e) => setForm((p) => ({ ...p, scheduleStatus: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="upcoming">قرار است برگزار شود</option><option value="completed">برگزار شده و پایان یافته</option></select></div>
                   <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع (شمسی)" : "تاریخ پایان (شمسی)"}</label><PersianDateTimePicker required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(value) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: value } : { ...p, endDate: value })} /></div>
                    {form.courseType === "single" && form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}

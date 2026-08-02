@@ -24,6 +24,7 @@ export async function GET(
         instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
         instructors: { include: { instructor: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } } } },
         parent: { select: { id: true, title: true, slug: true } },
+        prerequisite: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         ...(admin ? { enrollments: { orderBy: { createdAt: "desc" as const }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } } } } } : {}),
         _count: { select: { enrollments: true, applications: true, children: true } },
@@ -80,6 +81,7 @@ export async function PUT(
       registrationMode,
       deliveryModes,
       parentId,
+      prerequisiteId,
     } = body;
 
     const nextCourseType = courseType ?? existing.courseType;
@@ -96,8 +98,11 @@ export async function PUT(
     if (nextCourseType === "single" && existing._count.children > 0) return NextResponse.json({ error: "این دوره دارای فرزند است و تا زمان جداسازی آن‌ها نمی‌تواند به دوره عادی تبدیل شود" }, { status: 400 });
     if (nextCourseType === "comprehensive" && nextPublished && existing._count.children === 0) return NextResponse.json({ error: "دوره جامع برای انتشار باید حداقل یک دوره فرزند داشته باشد" }, { status: 400 });
     if (nextParentId === params.id) return NextResponse.json({ error: "یک دوره نمی‌تواند والد خودش باشد" }, { status: 400 });
+    if (prerequisiteId === params.id) return NextResponse.json({ error: "یک دوره نمی‌تواند پیش‌نیاز خودش باشد" }, { status: 400 });
     const parent = nextParentId ? await prisma.course.findUnique({ where: { id: nextParentId } }) : null;
     if (nextParentId && (!parent || parent.courseType !== "comprehensive")) return NextResponse.json({ error: "دوره والد باید یک دوره جامع معتبر باشد" }, { status: 400 });
+    const prerequisite = prerequisiteId !== undefined && prerequisiteId ? await prisma.course.findUnique({ where: { id: prerequisiteId } }) : null;
+    if (prerequisiteId && !prerequisite) return NextResponse.json({ error: "دوره پیش‌نیاز پیدا نشد" }, { status: 400 });
     if (existing.parentId && existing.parentId !== nextParentId) {
       const oldParent = await prisma.course.findUnique({ where: { id: existing.parentId }, include: { _count: { select: { children: true } } } });
       if (oldParent?.published && oldParent._count.children <= 1) return NextResponse.json({ error: "این دوره تنها فرزند والد منتشرشده است؛ ابتدا فرزند دیگری به دوره جامع متصل کنید" }, { status: 400 });
@@ -145,6 +150,7 @@ export async function PUT(
         registrationMode: nextRegistrationMode,
         ...(selectedDeliveryModes !== undefined && { deliveryModes: selectedDeliveryModes.join(",") }),
         parentId: nextCourseType === "single" ? nextParentId : null,
+        ...(prerequisiteId !== undefined && { prerequisiteId: prerequisite?.id || null }),
       },
     });
 

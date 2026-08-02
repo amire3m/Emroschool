@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
           notificationBaleEnabled: true,
         name: true,
         email: true,
-         phone: true, nationalCode: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
+         phone: true, nationalCode: true, gender: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
         province: true, city: true, district: true, neighborhood: true, address: true, postalCode: true,
         workHistory: true, artHistory: true, educationLevel: true, educationField: true, university: true, universityField: true,
         instagramId: true, virtualPhone: true, landline: true,

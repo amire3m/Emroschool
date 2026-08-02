@@ -50,13 +50,14 @@ export async function POST(req: NextRequest) {
       if (existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
       return NextResponse.json({ error: "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
     }
-     const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "province", "city", "address", "educationLevel", "educationField", "university", "universityField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
+     const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "gender", "province", "city", "address", "educationLevel", "educationField", "university", "universityField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
      if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
     const nationalCode = normalizeIranianNationalCode(body.nationalCode);
     if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
     const normalizedPhone = normalizeIranianMobile(body.phone);
     if (!isValidIranianMobile(normalizedPhone)) return NextResponse.json({ error: "شماره تلفن همراه واردشده معتبر نیست" }, { status: 400 });
+    if (!["male", "female"].includes(body.gender)) return NextResponse.json({ error: "جنسیت انتخاب‌شده معتبر نیست" }, { status: 400 });
     const isTehran = body.province.trim() === "تهران" && body.city.trim() === "تهران";
     if (isTehran && (typeof body.district !== "string" || !body.district.trim() || typeof body.neighborhood !== "string" || !body.neighborhood.trim())) return NextResponse.json({ error: "منطقه و محله محل سکونت در تهران را انتخاب کنید" }, { status: 400 });
     await ensureDiscountCodes();
@@ -73,14 +74,14 @@ export async function POST(req: NextRequest) {
 
     const application = await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
-         name: fullName, email, phone, birthDate: body.birthDate.trim(), province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
+         name: fullName, email, phone, birthDate: body.birthDate.trim(), gender: body.gender, province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), instagramId: body.instagramId?.trim() || null,
         virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null, nationalCode,
       } });
       return tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
-         birthDate: body.birthDate.trim(),
+         birthDate: body.birthDate.trim(), gender: body.gender,
          province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), reason: body.reason.trim(),

@@ -22,6 +22,7 @@ const initialForm = {
   phone: "",
   nationalCode: "",
   birthDate: "",
+  gender: "",
   province: "",
   city: "",
   district: "",
@@ -85,6 +86,7 @@ export default function CourseRegistrationModal({
             phone: normalizeIranianMobile(user.phone || ""),
             nationalCode: user.nationalCode || "",
             birthDate: user.birthDate || "",
+            gender: user.gender || "",
             province: user.province || "",
             city: user.city || "",
             district: user.district || "",
@@ -104,7 +106,7 @@ export default function CourseRegistrationModal({
             virtualPhone: user.virtualPhone || user.phone || "",
             landline: user.landline || "",
           });
-        if (user && [user.name, user.email, user.phone, user.nationalCode, user.birthDate, user.province, user.city, user.address, user.educationLevel, user.educationField, user.university, user.universityField, user.workHistory, user.artHistory, user.instagramId, user.virtualPhone].every((value) => typeof value === "string" && value.trim())) { setProfileComplete(true); setStep(3); }
+        if (user && [user.name, user.email, user.phone, user.nationalCode, user.birthDate, user.gender, user.province, user.city, user.address, user.educationLevel, user.educationField, user.university, user.universityField, user.workHistory, user.artHistory, user.instagramId, user.virtualPhone].every((value) => typeof value === "string" && value.trim())) { setProfileComplete(true); setStep(3); }
       })
       .finally(() => setLoading(false));
     fetch("/api/discount-codes")
@@ -139,6 +141,7 @@ export default function CourseRegistrationModal({
             "phone",
             "nationalCode",
             "birthDate",
+            "gender",
             "province",
             "city",
             ...(isTehran ? ["district", "neighborhood"] : []),
@@ -364,6 +367,7 @@ export default function CourseRegistrationModal({
                       />
                     </div>
                   </label>
+                  <label className="text-sm font-bold text-primary">جنسیت *<div className="mt-1.5 grid grid-cols-2 gap-2"><button type="button" onClick={() => update("gender", "male")} className={`rounded-xl border px-3 py-3 text-sm font-bold ${form.gender === "male" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>مرد</button><button type="button" onClick={() => update("gender", "female")} className={`rounded-xl border px-3 py-3 text-sm font-bold ${form.gender === "female" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>زن</button></div></label>
                   <label className="md:col-span-2 text-sm font-bold text-primary">
                     آدرس محل سکونت *
                     <textarea
