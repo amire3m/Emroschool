@@ -35,7 +35,7 @@ export default function PersianDateTimePicker({ value, onChange, required = fals
     const currentTime = selected?.toDate() || new Date();
     const next = new DateObject({ year: view.year, month: view.month.number, day, hour: currentTime.getHours(), minute: currentTime.getMinutes(), second: 0, calendar: persian, locale: persianFa });
     onChange(next.toDate().toISOString());
-    if (!withTime) setOpen(false);
+    setOpen(false);
   }
 
   function changeTime(nextTime: string) {
