@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         parent: { select: { id: true, title: true, slug: true } },
         instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
         instructors: { include: { instructor: { select: { id: true, profileSlug: true, name: true, avatar: true, expertise: true, user: { select: { id: true, name: true, avatar: true, expertise: true } } } } } },
-        _count: { select: { gallery: true, children: true } },
+        _count: { select: { gallery: true, children: true, enrollments: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       ...course,
       galleryCount: course._count.gallery,
       childCount: course._count.children,
+      enrollmentCount: course._count.enrollments,
       _count: undefined,
     }));
 
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
       startDate,
       endDate,
       registrationMode,
+      deliveryModes,
       parentId,
     } = body;
 
@@ -85,6 +87,8 @@ export async function POST(req: NextRequest) {
     if (!["comprehensive", "single"].includes(courseType)) return NextResponse.json({ error: "نوع دوره نامعتبر است" }, { status: 400 });
     if (!["upcoming", "completed"].includes(scheduleStatus)) return NextResponse.json({ error: "وضعیت زمانی دوره نامعتبر است" }, { status: 400 });
     if (!["purchase", "registration"].includes(registrationMode)) return NextResponse.json({ error: "روش ثبت‌نام نامعتبر است" }, { status: 400 });
+    const selectedDeliveryModes = Array.isArray(deliveryModes) ? [...new Set(deliveryModes.filter((mode: unknown): mode is string => mode === "in_person" || mode === "virtual"))] : ["in_person"];
+    if (!selectedDeliveryModes.length) return NextResponse.json({ error: "حداقل یک شیوه برگزاری را انتخاب کنید" }, { status: 400 });
     if (courseType === "comprehensive" && parentId) return NextResponse.json({ error: "دوره جامع نمی‌تواند فرزند دوره دیگری باشد" }, { status: 400 });
     if (courseType === "comprehensive" && published) return NextResponse.json({ error: "ابتدا دوره جامع را به‌صورت پیش‌نویس بسازید، حداقل یک دوره فرزند به آن متصل کنید و سپس منتشر کنید" }, { status: 400 });
     const parsedStartDate = startDate ? new Date(startDate) : null;
@@ -128,6 +132,7 @@ export async function POST(req: NextRequest) {
         startDate: parsedStartDate,
         endDate: parsedEndDate,
         registrationMode,
+        deliveryModes: selectedDeliveryModes.join(","),
         parentId: courseType === "single" ? parentId || null : null,
       },
     });

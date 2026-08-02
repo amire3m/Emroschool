@@ -80,6 +80,7 @@ interface CourseDetail {
   startDate?: string | null;
   endDate?: string | null;
   registrationMode: "purchase" | "registration";
+  deliveryModes?: string;
   parent?: { id: string; title: string; slug: string } | null;
   children?: Array<{
     id: string;
@@ -294,6 +295,7 @@ export default function CourseDetailPage() {
                   {course.duration}
                 </span>
               )}
+              {(course.deliveryModes || "in_person").split(",").map((mode) => <span key={mode} className="rounded-full bg-primary text-[11px] font-bold text-secondary-fixed px-3 py-1">{mode === "virtual" ? "مجازی" : "حضوری"}</span>)}
               <span
                 className={`text-xs font-bold px-3 py-1 rounded-full ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}
               >

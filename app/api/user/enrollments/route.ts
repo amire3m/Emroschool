@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
             category: true,
             categoryId: true,
             rating: true,
+            deliveryModes: true,
           },
         },
       },

@@ -19,6 +19,7 @@ interface CourseInfo {
   thumbnail?: string;
   instructor?: string;
   price: number;
+  deliveryModes?: string;
 }
 
 interface Enrollment {
@@ -137,6 +138,7 @@ export default function DashboardCoursesPage() {
                         {enrollment.course.instructor}
                       </p>
                     )}
+                    <div className="mb-3 flex flex-wrap gap-1.5">{(enrollment.course.deliveryModes || "in_person").split(",").map((mode) => <span key={mode} className="rounded-full bg-secondary-fixed/35 px-2 py-1 text-[10px] font-bold text-secondary">{mode === "virtual" ? "مجازی" : "حضوری"}</span>)}</div>
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex-1 bg-surface-variant rounded-full h-2.5 overflow-hidden">
                         <div

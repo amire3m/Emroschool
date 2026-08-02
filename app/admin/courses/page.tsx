@@ -48,9 +48,11 @@ interface Course {
   startDate: string | null;
   endDate: string | null;
   registrationMode: "purchase" | "registration";
+  deliveryModes?: string;
   parentId: string | null;
   parent?: { id: string; title: string } | null;
   childCount?: number;
+  enrollmentCount?: number;
 }
 
 const levels = ["مبتدی", "متوسط", "پیشرفته"];
@@ -164,6 +166,7 @@ export default function AdminCourses() {
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [instructorSearch, setInstructorSearch] = useState("");
   const [showInstructorMenu, setShowInstructorMenu] = useState(false);
+  const [studentCourse, setStudentCourse] = useState<{ title: string; students: Array<{ id: string; createdAt: string; user: { id: string; name: string; email: string; phone?: string | null; avatar?: string | null } }> } | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -184,11 +187,13 @@ export default function AdminCourses() {
     startDate: "",
     endDate: "",
     registrationMode: "purchase",
+    deliveryModes: ["in_person"] as string[],
     parentId: "",
   });
 
   const getToken = () => getCookie("token") || "";
   const copyCourseLink = async (slug: string) => { await navigator.clipboard.writeText(`${window.location.origin}/courses/${slug}`); toast.success("لینک دوره کپی شد"); };
+  const showStudents = async (course: Course) => { try { const response = await fetch(`/api/courses/${course.id}`, { headers: { authorization: `Bearer ${getToken()}` } }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setStudentCourse({ title: course.title, students: data.course.enrollments || [] }); } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در دریافت دانشجویان"); } };
 
   const fetchCourses = () => {
     const token = getToken();
@@ -233,6 +238,7 @@ export default function AdminCourses() {
       startDate: "",
       endDate: "",
       registrationMode: "purchase",
+      deliveryModes: ["in_person"],
       parentId: "",
     });
     setEditingCourse(null);
@@ -247,7 +253,7 @@ export default function AdminCourses() {
     setEditingCourse(null);
     setForm({
       title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorIds: [], category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
-      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", parentId: parent.id,
+      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", deliveryModes: ["in_person"], parentId: parent.id,
     });
     setShowModal(true);
   };
@@ -286,6 +292,7 @@ export default function AdminCourses() {
       startDate: course.startDate || "",
       endDate: course.endDate || "",
       registrationMode: course.registrationMode || "purchase",
+      deliveryModes: (course.deliveryModes || "in_person").split(",").filter(Boolean),
       parentId: course.parentId || "",
     });
     setEditingCourse(course);
@@ -326,6 +333,7 @@ export default function AdminCourses() {
       startDate: form.startDate || null,
       endDate: form.endDate || null,
       registrationMode: form.registrationMode,
+      deliveryModes: form.deliveryModes,
       parentId: form.courseType === "single" ? form.parentId || null : null,
     };
 
@@ -464,7 +472,7 @@ export default function AdminCourses() {
                 <GitBranch size={16} className="shrink-0 text-secondary" />
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={child.instructor} avatar={child.instructorProfile?.avatar || child.instructorProfile?.user?.avatar} />{child.instructor || "بدون مدرس"}<span>· {child.price.toLocaleString("fa-IR")} تومان</span></p></div>
                 <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{child.published ? "منتشر شده" : "پیش‌نویس"}</span>
-                <div className="flex items-center gap-1"><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
+                <div className="flex items-center gap-1"><button onClick={() => showStudents(child)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="دانشجویان دوره"><User size={15} /></button><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
               </div>)}
               {children.length === 0 && <p className="p-4 text-center text-sm text-outline">زیر‌دوره‌ای در این پوشه نیست.</p>}
             </div>}
@@ -475,6 +483,8 @@ export default function AdminCourses() {
 
         {comprehensiveCourses.length === 0 && standaloneCourses.length === 0 && <div className="rounded-2xl border border-surface-variant bg-white p-10 text-center text-outline">هیچ دوره‌ای یافت نشد</div>}
       </div>
+
+      {studentCourse && <div className="modal-overlay" onClick={() => setStudentCourse(null)}><div className="modal-content max-w-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-start justify-between"><div><p className="text-xs font-bold text-secondary">دانشجویان دوره</p><h3 className="mt-1 text-lg font-black text-primary">{studentCourse.title}</h3></div><button onClick={() => setStudentCourse(null)} className="p-2 text-outline"><X size={20} /></button></div><div className="grid gap-3 sm:grid-cols-2">{studentCourse.students.map((student) => <div key={student.id} className="flex items-center gap-3 rounded-2xl border border-surface-variant bg-surface-low p-3"><InstructorAvatar name={student.user.name} avatar={student.user.avatar} /><div className="min-w-0"><p className="truncate text-sm font-bold text-primary">{student.user.name}</p><p className="truncate text-xs text-outline">{student.user.phone || student.user.email}</p><p className="mt-1 text-[10px] text-secondary">ثبت‌نام {new Date(student.createdAt).toLocaleDateString("fa-IR")}</p></div></div>)}{studentCourse.students.length === 0 && <p className="col-span-2 rounded-xl bg-surface-low p-6 text-center text-sm text-outline">هنوز دانشجویی در این دوره ثبت‌نام نکرده است.</p>}</div></div></div>}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
@@ -541,6 +551,7 @@ export default function AdminCourses() {
                   <div><label className="block text-sm font-medium text-primary mb-1">وضعیت برگزاری</label><select value={form.scheduleStatus} onChange={(e) => setForm((p) => ({ ...p, scheduleStatus: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm"><option value="upcoming">قرار است برگزار شود</option><option value="completed">برگزار شده و پایان یافته</option></select></div>
                   <div><label className="block text-sm font-medium text-primary mb-1">{form.scheduleStatus === "upcoming" ? "تاریخ شروع (شمسی)" : "تاریخ پایان (شمسی)"}</label><PersianDateTimePicker required value={form.scheduleStatus === "upcoming" ? form.startDate : form.endDate} onChange={(value) => setForm((p) => form.scheduleStatus === "upcoming" ? { ...p, startDate: value } : { ...p, endDate: value })} /></div>
                    {form.courseType === "single" && form.scheduleStatus === "upcoming" && <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-1">روش اقدام کاربر</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "purchase" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "purchase" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>خرید دوره</button><button type="button" onClick={() => setForm((p) => ({ ...p, registrationMode: "registration" }))} className={`p-3 rounded-xl border text-sm font-bold ${form.registrationMode === "registration" ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>فقط ارسال فرم ثبت‌نام</button></div></div>}
+                   <div className="sm:col-span-2"><label className="block text-sm font-medium text-primary mb-2">شیوه برگزاری</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setForm((p) => ({ ...p, deliveryModes: p.deliveryModes.includes("in_person") ? p.deliveryModes.filter((mode) => mode !== "in_person") : [...p.deliveryModes, "in_person"] }))} className={`rounded-xl border p-3 text-sm font-bold ${form.deliveryModes.includes("in_person") ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>حضوری</button><button type="button" onClick={() => setForm((p) => ({ ...p, deliveryModes: p.deliveryModes.includes("virtual") ? p.deliveryModes.filter((mode) => mode !== "virtual") : [...p.deliveryModes, "virtual"] }))} className={`rounded-xl border p-3 text-sm font-bold ${form.deliveryModes.includes("virtual") ? "border-primary bg-primary text-white" : "border-surface-variant bg-white text-outline"}`}>مجازی</button></div><p className="mt-2 text-xs text-outline">می‌توانید یک یا هر دو شیوه را انتخاب کنید.</p></div>
                 </div>
               </div>
 

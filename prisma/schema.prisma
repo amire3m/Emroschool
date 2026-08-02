@@ -133,6 +133,7 @@ model Course {
   startDate      DateTime?
   endDate        DateTime?
   registrationMode String @default("purchase") // purchase | registration
+  deliveryModes String @default("in_person") // in_person | virtual, comma-separated
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

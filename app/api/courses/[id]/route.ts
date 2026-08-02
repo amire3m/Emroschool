@@ -25,6 +25,7 @@ export async function GET(
         instructors: { include: { instructor: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } } } },
         parent: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
+        ...(admin ? { enrollments: { orderBy: { createdAt: "desc" as const }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } } } } } : {}),
         _count: { select: { enrollments: true, applications: true, children: true } },
       },
     });
@@ -77,6 +78,7 @@ export async function PUT(
       startDate,
       endDate,
       registrationMode,
+      deliveryModes,
       parentId,
     } = body;
 
@@ -88,6 +90,8 @@ export async function PUT(
     if (!["comprehensive", "single"].includes(nextCourseType)) return NextResponse.json({ error: "نوع دوره نامعتبر است" }, { status: 400 });
     if (!["upcoming", "completed"].includes(nextScheduleStatus)) return NextResponse.json({ error: "وضعیت زمانی دوره نامعتبر است" }, { status: 400 });
     if (!["purchase", "registration"].includes(nextRegistrationMode)) return NextResponse.json({ error: "روش ثبت‌نام نامعتبر است" }, { status: 400 });
+    const selectedDeliveryModes = Array.isArray(deliveryModes) ? [...new Set(deliveryModes.filter((mode: unknown): mode is string => mode === "in_person" || mode === "virtual"))] : undefined;
+    if (selectedDeliveryModes && !selectedDeliveryModes.length) return NextResponse.json({ error: "حداقل یک شیوه برگزاری را انتخاب کنید" }, { status: 400 });
     if (nextCourseType === "comprehensive" && nextParentId) return NextResponse.json({ error: "دوره جامع نمی‌تواند فرزند دوره دیگری باشد" }, { status: 400 });
     if (nextCourseType === "single" && existing._count.children > 0) return NextResponse.json({ error: "این دوره دارای فرزند است و تا زمان جداسازی آن‌ها نمی‌تواند به دوره عادی تبدیل شود" }, { status: 400 });
     if (nextCourseType === "comprehensive" && nextPublished && existing._count.children === 0) return NextResponse.json({ error: "دوره جامع برای انتشار باید حداقل یک دوره فرزند داشته باشد" }, { status: 400 });
@@ -139,6 +143,7 @@ export async function PUT(
         startDate: parsedStartDate,
         endDate: parsedEndDate,
         registrationMode: nextRegistrationMode,
+        ...(selectedDeliveryModes !== undefined && { deliveryModes: selectedDeliveryModes.join(",") }),
         parentId: nextCourseType === "single" ? nextParentId : null,
       },
     });
