@@ -344,15 +344,16 @@ export default function AdminInstructors() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">تخصص</label>
+                <label className="block text-sm font-medium text-primary mb-1">سمت</label>
                 <textarea rows={2} value={form.expertise} onChange={(e) => setForm((p) => ({ ...p, expertise: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">حوزه‌های تخصصی</label>
-                <textarea rows={2} value={form.specialties} onChange={(e) => setForm((p) => ({ ...p, specialties: e.target.value }))}
+                <label className="block text-sm font-medium text-primary mb-1">حوزه تخصصی</label>
+                <textarea rows={2} value={form.specialties} onChange={(e) => setForm((p) => ({ ...p, specialties: e.target.value }))} placeholder="مثلاً فیلم‌سازی، تدوین، نویسندگی"
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
+                <p className="mt-1 text-xs text-outline">هر حوزه را با ویرگول جدا کنید؛ در پروفایل به شکل هشتگ نمایش داده می‌شود.</p>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">

@@ -102,7 +102,7 @@ export default function PublicProfilePage() {
 
             {profile.expertise && (
               <div>
-                <h3 className="text-sm font-medium text-outline mb-1">تخصص‌ها</h3>
+                <h3 className="text-sm font-medium text-outline mb-1">سمت</h3>
                 <div className="flex flex-wrap gap-2">
                   {profile.expertise.split(",").map((item, i) => (
                     <span key={i} className="px-3 py-1 bg-surface-low text-primary rounded-lg text-sm border border-surface-variant">
@@ -115,8 +115,8 @@ export default function PublicProfilePage() {
 
             {profile.userType === "instructor" && profile.instructor?.specialties && (
               <div>
-                <h3 className="text-sm font-medium text-outline mb-2 flex items-center gap-1"><Award size={16} /> زمینه‌های تدریس</h3>
-                <p className="text-primary leading-relaxed">{profile.instructor.specialties}</p>
+                <h3 className="text-sm font-medium text-outline mb-2 flex items-center gap-1"><Award size={16} /> حوزه تخصصی</h3>
+                <div className="flex flex-wrap gap-2">{profile.instructor.specialties.split(",").filter(Boolean).map((item) => <span key={item} className="rounded-full border border-secondary-fixed/70 bg-secondary-fixed/30 px-3 py-1 text-sm font-bold text-secondary">#{item.trim().replace(/^#/, "").replace(/\s+/g, "_")}</span>)}</div>
               </div>
             )}
 
