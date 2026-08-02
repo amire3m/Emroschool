@@ -13,6 +13,9 @@ import {
    Link2,
    Layers3,
    GitBranch,
+   ChevronDown,
+   Folder,
+   FolderOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -150,6 +153,7 @@ export default function AdminCourses() {
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [saving, setSaving] = useState(false);
   const [existingChildId, setExistingChildId] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -235,6 +239,7 @@ export default function AdminCourses() {
       title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorId: "", category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
       courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", parentId: parent.id,
     });
+    setShowModal(true);
   };
 
   const attachExistingCourse = async (parent: Course) => {
@@ -378,6 +383,10 @@ export default function AdminCourses() {
       c.instructor?.includes(search) ||
       c.categoryName?.includes(search)
   );
+  const comprehensiveCourses = courses.filter((course) => course.courseType === "comprehensive" && (!search || filtered.some((item) => item.id === course.id || item.parentId === course.id)));
+  const standaloneCourses = filtered.filter((course) => course.courseType === "single" && !course.parentId);
+  const childrenFor = (parentId: string) => courses.filter((course) => course.parentId === parentId && (!search || filtered.some((item) => item.id === course.id)));
+  const toggleFolder = (id: string) => setExpandedFolders((folders) => folders.includes(id) ? folders.filter((folderId) => folderId !== id) : [...folders, id]);
 
   if (loading) {
     return (
@@ -418,77 +427,38 @@ export default function AdminCourses() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">عنوان</th>
-                <th className="text-right p-3 font-medium text-outline hidden md:table-cell">مدرس</th>
-                <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">قیمت</th>
-                <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">دسته</th>
-                <th className="text-center p-3 font-medium text-outline">وضعیت</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((course) => (
-                <tr key={course.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="font-medium text-primary">{course.title}</div>
-                    <div className="flex flex-wrap gap-1.5 mt-1"><span className="text-[10px] text-outline">{course.slug}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.courseType === "comprehensive" ? "bg-secondary-fixed text-secondary" : "bg-surface-container text-outline"}`}>{course.courseType === "comprehensive" ? `جامع · ${(course.childCount || 0).toLocaleString("fa-IR")} زیر‌دوره` : course.parent ? `فرزند ${course.parent.title}` : "مستقل"}</span><span className={`text-[10px] px-1.5 py-0.5 rounded ${course.scheduleStatus === "completed" ? "bg-surface-container text-outline" : "bg-blue-50 text-blue-700"}`}>{course.scheduleStatus === "completed" ? "برگزارشده" : "در انتظار برگزاری"}</span></div>
-                  </td>
-                  <td className="p-3 text-outline hidden md:table-cell">{course.instructorProfile?.user ? <Link href={`/profile/${course.instructorProfile.user.id}`} className="text-secondary hover:underline">{course.instructor}</Link> : course.instructor || "—"}</td>
-                  <td className="p-3 hidden sm:table-cell">
-                    <span className="font-medium">{course.price.toLocaleString("fa-IR")}</span>
-                    <span className="text-xs text-outline mr-1">تومان</span>
-                  </td>
-                  <td className="p-3 text-outline hidden lg:table-cell">
-                    {course.categoryName || "—"}
-                  </td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        course.published
-                          ? "bg-green-50 text-green-700"
-                          : "bg-yellow-50 text-yellow-700"
-                      }`}
-                    >
-                      {course.published ? <Check size={12} /> : <X size={12} />}
-                      {course.published ? "منتشر شده" : "پیش‌نویس"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => copyCourseLink(course.slug)} className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="کپی لینک صفحه دوره"><Link2 size={16} /></button>
-                      <button
-                        onClick={() => openEditModal(course)}
-                        className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
-                        title="ویرایش"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(course)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors"
-                        title="حذف"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-outline">
-                    هیچ دوره‌ای یافت نشد
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="space-y-4">
+        {comprehensiveCourses.map((course) => {
+          const children = childrenFor(course.id);
+          const isExpanded = expandedFolders.includes(course.id) || Boolean(search);
+          return <section key={course.id} className="overflow-hidden rounded-2xl border border-primary/15 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center gap-3 bg-primary/[.035] p-4">
+              <button type="button" onClick={() => toggleFolder(course.id)} className="flex min-w-0 flex-1 items-center gap-3 text-right">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary-fixed text-primary">{isExpanded ? <FolderOpen size={21} /> : <Folder size={21} />}</span>
+                <span className="min-w-0"><span className="block truncate font-bold text-primary">{course.title}</span><span className="mt-1 block text-xs text-outline">{(course.childCount || 0).toLocaleString("fa-IR")} زیر‌دوره</span></span>
+                <ChevronDown size={18} className={`mr-auto shrink-0 text-outline transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => openCreateChildCourse(course)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-primary hover:bg-secondary-fixed" title="افزودن زیر‌دوره"><Plus size={17} /></button>
+                <button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-white hover:text-primary" title="ویرایش پوشه"><Pencil size={17} /></button>
+                <button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={17} /></button>
+              </div>
+            </div>
+            {isExpanded && <div className="divide-y divide-surface-variant border-t border-surface-variant">
+              {children.map((child) => <div key={child.id} className="flex flex-wrap items-center gap-3 px-4 py-3 pr-7 hover:bg-surface-low/60">
+                <GitBranch size={16} className="shrink-0 text-secondary" />
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 text-xs text-outline">{child.instructor || "بدون مدرس"} · {child.price.toLocaleString("fa-IR")} تومان</p></div>
+                <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{child.published ? "منتشر شده" : "پیش‌نویس"}</span>
+                <div className="flex items-center gap-1"><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
+              </div>)}
+              {children.length === 0 && <p className="p-4 text-center text-sm text-outline">زیر‌دوره‌ای در این پوشه نیست.</p>}
+            </div>}
+          </section>;
+        })}
+
+        {standaloneCourses.length > 0 && <section className="overflow-hidden rounded-2xl border border-surface-variant bg-white shadow-sm"><div className="border-b border-surface-variant bg-surface-low px-4 py-3 text-sm font-bold text-primary">دوره‌های مستقل</div><div className="divide-y divide-surface-variant">{standaloneCourses.map((course) => <div key={course.id} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-low/60"><GitBranch size={17} className="shrink-0 text-outline" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{course.title}</p><p className="mt-0.5 text-xs text-outline">{course.instructor || "بدون مدرس"} · {course.price.toLocaleString("fa-IR")} تومان</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${course.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{course.published ? "منتشر شده" : "پیش‌نویس"}</span><div className="flex items-center gap-1"><button onClick={() => copyCourseLink(course.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div></div>)}</div></section>}
+
+        {comprehensiveCourses.length === 0 && standaloneCourses.length === 0 && <div className="rounded-2xl border border-surface-variant bg-white p-10 text-center text-outline">هیچ دوره‌ای یافت نشد</div>}
       </div>
 
       {showModal && (
