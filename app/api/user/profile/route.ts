@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
         province: true, city: true, district: true, neighborhood: true, address: true, postalCode: true,
-        workHistory: true, artHistory: true, educationLevel: true, educationField: true,
+        workHistory: true, artHistory: true, educationLevel: true, educationField: true, university: true, universityField: true,
         instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
         bio: true,
@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, birthDate, province, city, district, neighborhood, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
+    const { name, birthDate, province, city, district, neighborhood, address, postalCode, workHistory, artHistory, educationLevel, educationField, university, universityField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
@@ -85,6 +85,8 @@ export async function PUT(req: NextRequest) {
     if (artHistory !== undefined) data.artHistory = artHistory || null;
     if (educationLevel !== undefined) data.educationLevel = educationLevel || null;
     if (educationField !== undefined) data.educationField = educationField || null;
+    if (university !== undefined) data.university = university || null;
+    if (universityField !== undefined) data.universityField = universityField || null;
     if (instagramId !== undefined) data.instagramId = instagramId || null;
     if (virtualPhone !== undefined) data.virtualPhone = virtualPhone || null;
     if (landline !== undefined) data.landline = landline || null;
@@ -141,7 +143,7 @@ export async function PUT(req: NextRequest) {
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
         province: true, city: true, district: true, neighborhood: true, address: true, postalCode: true,
-        workHistory: true, artHistory: true, educationLevel: true, educationField: true,
+        workHistory: true, artHistory: true, educationLevel: true, educationField: true, university: true, universityField: true,
         instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
         bio: true,
