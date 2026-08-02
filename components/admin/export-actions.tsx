@@ -19,7 +19,11 @@ export default function ExportActions({ endpoint, title, fileName }: { endpoint:
   async function pdf() {
     setExportingPdf(true); let report: HTMLDivElement | null = null;
     try {
-      const rows = (await records()).map((item: unknown) => flatten(item));
+      const allowedKeys = endpoint.includes("applications") ? ["fullName", "email", "phone", "nationalCode", "status", "course.title", "discountLabel", "discountPercent", "finalAmountTomans", "createdAt"] : ["orderNumber", "status", "method", "amountTomans", "user.name", "user.phone", "course.title", "application.discountLabel", "application.discountPercent", "manualReference", "createdAt", "paidAt"];
+      const rows = (await records()).map((item: unknown) => {
+        const flat = flatten(item);
+        return Object.fromEntries(Object.entries(flat).filter(([key]) => allowedKeys.includes(key)));
+      });
       if (!rows.length) throw new Error("داده‌ای برای خروجی وجود ندارد");
       report = document.createElement("div"); report.dir = "rtl";
       report.style.cssText = "position:fixed;left:-20000px;top:0;width:1120px;background:#fff;color:#17172a;padding:44px;box-sizing:border-box;font-family:Tahoma,Arial,sans-serif;direction:rtl;text-align:right";
