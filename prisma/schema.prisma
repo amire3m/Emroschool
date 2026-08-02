@@ -135,6 +135,7 @@ model Course {
   startDate      DateTime?
   endDate        DateTime?
   registrationMode String @default("purchase") // purchase | registration
+  registrationFormOverride String?
   deliveryModes String @default("in_person") // in_person | virtual, comma-separated
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -288,6 +289,8 @@ model CourseApplication {
   discountPercent      Int      @default(0)
   finalAmountTomans    Int      @default(0)
   discountDocumentUrl  String?
+  formSchema           String?
+  customResponses      String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -298,6 +301,12 @@ model CourseApplication {
   paymentOrder PaymentOrder?
 
   @@unique([userId, courseId])
+}
+
+model RegistrationForm {
+  id        Int      @id @default(1)
+  schema    String
+  updatedAt DateTime @updatedAt
 }
 
 model DiscountCode {

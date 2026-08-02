@@ -15,6 +15,7 @@ import {
   isValidIranianMobile,
   normalizeIranianMobile,
 } from "@/lib/iranian-mobile";
+import { defaultRegistrationForm, RegistrationFormSchema } from "@/lib/registration-form";
 
 const initialForm = {
   fullName: "",
@@ -70,6 +71,9 @@ export default function CourseRegistrationModal({
   const [universitySearch, setUniversitySearch] = useState("");
   const [showUniversities, setShowUniversities] = useState(false);
   const [profileComplete, setProfileComplete] = useState(false);
+  const [formSchema, setFormSchema] = useState<RegistrationFormSchema>(defaultRegistrationForm);
+  const [customResponses, setCustomResponses] = useState<Record<string, string>>({});
+  const [customFiles, setCustomFiles] = useState<Record<string, File | null>>({});
   const isTehran = form.province === "تهران" && form.city === "تهران";
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -125,6 +129,7 @@ export default function CourseRegistrationModal({
       );
     fetch("/api/tehran-neighborhoods").then((response) => response.json()).then((data) => setTehranDistricts(data.districts || {})).catch(() => {});
     fetch("/api/universities").then((response) => response.json()).then((data) => setUniversities(data.universities || [])).catch(() => {});
+    fetch(`/api/registration-form?courseId=${courseId}`).then((response) => response.json()).then((data) => { if (data.schema) setFormSchema(data.schema); }).catch(() => {});
     return () => {
       document.body.style.overflow = "";
     };
@@ -133,6 +138,9 @@ export default function CourseRegistrationModal({
     setForm((current) => ({ ...current, [key]: value }));
   }
   function validateStep() {
+    const configuredStep = formSchema.steps[step - 1];
+    const missingCustom = configuredStep?.fields.filter((field) => !field.system && field.required).some((field) => field.type === "file" ? !customFiles[field.key] : !customResponses[field.key]?.trim());
+    if (missingCustom) { toast.error("لطفاً تمام فیلدهای الزامی این مرحله را تکمیل کنید"); return false; }
     const fields =
       step === 1
         ? [
@@ -189,7 +197,7 @@ export default function CourseRegistrationModal({
           "Content-Type": "application/json",
           authorization: `Bearer ${getCookie("token") || ""}`,
         },
-        body: JSON.stringify({ ...form, courseId, discountGroup }),
+        body: JSON.stringify({ ...form, courseId, discountGroup, customResponses }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "خطا در ارسال فرم");
@@ -208,6 +216,12 @@ export default function CourseRegistrationModal({
         if (!uploadResponse.ok)
           throw new Error(uploadData.error || "بارگذاری مدرک انجام نشد");
       }
+      for (const [key, file] of Object.entries(customFiles)) {
+        if (!file) continue;
+        const document = new FormData(); document.append("file", file); document.append("key", key);
+        const uploadResponse = await fetch(`/api/course-applications/${data.application.id}/custom-document`, { method: "POST", headers: { authorization: `Bearer ${getCookie("token") || ""}` }, body: document });
+        const uploadData = await uploadResponse.json(); if (!uploadResponse.ok) throw new Error(uploadData.error || "بارگذاری فایل انجام نشد");
+      }
       onSuccess({
         applicationId: data.application.id,
         profileUpdated: Boolean(data.profileUpdated),
@@ -220,6 +234,8 @@ export default function CourseRegistrationModal({
   }
   const inputClass =
     "mt-1.5 w-full px-4 py-3 rounded-xl border border-surface-variant bg-white text-sm outline-none focus:ring-2 focus:ring-secondary-fixed";
+  const customFields = formSchema.steps[step - 1]?.fields.filter((field) => !field.system) || [];
+  const renderCustomFields = () => customFields.length ? <div className="mt-5 grid gap-4 border-t border-surface-variant pt-5 md:grid-cols-2">{customFields.map((field) => <label key={field.key} className={`text-sm font-bold text-primary ${field.type === "textarea" ? "md:col-span-2" : ""}`}>{field.label}{field.required ? " *" : ""}{field.type === "textarea" ? <textarea rows={4} value={customResponses[field.key] || ""} onChange={(event) => setCustomResponses((current) => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} className={inputClass} /> : field.type === "select" || field.type === "radio" ? <select value={customResponses[field.key] || ""} onChange={(event) => setCustomResponses((current) => ({ ...current, [field.key]: event.target.value }))} className={inputClass}><option value="">انتخاب کنید</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : field.type === "date" ? <div className="mt-1.5"><PersianDateTimePicker value={customResponses[field.key] || ""} onChange={(value) => setCustomResponses((current) => ({ ...current, [field.key]: value }))} required={field.required} withTime={false} /></div> : field.type === "file" ? <span className="mt-1.5 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-secondary/60 bg-white px-3 py-3 text-xs text-secondary">{customFiles[field.key]?.name || "انتخاب تصویر یا PDF"}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(event) => { const file = event.target.files?.[0] || null; if (file && (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type) || file.size > 5 * 1024 * 1024)) { toast.error("فقط تصویر یا PDF تا ۵ مگابایت مجاز است"); event.target.value = ""; return; } setCustomFiles((current) => ({ ...current, [field.key]: file })); }} /></span> : <input type={field.type === "text" ? "text" : "text"} value={customResponses[field.key] || ""} onChange={(event) => setCustomResponses((current) => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} className={inputClass} />}</label>)}</div> : null;
   return (
     <div
       className="fixed inset-0 z-[100] bg-primary/75 backdrop-blur-lg p-3 md:p-6 overflow-y-auto"
@@ -241,7 +257,7 @@ export default function CourseRegistrationModal({
         </div>
         {!profileComplete && <div className="px-6 md:px-8 pt-6">
           <div className="flex items-center gap-2">
-            {[1, 2, 3].map((number) => (
+            {formSchema.steps.map((item, index) => { const number = index + 1; return (
               <div key={number} className="flex-1">
                 <div
                   className={`h-1.5 rounded-full ${number <= step ? "bg-secondary" : "bg-surface-variant"}`}
@@ -249,10 +265,10 @@ export default function CourseRegistrationModal({
                 <p
                   className={`text-[10px] mt-1 ${number === step ? "text-primary font-bold" : "text-outline"}`}
                 >
-                  مرحله {number.toLocaleString("fa-IR")}
+                  {item.title}
                 </p>
               </div>
-            ))}
+            ); })}
           </div>
         </div>}
         <div className="p-6 md:p-8">
@@ -263,7 +279,7 @@ export default function CourseRegistrationModal({
           ) : (
             <>
               {profileComplete && step === 3 && <div className="mb-5 rounded-xl bg-secondary-fixed/30 p-3 text-xs leading-6 text-secondary">اطلاعات شخصی و تحصیلی شما از پروفایل قبلی استفاده می‌شود و نیازی به تکمیل دوباره آن‌ها نیست.</div>}
-              {step === 1 && (
+                {step === 1 && (
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 rounded-xl bg-secondary-fixed/30 text-secondary p-3 text-xs leading-6">
                     نام، ایمیل و موبایل از حساب شما دریافت شده‌اند. اگر آن‌ها را
@@ -379,8 +395,8 @@ export default function CourseRegistrationModal({
                       className={inputClass}
                     />
                   </label>
-                </div>
-              )}
+                  </div>
+                )}
               {step === 2 && (
                 <div className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
@@ -432,7 +448,7 @@ export default function CourseRegistrationModal({
                   </label>
                 </div>
               )}
-              {step === 3 && (
+                {step === 3 && (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-surface-variant bg-white p-4">
                     <label className="block text-sm font-bold text-primary">
@@ -567,8 +583,9 @@ export default function CourseRegistrationModal({
                       />
                     </label>
                   </div>
-                </div>
-              )}
+                  </div>
+                )}
+                {renderCustomFields()}
               <div className="flex justify-between gap-3 mt-7 pt-5 border-t border-surface-variant">
                 <button
                   type="button"
@@ -579,7 +596,7 @@ export default function CourseRegistrationModal({
                   <ArrowRight size={16} />
                   {profileComplete || step === 1 ? "انصراف" : "مرحله قبل"}
                 </button>
-                {step < 3 ? (
+                {step < formSchema.steps.length ? (
                   <button
                     type="button"
                     onClick={() => {

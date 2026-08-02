@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidIranianNationalCode, normalizeIranianNationalCode } from "@/lib/iranian-national-code";
 import { isValidIranianMobile, normalizeIranianMobile } from "@/lib/iranian-mobile";
 import { ensureDiscountCodes, findActiveDiscountCode } from "@/lib/discount-codes";
+import { mergeRegistrationForm, parseRegistrationForm } from "@/lib/registration-form";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -50,6 +51,11 @@ export async function POST(req: NextRequest) {
       if (existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
       return NextResponse.json({ error: "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
     }
+    const savedForm = await prisma.registrationForm.findUnique({ where: { id: 1 } });
+    const formSchema = mergeRegistrationForm(parseRegistrationForm(savedForm?.schema), course.registrationFormOverride);
+    const customResponses = body.customResponses && typeof body.customResponses === "object" && !Array.isArray(body.customResponses) ? body.customResponses as Record<string, string> : {};
+    const customFields = formSchema.steps.flatMap((step) => step.fields).filter((field) => !field.system);
+    if (customFields.some((field) => field.required && !String(customResponses[field.key] || "").trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای سفارشی الزامی را تکمیل کنید" }, { status: 400 });
      const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "gender", "province", "city", "address", "educationLevel", "educationField", "university", "universityField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
      if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
@@ -87,8 +93,9 @@ export async function POST(req: NextRequest) {
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), reason: body.reason.trim(),
         knowsInstructors: Boolean(body.knowsInstructors), familiarityDetails: body.knowsInstructors ? body.familiarityDetails.trim() : null,
          instagramId: body.instagramId.trim(), virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
-        discountCode: discount?.code || null, discountLabel: discount?.label || null, discountPercent: discount?.percent || 0,
-        finalAmountTomans: Math.round(course.price * (100 - (discount?.percent || 0)) / 100),
+         discountCode: discount?.code || null, discountLabel: discount?.label || null, discountPercent: discount?.percent || 0,
+         finalAmountTomans: Math.round(course.price * (100 - (discount?.percent || 0)) / 100),
+        formSchema: JSON.stringify(formSchema), customResponses: JSON.stringify(customResponses),
       } });
     });
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
