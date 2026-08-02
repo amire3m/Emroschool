@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
       scheduleStatus,
       startDate,
       endDate,
-      registrationMode,
       deliveryModes,
       parentId,
       prerequisiteId,
@@ -88,7 +87,6 @@ export async function POST(req: NextRequest) {
     }
     if (!["comprehensive", "single"].includes(courseType)) return NextResponse.json({ error: "نوع دوره نامعتبر است" }, { status: 400 });
     if (!["upcoming", "completed"].includes(scheduleStatus)) return NextResponse.json({ error: "وضعیت زمانی دوره نامعتبر است" }, { status: 400 });
-    if (!["purchase", "registration"].includes(registrationMode)) return NextResponse.json({ error: "روش ثبت‌نام نامعتبر است" }, { status: 400 });
     const selectedDeliveryModes = Array.isArray(deliveryModes) ? [...new Set(deliveryModes.filter((mode: unknown): mode is string => mode === "in_person" || mode === "virtual"))] : ["in_person"];
     if (!selectedDeliveryModes.length) return NextResponse.json({ error: "حداقل یک شیوه برگزاری را انتخاب کنید" }, { status: 400 });
     if (courseType === "comprehensive" && parentId) return NextResponse.json({ error: "دوره جامع نمی‌تواند فرزند دوره دیگری باشد" }, { status: 400 });
@@ -135,7 +133,7 @@ export async function POST(req: NextRequest) {
         scheduleStatus,
         startDate: parsedStartDate,
         endDate: parsedEndDate,
-        registrationMode,
+        registrationMode: "registration",
         deliveryModes: selectedDeliveryModes.join(","),
         parentId: courseType === "single" ? parentId || null : null,
         prerequisiteId: prerequisite?.id || null,

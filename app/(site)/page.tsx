@@ -569,7 +569,7 @@ export default function HomePage() {
                     </div>
 
                      <div className="mt-auto flex justify-center border-t border-outline-variant/20 pt-4">
-                       <InteractiveCourseLink text={course.registrationMode === "registration" ? "ثبت‌نام در دوره" : "مشاهده صفحه دوره"} />
+                       <InteractiveCourseLink text="ثبت‌نام در دوره" />
                      </div>
                   </div>
                 </Link>

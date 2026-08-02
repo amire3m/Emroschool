@@ -9,7 +9,6 @@ interface CourseStep {
   description?: string;
   instructor?: string | null;
   price: number;
-  registrationMode: "purchase" | "registration";
   scheduleStatus: string;
   startDate?: string | null;
 }
@@ -70,7 +69,7 @@ export default function ComprehensiveCoursePath({ title, children }: Comprehensi
                     {child.description && <p className="mt-2 line-clamp-2 text-xs leading-6 text-white/55">{child.description}</p>}
                   </div>
                   <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/10 pt-3 sm:block sm:border-0 sm:pt-0 sm:text-left">
-                    <div><p className="text-[10px] text-white/45">{child.registrationMode === "registration" ? "ثبت‌نام" : "هزینه دوره"}</p><p className="mt-1 text-sm font-black text-secondary-fixed">{child.registrationMode === "registration" ? "فرم درخواست" : `${formatPrice(child.price)} تومان`}</p></div>
+                    <div><p className="text-[10px] text-white/45">{child.price > 0 ? "هزینه دوره" : "اقدام دوره"}</p><p className="mt-1 text-sm font-black text-secondary-fixed">{child.price > 0 ? `${formatPrice(child.price)} تومان` : "فرم ثبت‌نام و پرداخت"}</p></div>
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-fixed text-primary transition-transform group-hover:-translate-x-1"><ArrowUpLeft size={17} /></span>
                   </div>
                 </div>

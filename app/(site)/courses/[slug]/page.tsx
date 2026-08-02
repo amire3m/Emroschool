@@ -80,7 +80,6 @@ interface CourseDetail {
   scheduleStatus: "upcoming" | "completed";
   startDate?: string | null;
   endDate?: string | null;
-  registrationMode: "purchase" | "registration";
   deliveryModes?: string;
   parent?: { id: string; title: string; slug: string } | null;
   prerequisite?: { id: string; title: string; slug: string } | null;
@@ -92,7 +91,6 @@ interface CourseDetail {
     description?: string;
     instructor?: string | null;
     price: number;
-    registrationMode: "purchase" | "registration";
     scheduleStatus: string;
     startDate?: string | null;
     endDate?: string | null;
@@ -433,9 +431,7 @@ export default function CourseDetailPage() {
                             <span className="text-xs font-normal">تومان</span>
                           </span>
                           <span className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white">
-                            {child.registrationMode === "registration"
-                              ? "ثبت‌نام مستقل"
-                              : "مشاهده و خرید"}
+                            "فرم ثبت‌نام و پرداخت"
                           </span>
                         </div>
                       </button>

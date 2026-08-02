@@ -79,7 +79,6 @@ export async function PUT(
       scheduleStatus,
       startDate,
       endDate,
-      registrationMode,
       deliveryModes,
       parentId,
       prerequisiteId,
@@ -87,12 +86,11 @@ export async function PUT(
 
     const nextCourseType = courseType ?? existing.courseType;
     const nextScheduleStatus = scheduleStatus ?? existing.scheduleStatus;
-    const nextRegistrationMode = registrationMode ?? existing.registrationMode;
+    const nextRegistrationMode = "registration";
     const nextPublished = published ?? existing.published;
     const nextParentId = parentId !== undefined ? parentId || null : existing.parentId;
     if (!["comprehensive", "single"].includes(nextCourseType)) return NextResponse.json({ error: "نوع دوره نامعتبر است" }, { status: 400 });
     if (!["upcoming", "completed"].includes(nextScheduleStatus)) return NextResponse.json({ error: "وضعیت زمانی دوره نامعتبر است" }, { status: 400 });
-    if (!["purchase", "registration"].includes(nextRegistrationMode)) return NextResponse.json({ error: "روش ثبت‌نام نامعتبر است" }, { status: 400 });
     const selectedDeliveryModes = Array.isArray(deliveryModes) ? [...new Set(deliveryModes.filter((mode: unknown): mode is string => mode === "in_person" || mode === "virtual"))] : undefined;
     if (selectedDeliveryModes && !selectedDeliveryModes.length) return NextResponse.json({ error: "حداقل یک شیوه برگزاری را انتخاب کنید" }, { status: 400 });
     if (nextCourseType === "comprehensive" && nextParentId) return NextResponse.json({ error: "دوره جامع نمی‌تواند فرزند دوره دیگری باشد" }, { status: 400 });
