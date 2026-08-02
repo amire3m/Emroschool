@@ -1,4 +1,4 @@
-export const APP_VERSION = "2.0.0";
+export const APP_VERSION = "2.1.0";
 
 export interface ReleaseNote {
   id: string;
@@ -10,6 +10,42 @@ export interface ReleaseNote {
 }
 
 const unsortedReleaseNotes: ReleaseNote[] = [
+  {
+    id: "configurable-registration-forms",
+    title: "مدیریت کامل فرم ثبت‌نام",
+    summary: "بخش «فرم ثبت‌نام» به مدیریت درخواست‌ها اضافه شد. فرم عمومی همه دوره‌ها یا نسخه اختصاصی هر دوره قابل مدیریت است؛ مراحل بعدی جابه‌جا می‌شوند، فیلد سفارشی و فایل تصویر یا PDF پذیرفته می‌شود و پاسخ‌ها در درخواست ثبت‌نام نگهداری می‌شوند.",
+    publishedAt: "2026-08-03T04:30:00+03:30",
+    version: "2.1.0",
+    type: "feature",
+  },
+  {
+    id: "unified-course-registration-payment",
+    title: "یکپارچه‌سازی ثبت‌نام و پرداخت دوره‌ها",
+    summary: "همه دوره‌ها از مسیر ثابت فرم ثبت‌نام، فاکتور و پرداخت عبور می‌کنند و گزینه‌های قدیمی روش اقدام کاربر از مدیریت دوره حذف شدند.",
+    publishedAt: "2026-08-03T02:50:00+03:30",
+    type: "improvement",
+  },
+  {
+    id: "course-management-selection-improvements",
+    title: "بهبود انتخاب مدرس و تاریخ دوره",
+    summary: "پس از انتخاب مدرس یا روز در تقویم مدیریت دوره، منوی انتخاب به‌صورت خودکار بسته می‌شود تا ثبت انتخاب روشن و سریع باشد.",
+    publishedAt: "2026-08-03T03:20:00+03:30",
+    type: "fix",
+  },
+  {
+    id: "course-management-and-student-controls",
+    title: "تکمیل مدیریت دوره و دانشجویان",
+    summary: "نمایش دانشجویان دوره، مدرس‌های متعدد، شیوه برگزاری حضوری و مجازی، پیش‌نیاز دوره و ساختار مجموعه‌های جامع و زیر‌دوره‌ها بهبود یافت.",
+    publishedAt: "2026-08-03T02:30:00+03:30",
+    type: "feature",
+  },
+  {
+    id: "safe-user-deletion-controls",
+    title: "حذف امن کاربران در مدیریت",
+    summary: "حذف کاربر با تایید نهایی، جلوگیری از حذف حساب مدیر فعلی و محدودیت حذف مدیران برای حفظ امنیت سامانه اضافه شد.",
+    publishedAt: "2026-08-03T02:15:00+03:30",
+    type: "improvement",
+  },
   {
     id: "public-privacy-policy-page",
     title: "صفحه عمومی حریم خصوصی",
