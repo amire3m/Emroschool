@@ -26,6 +26,7 @@ export async function GET(
         parent: { select: { id: true, title: true, slug: true } },
         prerequisite: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
+        enrollments: { where: admin ? undefined : { user: { profileVisible: true, profileApprovalStatus: "approved" } }, orderBy: { createdAt: "desc" }, take: 12, select: { id: true, user: { select: { id: true, name: true, avatar: true, expertise: true } } } },
         ...(admin ? { enrollments: { orderBy: { createdAt: "desc" as const }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } } } } } : {}),
         _count: { select: { enrollments: true, applications: true, children: true } },
       },

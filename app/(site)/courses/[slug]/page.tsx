@@ -75,6 +75,7 @@ interface CourseDetail {
   gallery: GalleryImage[];
   images?: CourseImage[];
   _count: { enrollments: number };
+  enrollments?: Array<{ id: string; user: { id: string; name: string; avatar?: string | null; expertise?: string | null } }>;
   courseType: "comprehensive" | "single";
   scheduleStatus: "upcoming" | "completed";
   startDate?: string | null;
@@ -353,6 +354,7 @@ export default function CourseDetailPage() {
             <div className="prose prose-sm max-w-none text-on-background leading-relaxed whitespace-pre-line">
               {course.description}
             </div>
+            {course.enrollments && course.enrollments.length > 0 && <section className="mt-10 overflow-hidden rounded-[2rem] border border-primary/10 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-surface-variant bg-surface-low px-5 py-4"><div><p className="text-xs font-bold text-secondary">جامعه یادگیری</p><h2 className="mt-1 text-xl font-black text-primary">دانشجویان این دوره</h2></div><span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-secondary-fixed">{course._count.enrollments.toLocaleString("fa-IR")} دانشجو</span></div><div className="grid gap-3 p-4 sm:grid-cols-2">{course.enrollments.map((enrollment) => <Link key={enrollment.id} href={`/profile/${enrollment.user.id}`} className="group flex items-center gap-3 rounded-2xl border border-surface-variant bg-white p-3 transition hover:-translate-y-0.5 hover:border-secondary hover:shadow-md"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-fixed text-primary">{enrollment.user.avatar ? <img src={enrollment.user.avatar} alt={enrollment.user.name} className="h-full w-full object-cover" /> : <User size={20} />}</div><div className="min-w-0"><p className="truncate text-sm font-black text-primary">{enrollment.user.name}</p>{enrollment.user.expertise && <p className="mt-1 truncate text-xs text-outline">{enrollment.user.expertise}</p>}</div></Link>)}</div>{course._count.enrollments > course.enrollments.length && <p className="px-5 pb-5 text-center text-xs text-outline">فقط دانشجویانی که پروفایل عمومی تأییدشده دارند نمایش داده می‌شوند.</p>}</section>}
             {course.courseType === "comprehensive" && (
               <section className="mt-10 rounded-[2rem] border border-secondary-fixed/60 bg-gradient-to-br from-[#fffdf8] to-[#f8f5ff] p-5 md:p-7">
                 <div className="flex flex-wrap items-end justify-between gap-4 border-b border-secondary-fixed/50 pb-5">
