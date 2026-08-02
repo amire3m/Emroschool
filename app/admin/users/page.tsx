@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Plus, Check, LogIn } from "lucide-react";
+import { Search, Loader2, AlertCircle, UserCog, User, Calendar, GraduationCap, Pencil, X, Save, Plus, Check, LogIn, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie, setCookie } from "@/lib/cookie";
 
@@ -153,6 +153,7 @@ export default function AdminUsers() {
     } catch (err) { toast.error(err instanceof Error ? err.message : "ورود به حساب کاربر انجام نشد"); }
     finally { setImpersonatingId(null); }
   };
+  const deleteUser = async (user: UserData) => { if (!confirm(`حذف دائمی کاربر «${user.name}» و اطلاعات وابسته او انجام شود؟`)) return; setSaving(true); try { const response = await fetch(`/api/users/${user.id}`, { method: "DELETE", headers: { authorization: `Bearer ${getToken()}` } }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "حذف کاربر انجام نشد"); toast.success("کاربر حذف شد"); fetchUsers(); } catch (err) { toast.error(err instanceof Error ? err.message : "حذف کاربر انجام نشد"); } finally { setSaving(false); } };
 
   const filtered = users.filter((u) => {
     const matchSearch = u.name.includes(search) || u.email.includes(search) || u.role.includes(search);
@@ -263,6 +264,7 @@ export default function AdminUsers() {
                         className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-colors" title="ویرایش">
                         <Pencil size={16} />
                       </button>
+                      <button onClick={() => deleteUser(user)} disabled={saving} className="p-2 rounded-xl text-outline hover:bg-error-container hover:text-error disabled:opacity-50" title="حذف کاربر"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>

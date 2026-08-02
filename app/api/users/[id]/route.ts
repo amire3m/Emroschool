@@ -99,3 +99,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "خطا در بروزرسانی کاربر" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const authHeader = req.headers.get("authorization");
+  const admin = authHeader?.startsWith("Bearer ") ? getAdmin(authHeader.slice(7)) : null;
+  if (!admin) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+  if (admin.id === params.id) return NextResponse.json({ error: "امکان حذف حساب کاربری خودتان وجود ندارد" }, { status: 400 });
+  const target = await prisma.user.findUnique({ where: { id: params.id }, select: { role: true } });
+  if (!target) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
+  if (target.role !== "user" && admin.role !== "superadmin") return NextResponse.json({ error: "فقط مدیر ارشد می‌تواند حساب مدیران را حذف کند" }, { status: 403 });
+  await prisma.user.delete({ where: { id: params.id } });
+  return NextResponse.json({ message: "کاربر حذف شد" });
+}
