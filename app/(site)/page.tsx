@@ -329,7 +329,7 @@ export default function HomePage() {
           <Loader2 size={40} className="animate-spin text-secondary" />
         </div>
       ) : sliders.length > 0 ? (
-        <section className="relative min-h-screen overflow-hidden">
+        <section className="relative h-[65svh] min-h-[420px] max-h-[560px] overflow-hidden md:min-h-screen md:max-h-none">
           {sliders.map((slide, index) => (
             <div
               key={slide.id}
@@ -350,9 +350,9 @@ export default function HomePage() {
             </div>
           ))}
 
-          <div className="relative z-10 w-full min-h-screen flex items-center">
+          <div className="relative z-10 flex h-full w-full items-center">
             <div className="w-full max-w-[1280px] mx-auto px-5 md:px-8 text-right">
-              <div className="max-w-3xl relative min-h-[300px]">
+              <div className="relative max-w-3xl min-h-[250px] md:min-h-[300px]">
                 {sliders.map((slide, index) => (
                   <div
                     key={slide.id}
