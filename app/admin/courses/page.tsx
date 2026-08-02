@@ -161,6 +161,8 @@ export default function AdminCourses() {
   const [saving, setSaving] = useState(false);
   const [existingChildId, setExistingChildId] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  const [instructorSearch, setInstructorSearch] = useState("");
+  const [showInstructorMenu, setShowInstructorMenu] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -395,6 +397,10 @@ export default function AdminCourses() {
   const childrenFor = (parentId: string) => courses.filter((course) => course.parentId === parentId && (!search || filtered.some((item) => item.id === course.id)));
   const toggleFolder = (id: string) => setExpandedFolders((folders) => folders.includes(id) ? folders.filter((folderId) => folderId !== id) : [...folders, id]);
   const selectedInstructor = instructors.find((instructor) => instructor.id === form.instructorId);
+  const matchingInstructors = instructors.filter((instructor) => {
+    const name = instructor.name || instructor.user?.name || "";
+    return name.includes(instructorSearch);
+  });
 
   if (loading) {
     return (
@@ -545,14 +551,24 @@ export default function AdminCourses() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">مدرس</label>
-                  <select
-                    value={form.instructorId}
-                    onChange={(e) => setForm((p) => ({ ...p, instructorId: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  >
-                    <option value="">انتخاب مدرس</option>
-                    {instructors.map((instructor) => <option key={instructor.id} value={instructor.id}>{instructor.name || instructor.user?.name || "بدون نام"}</option>)}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={instructorSearch}
+                      onFocus={() => setShowInstructorMenu(true)}
+                      onChange={(event) => { setInstructorSearch(event.target.value); setShowInstructorMenu(true); }}
+                      placeholder={selectedInstructor ? `مدرس انتخاب‌شده: ${selectedInstructor.name || selectedInstructor.user?.name}` : "جستجوی نام مدرس..."}
+                      className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    />
+                    {form.instructorId && <button type="button" onClick={() => { setForm((form) => ({ ...form, instructorId: "" })); setInstructorSearch(""); }} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-outline hover:bg-surface-low hover:text-primary" title="حذف مدرس انتخاب‌شده"><X size={16} /></button>}
+                    {showInstructorMenu && <div className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1.5 shadow-lg">
+                      {matchingInstructors.map((instructor) => {
+                        const name = instructor.name || instructor.user?.name || "بدون نام";
+                        return <button type="button" key={instructor.id} onClick={() => { setForm((form) => ({ ...form, instructorId: instructor.id })); setInstructorSearch(""); setShowInstructorMenu(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-right text-sm transition hover:bg-surface-low ${form.instructorId === instructor.id ? "bg-secondary-fixed/40 text-primary" : "text-primary"}`}><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span className="min-w-0 flex-1 truncate font-medium">{name}</span>{form.instructorId === instructor.id && <Check size={16} className="text-secondary" />}</button>;
+                      })}
+                      {matchingInstructors.length === 0 && <p className="p-3 text-center text-xs text-outline">مدرسی پیدا نشد</p>}
+                    </div>}
+                  </div>
                   {selectedInstructor && <div className="mt-2 flex items-center gap-2 rounded-xl bg-surface-low px-3 py-2 text-sm text-primary"><InstructorAvatar name={selectedInstructor.name || selectedInstructor.user?.name} avatar={selectedInstructor.avatar || selectedInstructor.user?.avatar} /><span>{selectedInstructor.name || selectedInstructor.user?.name}</span></div>}
                   <Link href="/admin/users?create=instructor" className="mt-2 inline-block text-xs font-bold text-secondary hover:underline">استاد جدید است؟ ابتدا کاربر مدرس ایجاد کنید</Link>
                 </div>
