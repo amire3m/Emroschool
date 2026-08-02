@@ -34,6 +34,7 @@ interface Course {
   instructor: string | null;
   instructorId: string | null;
   instructorProfile?: { id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
+  instructors?: Array<{ instructor: { id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } }>;
   categoryName: string | null;
   categoryId: string | null;
   level: string | null;
@@ -171,7 +172,7 @@ export default function AdminCourses() {
     price: "",
     oldPrice: "",
     instructor: "",
-    instructorId: "",
+    instructorIds: [] as string[],
     category: "",
     level: "",
     thumbnail: "",
@@ -220,7 +221,7 @@ export default function AdminCourses() {
       price: "",
       oldPrice: "",
       instructor: "",
-      instructorId: "",
+      instructorIds: [],
       category: "",
       level: "",
       thumbnail: "",
@@ -245,7 +246,7 @@ export default function AdminCourses() {
   const openCreateChildCourse = (parent: Course) => {
     setEditingCourse(null);
     setForm({
-      title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorId: "", category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
+      title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorIds: [], category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
       courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", registrationMode: "purchase", parentId: parent.id,
     });
     setShowModal(true);
@@ -273,7 +274,7 @@ export default function AdminCourses() {
       price: formatPrice(String(course.price)),
       oldPrice: course.oldPrice ? formatPrice(String(course.oldPrice)) : "",
       instructor: course.instructor || "",
-      instructorId: course.instructorId || "",
+      instructorIds: course.instructors?.map((assignment) => assignment.instructor.id) || (course.instructorId ? [course.instructorId] : []),
       category: course.categoryId || categories.find((category) => category.name === course.categoryName)?.id || "",
       level: reverseLevelMap[course.level || ""] || course.level || "",
       thumbnail: course.thumbnail || "",
@@ -312,7 +313,7 @@ export default function AdminCourses() {
       price: Number(normalizePrice(form.price)) || 0,
       oldPrice: normalizePrice(form.oldPrice) ? Number(normalizePrice(form.oldPrice)) : null,
       instructor: form.instructor || null,
-      instructorId: form.instructorId || null,
+      instructorIds: form.instructorIds,
       categoryId: selectedCategory?.id || null,
       categoryName: selectedCategory?.name || null,
       level: levelMap[form.level] || form.level || null,
@@ -396,7 +397,7 @@ export default function AdminCourses() {
   const standaloneCourses = filtered.filter((course) => course.courseType === "single" && !course.parentId);
   const childrenFor = (parentId: string) => courses.filter((course) => course.parentId === parentId && (!search || filtered.some((item) => item.id === course.id)));
   const toggleFolder = (id: string) => setExpandedFolders((folders) => folders.includes(id) ? folders.filter((folderId) => folderId !== id) : [...folders, id]);
-  const selectedInstructor = instructors.find((instructor) => instructor.id === form.instructorId);
+  const selectedInstructors = instructors.filter((instructor) => form.instructorIds.includes(instructor.id));
   const matchingInstructors = instructors.filter((instructor) => {
     const name = instructor.name || instructor.user?.name || "";
     return name.includes(instructorSearch);
@@ -557,19 +558,19 @@ export default function AdminCourses() {
                       value={instructorSearch}
                       onFocus={() => setShowInstructorMenu(true)}
                       onChange={(event) => { setInstructorSearch(event.target.value); setShowInstructorMenu(true); }}
-                      placeholder={selectedInstructor ? `مدرس انتخاب‌شده: ${selectedInstructor.name || selectedInstructor.user?.name}` : "جستجوی نام مدرس..."}
+                    placeholder={selectedInstructors.length ? "افزودن یا جستجوی مدرس دیگر..." : "جستجوی نام مدرس..."}
                       className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
                     />
-                    {form.instructorId && <button type="button" onClick={() => { setForm((form) => ({ ...form, instructorId: "" })); setInstructorSearch(""); }} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-outline hover:bg-surface-low hover:text-primary" title="حذف مدرس انتخاب‌شده"><X size={16} /></button>}
                     {showInstructorMenu && <div className="absolute z-30 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1.5 shadow-lg">
                       {matchingInstructors.map((instructor) => {
                         const name = instructor.name || instructor.user?.name || "بدون نام";
-                        return <button type="button" key={instructor.id} onClick={() => { setForm((form) => ({ ...form, instructorId: instructor.id })); setInstructorSearch(""); setShowInstructorMenu(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-right text-sm transition hover:bg-surface-low ${form.instructorId === instructor.id ? "bg-secondary-fixed/40 text-primary" : "text-primary"}`}><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span className="min-w-0 flex-1 truncate font-medium">{name}</span>{form.instructorId === instructor.id && <Check size={16} className="text-secondary" />}</button>;
+                        const selected = form.instructorIds.includes(instructor.id);
+                        return <button type="button" key={instructor.id} onClick={() => { setForm((form) => ({ ...form, instructorIds: selected ? form.instructorIds.filter((id) => id !== instructor.id) : [...form.instructorIds, instructor.id] })); setInstructorSearch(""); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-right text-sm transition hover:bg-surface-low ${selected ? "bg-secondary-fixed/40 text-primary" : "text-primary"}`}><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span className="min-w-0 flex-1 truncate font-medium">{name}</span>{selected && <Check size={16} className="text-secondary" />}</button>;
                       })}
                       {matchingInstructors.length === 0 && <p className="p-3 text-center text-xs text-outline">مدرسی پیدا نشد</p>}
                     </div>}
                   </div>
-                  {selectedInstructor && <div className="mt-2 flex items-center gap-2 rounded-xl bg-surface-low px-3 py-2 text-sm text-primary"><InstructorAvatar name={selectedInstructor.name || selectedInstructor.user?.name} avatar={selectedInstructor.avatar || selectedInstructor.user?.avatar} /><span>{selectedInstructor.name || selectedInstructor.user?.name}</span></div>}
+                  {selectedInstructors.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{selectedInstructors.map((instructor) => { const name = instructor.name || instructor.user?.name || "بدون نام"; return <span key={instructor.id} className="flex items-center gap-2 rounded-xl bg-surface-low px-2 py-1.5 text-sm text-primary"><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span>{name}</span><button type="button" onClick={() => setForm((form) => ({ ...form, instructorIds: form.instructorIds.filter((id) => id !== instructor.id) }))} className="rounded p-0.5 text-outline hover:bg-white hover:text-error" title={`حذف ${name}`}><X size={14} /></button></span>; })}</div>}
                   <Link href="/admin/users?create=instructor" className="mt-2 inline-block text-xs font-bold text-secondary hover:underline">استاد جدید است؟ ابتدا کاربر مدرس ایجاد کنید</Link>
                 </div>
                 <div>

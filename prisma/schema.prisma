@@ -90,6 +90,7 @@ model Instructor {
 
   events EventInstructor[]
   courses Course[]
+  courseAssignments CourseInstructor[]
 }
 
 model Category {
@@ -145,6 +146,16 @@ model Course {
   children      Course[] @relation("CourseHierarchy")
   instructorId  String?
   instructorProfile Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  instructors CourseInstructor[]
+}
+
+model CourseInstructor {
+  courseId     String
+  instructorId String
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, instructorId])
 }
 
 model CourseImage {

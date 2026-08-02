@@ -22,6 +22,7 @@ export async function GET(
       include: {
         gallery: true,
         instructorProfile: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } },
+        instructors: { include: { instructor: { select: { id: true, profileSlug: true, name: true, avatar: true, bio: true, expertise: true, user: { select: { id: true, name: true, avatar: true, bio: true, expertise: true } } } } } },
         parent: { select: { id: true, title: true, slug: true } },
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         _count: { select: { enrollments: true, applications: true, children: true } },
@@ -62,6 +63,7 @@ export async function PUT(
       oldPrice,
         instructor,
         instructorId,
+        instructorIds,
       categoryId,
       categoryName,
       level,
@@ -107,8 +109,10 @@ export async function PUT(
     if (categoryId && !category) {
       return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
     }
-    const instructorProfile = instructorId !== undefined && instructorId ? await prisma.instructor.findUnique({ where: { id: instructorId }, include: { user: { select: { name: true } } } }) : null;
-    if (instructorId && !instructorProfile) return NextResponse.json({ error: "استاد انتخاب‌شده پیدا نشد" }, { status: 400 });
+    const selectedInstructorIds = Array.isArray(instructorIds) ? [...new Set(instructorIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0))] : instructorId !== undefined ? (instructorId ? [instructorId] : []) : undefined;
+    const instructorProfiles = selectedInstructorIds?.length ? await prisma.instructor.findMany({ where: { id: { in: selectedInstructorIds } }, include: { user: { select: { name: true } } } }) : [];
+    if (selectedInstructorIds && instructorProfiles.length !== selectedInstructorIds.length) return NextResponse.json({ error: "یکی از مدرس‌های انتخاب‌شده پیدا نشد" }, { status: 400 });
+    const primaryInstructor = instructorProfiles[0] || null;
 
     const course = await prisma.course.update({
       where: { id: params.id },
@@ -118,7 +122,7 @@ export async function PUT(
         ...(description !== undefined && { description }),
         ...(price !== undefined && { price }),
         ...(oldPrice !== undefined && { oldPrice }),
-        ...(instructorId !== undefined && { instructorId: instructorProfile?.id ?? null, instructor: instructorProfile?.name || instructorProfile?.user?.name || null }),
+        ...(selectedInstructorIds !== undefined && { instructorId: primaryInstructor?.id ?? null, instructor: instructorProfiles.map((profile) => profile.name || profile.user?.name).filter(Boolean).join("، ") || null, instructors: { deleteMany: {}, create: selectedInstructorIds.map((instructorId) => ({ instructorId })) } }),
         ...(instructorId === undefined && instructor !== undefined && { instructor }),
         ...(categoryId !== undefined && { categoryId: category?.id ?? null }),
         ...(categoryId !== undefined

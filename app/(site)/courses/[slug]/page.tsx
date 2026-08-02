@@ -58,6 +58,14 @@ interface CourseDetail {
       expertise?: string | null;
     } | null;
   } | null;
+  instructors?: Array<{ instructor: {
+    id: string;
+    profileSlug?: string | null;
+    name?: string | null;
+    avatar?: string | null;
+    expertise?: string | null;
+    user?: { id: string; name: string; avatar?: string | null; expertise?: string | null } | null;
+  } }>;
   categoryName?: string;
   level?: string;
   thumbnail?: string;
@@ -209,6 +217,8 @@ export default function CourseDetailPage() {
     );
   }
 
+  const courseInstructors = course.instructors?.map((assignment) => assignment.instructor) || (course.instructorProfile ? [course.instructorProfile] : []);
+
   return (
     <div className="min-h-screen pt-32 pb-16">
       <div className="max-w-[1280px] mx-auto px-5 md:px-8">
@@ -300,46 +310,16 @@ export default function CourseDetailPage() {
               <CopyLinkButton path={`/courses/${course.slug}`} />
             </div>
 
-            {course.instructorProfile ? (
-              <Link
-                href={`/instructors/${course.instructorProfile.profileSlug || course.instructorProfile.id}`}
-                className="mb-6 flex items-center gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-4 transition hover:border-secondary hover:shadow-md"
-              >
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-variant">
-                  {course.instructorProfile.avatar ||
-                  course.instructorProfile.user?.avatar ? (
-                    <img
-                      src={
-                        course.instructorProfile.avatar ||
-                        course.instructorProfile.user?.avatar ||
-                        ""
-                      }
-                      alt={course.instructor || ""}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-outline">
-                      <User size={28} />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-secondary">مدرس دوره</p>
-                  <h2 className="mt-1 font-black text-primary">
-                    {course.instructor}
-                  </h2>
-                  {(course.instructorProfile.expertise ||
-                    course.instructorProfile.user?.expertise) && (
-                    <p className="mt-1 text-sm text-outline">
-                      {course.instructorProfile.expertise ||
-                        course.instructorProfile.user?.expertise}
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs font-bold text-secondary">
-                    مشاهده پروفایل استاد
-                  </p>
-                </div>
-              </Link>
+            {courseInstructors.length ? (
+              <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                {courseInstructors.map((instructor) => {
+                  const name = instructor.name || instructor.user?.name || "مدرس دوره";
+                  return <Link key={instructor.id} href={`/instructors/${instructor.profileSlug || instructor.id}`} className="flex items-center gap-4 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-4 transition hover:border-secondary hover:shadow-md">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-surface-variant">{instructor.avatar || instructor.user?.avatar ? <img src={instructor.avatar || instructor.user?.avatar || ""} alt={name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-outline"><User size={24} /></div>}</div>
+                    <div className="min-w-0"><p className="text-xs font-bold text-secondary">مدرس دوره</p><h2 className="mt-1 truncate font-black text-primary">{name}</h2>{(instructor.expertise || instructor.user?.expertise) && <p className="mt-1 truncate text-sm text-outline">{instructor.expertise || instructor.user?.expertise}</p>}</div>
+                  </Link>;
+                })}
+              </div>
             ) : (
               course.instructor && (
                 <div className="mb-4 flex items-center gap-2 text-outline">
