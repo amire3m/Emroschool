@@ -16,6 +16,7 @@ import {
    ChevronDown,
    Folder,
    FolderOpen,
+   User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
@@ -32,7 +33,7 @@ interface Course {
   oldPrice: number | null;
   instructor: string | null;
   instructorId: string | null;
-  instructorProfile?: { id: string; name: string | null; user?: { id: string; name: string } | null } | null;
+  instructorProfile?: { id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null } | null;
   categoryName: string | null;
   categoryId: string | null;
   level: string | null;
@@ -141,10 +142,16 @@ function PriceField({ label, value, onChange, optional = false }: { label: strin
   </div>;
 }
 
+function InstructorAvatar({ name, avatar }: { name?: string | null; avatar?: string | null }) {
+  return <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-variant text-outline">
+    {avatar ? <img src={avatar} alt={name || ""} className="h-full w-full object-cover" /> : <User size={14} />}
+  </span>;
+}
+
 export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
-  const [instructors, setInstructors] = useState<Array<{ id: string; name: string | null; user?: { id: string; name: string } | null }>>([]);
+  const [instructors, setInstructors] = useState<Array<{ id: string; name: string | null; avatar?: string | null; user?: { id: string; name: string; avatar?: string | null } | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -387,6 +394,7 @@ export default function AdminCourses() {
   const standaloneCourses = filtered.filter((course) => course.courseType === "single" && !course.parentId);
   const childrenFor = (parentId: string) => courses.filter((course) => course.parentId === parentId && (!search || filtered.some((item) => item.id === course.id)));
   const toggleFolder = (id: string) => setExpandedFolders((folders) => folders.includes(id) ? folders.filter((folderId) => folderId !== id) : [...folders, id]);
+  const selectedInstructor = instructors.find((instructor) => instructor.id === form.instructorId);
 
   if (loading) {
     return (
@@ -447,7 +455,7 @@ export default function AdminCourses() {
             {isExpanded && <div className="divide-y divide-surface-variant border-t border-surface-variant">
               {children.map((child) => <div key={child.id} className="flex flex-wrap items-center gap-3 px-4 py-3 pr-7 hover:bg-surface-low/60">
                 <GitBranch size={16} className="shrink-0 text-secondary" />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 text-xs text-outline">{child.instructor || "بدون مدرس"} · {child.price.toLocaleString("fa-IR")} تومان</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={child.instructor} avatar={child.instructorProfile?.avatar || child.instructorProfile?.user?.avatar} />{child.instructor || "بدون مدرس"}<span>· {child.price.toLocaleString("fa-IR")} تومان</span></p></div>
                 <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{child.published ? "منتشر شده" : "پیش‌نویس"}</span>
                 <div className="flex items-center gap-1"><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
               </div>)}
@@ -456,7 +464,7 @@ export default function AdminCourses() {
           </section>;
         })}
 
-        {standaloneCourses.length > 0 && <section className="overflow-hidden rounded-2xl border border-surface-variant bg-white shadow-sm"><div className="border-b border-surface-variant bg-surface-low px-4 py-3 text-sm font-bold text-primary">دوره‌های مستقل</div><div className="divide-y divide-surface-variant">{standaloneCourses.map((course) => <div key={course.id} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-low/60"><GitBranch size={17} className="shrink-0 text-outline" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{course.title}</p><p className="mt-0.5 text-xs text-outline">{course.instructor || "بدون مدرس"} · {course.price.toLocaleString("fa-IR")} تومان</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${course.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{course.published ? "منتشر شده" : "پیش‌نویس"}</span><div className="flex items-center gap-1"><button onClick={() => copyCourseLink(course.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div></div>)}</div></section>}
+        {standaloneCourses.length > 0 && <section className="overflow-hidden rounded-2xl border border-surface-variant bg-white shadow-sm"><div className="border-b border-surface-variant bg-surface-low px-4 py-3 text-sm font-bold text-primary">دوره‌های مستقل</div><div className="divide-y divide-surface-variant">{standaloneCourses.map((course) => <div key={course.id} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-low/60"><GitBranch size={17} className="shrink-0 text-outline" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{course.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={course.instructor} avatar={course.instructorProfile?.avatar || course.instructorProfile?.user?.avatar} />{course.instructor || "بدون مدرس"}<span>· {course.price.toLocaleString("fa-IR")} تومان</span></p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${course.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{course.published ? "منتشر شده" : "پیش‌نویس"}</span><div className="flex items-center gap-1"><button onClick={() => copyCourseLink(course.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div></div>)}</div></section>}
 
         {comprehensiveCourses.length === 0 && standaloneCourses.length === 0 && <div className="rounded-2xl border border-surface-variant bg-white p-10 text-center text-outline">هیچ دوره‌ای یافت نشد</div>}
       </div>
@@ -545,6 +553,7 @@ export default function AdminCourses() {
                     <option value="">انتخاب مدرس</option>
                     {instructors.map((instructor) => <option key={instructor.id} value={instructor.id}>{instructor.name || instructor.user?.name || "بدون نام"}</option>)}
                   </select>
+                  {selectedInstructor && <div className="mt-2 flex items-center gap-2 rounded-xl bg-surface-low px-3 py-2 text-sm text-primary"><InstructorAvatar name={selectedInstructor.name || selectedInstructor.user?.name} avatar={selectedInstructor.avatar || selectedInstructor.user?.avatar} /><span>{selectedInstructor.name || selectedInstructor.user?.name}</span></div>}
                   <Link href="/admin/users?create=instructor" className="mt-2 inline-block text-xs font-bold text-secondary hover:underline">استاد جدید است؟ ابتدا کاربر مدرس ایجاد کنید</Link>
                 </div>
                 <div>
