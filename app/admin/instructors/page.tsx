@@ -50,6 +50,7 @@ export default function AdminInstructors() {
     userId: "", name: "", bio: "", expertise: "", specialties: "", profileSlug: "", showOnSite: true, avatar: "",
   });
   const [manualMode, setManualMode] = useState(false);
+  const [specialtyInput, setSpecialtyInput] = useState("");
 
   // Merge state
   const [mergeDialog, setMergeDialog] = useState<{ manualInstructor: { name: string; userId?: string }; duplicates: UserData[] } | null>(null);
@@ -80,6 +81,7 @@ export default function AdminInstructors() {
     setForm({ userId: "", name: "", bio: "", expertise: "", specialties: "", profileSlug: "", showOnSite: true, avatar: "" });
     setEditingInstructor(null);
     setManualMode(false);
+    setSpecialtyInput("");
     setMergeDialog(null);
   };
 
@@ -101,6 +103,7 @@ export default function AdminInstructors() {
     });
     setEditingInstructor(instructor);
     setManualMode(!instructor.userId);
+    setSpecialtyInput("");
     setShowModal(true);
   };
 
@@ -201,6 +204,13 @@ export default function AdminInstructors() {
   const getInstructorName = (i: Instructor) => i.name || i.user?.name || "";
   const getInstructorEmail = (i: Instructor) => i.user?.email || "";
   const getInstructorAvatar = (i: Instructor) => i.avatar || i.user?.avatar || null;
+  const specialties = form.specialties.split(",").map((item) => item.trim().replace(/^#/, "")).filter(Boolean);
+  const addSpecialty = () => {
+    const value = specialtyInput.trim().replace(/^#/, "");
+    if (!value || specialties.includes(value)) { setSpecialtyInput(""); return; }
+    setForm((form) => ({ ...form, specialties: [...specialties, value].join(", ") }));
+    setSpecialtyInput("");
+  };
 
   const filtered = instructors.filter(
     (i) => getInstructorName(i).includes(search) || getInstructorEmail(i).includes(search) || i.expertise?.includes(search) || i.bio?.includes(search)
@@ -351,9 +361,11 @@ export default function AdminInstructors() {
 
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">حوزه تخصصی</label>
-                <textarea rows={2} value={form.specialties} onChange={(e) => setForm((p) => ({ ...p, specialties: e.target.value }))} placeholder="مثلاً فیلم‌سازی، تدوین، نویسندگی"
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
-                <p className="mt-1 text-xs text-outline">هر حوزه را با ویرگول جدا کنید؛ در پروفایل به شکل هشتگ نمایش داده می‌شود.</p>
+                <div className="rounded-xl border border-surface-variant bg-white p-2 focus-within:ring-2 focus-within:ring-secondary-fixed">
+                  <div className="flex flex-wrap gap-2">{specialties.map((specialty) => <span key={specialty} className="flex items-center gap-1 rounded-lg bg-secondary-fixed/30 px-2.5 py-1 text-sm font-bold text-secondary">#{specialty}<button type="button" onClick={() => setForm((form) => ({ ...form, specialties: specialties.filter((item) => item !== specialty).join(", ") }))} className="rounded p-0.5 hover:bg-white/70" title={`حذف ${specialty}`}><X size={13} /></button></span>)}</div>
+                  <input value={specialtyInput} onChange={(event) => setSpecialtyInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addSpecialty(); } }} onBlur={addSpecialty} placeholder={specialties.length ? "حوزه تخصصی دیگر را وارد کنید..." : "حوزه تخصصی را وارد کنید و Enter بزنید"} className="mt-1 w-full bg-transparent px-1 py-2 text-sm outline-none" />
+                </div>
+                <p className="mt-1 text-xs text-outline">پس از هر حوزه، Enter بزنید.</p>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
