@@ -344,6 +344,7 @@ export default function CourseDetailPage() {
                 {course._count.enrollments.toLocaleString("fa-IR")} دانشجو
               </span>
             </div>
+            {course.enrollments && course.enrollments.length > 0 && <div className="mb-8 flex flex-wrap items-center gap-2 rounded-2xl border border-secondary-fixed/60 bg-[#fffaf0] p-3"><span className="ml-1 text-xs font-bold text-secondary">دانشجویان این دوره:</span>{course.enrollments.slice(0, 6).map((enrollment) => <Link key={enrollment.id} href={`/profile/${enrollment.user.id}`} title={enrollment.user.name} className="group flex items-center gap-2 rounded-xl bg-white py-1 pl-3 pr-1 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-secondary-fixed text-primary">{enrollment.user.avatar ? <img src={enrollment.user.avatar} alt={enrollment.user.name} className="h-full w-full object-cover" /> : <User size={15} />}</span><span className="max-w-24 truncate text-xs font-bold text-primary">{enrollment.user.name}</span></Link>)}</div>}
 
             {course.courseType === "comprehensive" && (
               <ComprehensiveCoursePath
