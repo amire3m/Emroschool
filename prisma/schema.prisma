@@ -269,8 +269,8 @@ model CourseApplication {
   artHistory           String?
   educationLevel       String
   educationField       String
-  university           String
-  universityField      String
+  university           String?
+  universityField      String?
   reason               String
   knowsInstructors     Boolean  @default(false)
   familiarityDetails   String?
