@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import {
   Plus, Pencil, Trash2, Loader2, AlertCircle, Search, X, Check,
-  Calendar, Eye, EyeOff, ImageIcon, Merge, AlertTriangle,
+  Calendar, Eye, EyeOff, ImageIcon, Merge, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import Link from "next/link";
 
 interface Instructor {
   id: string;
@@ -280,6 +281,8 @@ export default function AdminInstructors() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-2 justify-end">
+                      <Link href={`/instructors/${instructor.profileSlug || instructor.id}`} target="_blank"
+                        className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="مشاهده پروفایل"><ExternalLink size={16} /></Link>
                       <button onClick={() => openEditModal(instructor)}
                         className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-colors" title="ویرایش"><Pencil size={16} /></button>
                       <button onClick={() => setDeleteTarget(instructor)}
