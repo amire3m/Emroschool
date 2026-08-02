@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
     if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
     const normalizedPhone = normalizeIranianMobile(body.phone);
     if (!isValidIranianMobile(normalizedPhone)) return NextResponse.json({ error: "شماره تلفن همراه واردشده معتبر نیست" }, { status: 400 });
+    const isTehran = body.province.trim() === "تهران" && body.city.trim() === "تهران";
+    if (isTehran && (typeof body.district !== "string" || !body.district.trim() || typeof body.neighborhood !== "string" || !body.neighborhood.trim())) return NextResponse.json({ error: "منطقه و محله محل سکونت در تهران را انتخاب کنید" }, { status: 400 });
     await ensureDiscountCodes();
     const discount = typeof body.discountGroup === "string" && body.discountGroup.trim()
       ? await findActiveDiscountCode(body.discountGroup)
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     const application = await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
-         name: fullName, email, phone, birthDate: body.birthDate.trim(), province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
+         name: fullName, email, phone, birthDate: body.birthDate.trim(), province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), instagramId: body.instagramId?.trim() || null,
         virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null, nationalCode,
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
       return tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
          birthDate: body.birthDate.trim(),
-         province: body.province.trim(), city: body.city.trim(), address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
+         province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), reason: body.reason.trim(),
         knowsInstructors: Boolean(body.knowsInstructors), familiarityDetails: body.knowsInstructors ? body.familiarityDetails.trim() : null,

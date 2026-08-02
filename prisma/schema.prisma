@@ -26,6 +26,8 @@ model User {
   birthDate String?
   province  String?
   city      String?
+  district  String?
+  neighborhood String?
   address   String?
   postalCode String?
   workHistory String?
@@ -257,6 +259,8 @@ model CourseApplication {
   birthDate            String?
   province             String
   city                 String
+  district             String?
+  neighborhood         String?
   address              String
   postalCode           String
   workHistory          String?

@@ -24,6 +24,8 @@ const initialForm = {
   birthDate: "",
   province: "",
   city: "",
+  district: "",
+  neighborhood: "",
   address: "",
   postalCode: "",
   workHistory: "",
@@ -60,6 +62,8 @@ export default function CourseRegistrationModal({
   const [discountGroups, setDiscountGroups] = useState<string[]>([]);
   const [discountGroup, setDiscountGroup] = useState("");
   const [discountDocument, setDiscountDocument] = useState<File | null>(null);
+  const [tehranDistricts, setTehranDistricts] = useState<Record<string, string[]>>({});
+  const isTehran = form.province === "تهران" && form.city === "تهران";
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const token = getCookie("token");
@@ -77,6 +81,8 @@ export default function CourseRegistrationModal({
             birthDate: user.birthDate || "",
             province: user.province || "",
             city: user.city || "",
+            district: user.district || "",
+            neighborhood: user.neighborhood || "",
             address: user.address || "",
             postalCode: user.postalCode || "",
             workHistory: user.workHistory || "",
@@ -106,6 +112,7 @@ export default function CourseRegistrationModal({
             : [],
         ),
       );
+    fetch("/api/tehran-neighborhoods").then((response) => response.json()).then((data) => setTehranDistricts(data.districts || {})).catch(() => {});
     return () => {
       document.body.style.overflow = "";
     };
@@ -124,6 +131,7 @@ export default function CourseRegistrationModal({
             "birthDate",
             "province",
             "city",
+            ...(isTehran ? ["district", "neighborhood"] : []),
             "address",
           ]
         : step === 2
@@ -304,9 +312,10 @@ export default function CourseRegistrationModal({
                     province={form.province}
                     city={form.city}
                     onChange={({ province, city }) =>
-                      setForm((current) => ({ ...current, province, city }))
+                      setForm((current) => ({ ...current, province, city, district: province === "تهران" && city === "تهران" ? current.district : "", neighborhood: province === "تهران" && city === "تهران" ? current.neighborhood : "" }))
                     }
                   />
+                  {isTehran && <><label className="text-sm font-bold text-primary">منطقه محل سکونت *<select value={form.district} onChange={(event) => setForm((current) => ({ ...current, district: event.target.value, neighborhood: "" }))} className={inputClass}><option value="">انتخاب منطقه</option>{Object.keys(tehranDistricts).map((district) => <option key={district} value={district}>{district}</option>)}</select></label><label className="text-sm font-bold text-primary">محله محل سکونت *<select value={form.neighborhood} disabled={!form.district} onChange={(event) => update("neighborhood", event.target.value)} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-surface-low`}><option value="">{form.district ? "انتخاب محله" : "ابتدا منطقه را انتخاب کنید"}</option>{(tehranDistricts[form.district] || []).map((neighborhood) => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}</select></label></>}
                   <label className="text-sm font-bold text-primary">
                     کد ملی *
                     <input

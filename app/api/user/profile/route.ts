@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
-        province: true, city: true, address: true, postalCode: true,
+        province: true, city: true, district: true, neighborhood: true, address: true, postalCode: true,
         workHistory: true, artHistory: true, educationLevel: true, educationField: true,
         instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
@@ -70,13 +70,15 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, birthDate, province, city, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
+    const { name, birthDate, province, city, district, neighborhood, address, postalCode, workHistory, artHistory, educationLevel, educationField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
     if (birthDate !== undefined) data.birthDate = birthDate || null;
     if (province !== undefined) data.province = province || null;
     if (city !== undefined) data.city = city || null;
+    if (district !== undefined) data.district = district || null;
+    if (neighborhood !== undefined) data.neighborhood = neighborhood || null;
     if (address !== undefined) data.address = address || null;
     if (postalCode !== undefined) data.postalCode = postalCode || null;
     if (workHistory !== undefined) data.workHistory = workHistory || null;
@@ -138,7 +140,7 @@ export async function PUT(req: NextRequest) {
         name: true,
         email: true,
          phone: true, phoneVerified: true, balePhone: true, emailVerified: true, birthDate: true,
-        province: true, city: true, address: true, postalCode: true,
+        province: true, city: true, district: true, neighborhood: true, address: true, postalCode: true,
         workHistory: true, artHistory: true, educationLevel: true, educationField: true,
         instagramId: true, virtualPhone: true, landline: true,
         avatar: true,
