@@ -65,6 +65,7 @@ export default function CourseRegistrationModal({
   const [saving, setSaving] = useState(false);
   const [discountGroups, setDiscountGroups] = useState<string[]>([]);
   const [discountGroup, setDiscountGroup] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
   const [discountDocument, setDiscountDocument] = useState<File | null>(null);
   const [tehranDistricts, setTehranDistricts] = useState<Record<string, string[]>>({});
   const [universities, setUniversities] = useState<string[]>([]);
@@ -197,7 +198,7 @@ export default function CourseRegistrationModal({
           "Content-Type": "application/json",
           authorization: `Bearer ${getCookie("token") || ""}`,
         },
-        body: JSON.stringify({ ...form, courseId, discountGroup, customResponses }),
+        body: JSON.stringify({ ...form, courseId, discountGroup, discountCode, customResponses }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "خطا در ارسال فرم");
@@ -457,6 +458,7 @@ export default function CourseRegistrationModal({
                         value={discountGroup}
                         onChange={(event) => {
                           setDiscountGroup(event.target.value);
+                          setDiscountCode("");
                           setDiscountDocument(null);
                         }}
                         className={inputClass}
@@ -500,6 +502,7 @@ export default function CourseRegistrationModal({
                         />
                       </label>
                     )}
+                    <label className="mt-4 block text-sm font-bold text-primary">کد تخفیف دارید؟<input value={discountCode} onChange={(event) => { setDiscountCode(event.target.value.toUpperCase()); setDiscountGroup(""); setDiscountDocument(null); }} placeholder="کد تخفیف را وارد کنید" dir="ltr" className={inputClass} /></label>
                   </div>
                   <label className="block text-sm font-bold text-primary">
                     دلیل انتخاب این دوره *

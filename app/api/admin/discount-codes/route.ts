@@ -19,7 +19,7 @@ function data(body: unknown) {
   const code = typeof value.code === "string" ? value.code.trim() : "";
   const label = typeof value.label === "string" ? value.label.trim() : "";
   const percent = typeof value.percent === "number" ? value.percent : Number(value.percent);
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(code) || !label || label.length > 120 || !Number.isInteger(percent) || percent < 0 || percent > 100) return null;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(code) || label.length > 120 || !Number.isInteger(percent) || percent < 0 || percent > 100) return null;
   return { code, label, percent, active: typeof value.active === "boolean" ? value.active : true, requiresDocument: typeof value.requiresDocument === "boolean" ? value.requiresDocument : true };
 }
 

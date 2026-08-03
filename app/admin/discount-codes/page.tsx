@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 
 type Discount = { id: string; label: string; code: string; percent: number; active: boolean; requiresDocument: boolean };
-const empty = { label: "", code: "", percent: 0, active: true, requiresDocument: true };
+const empty = { label: "", code: "", percent: 0, active: true, requiresDocument: false };
 
 export default function DiscountCodesPage() {
   const [items, setItems] = useState<Discount[]>([]); const [form, setForm] = useState(empty); const [editing, setEditing] = useState<string | null>(null); const [loading, setLoading] = useState(true); const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token")}` });

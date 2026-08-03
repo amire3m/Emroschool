@@ -67,10 +67,11 @@ export async function POST(req: NextRequest) {
     const isTehran = body.province.trim() === "تهران" && body.city.trim() === "تهران";
     if (isTehran && (typeof body.district !== "string" || !body.district.trim() || typeof body.neighborhood !== "string" || !body.neighborhood.trim())) return NextResponse.json({ error: "منطقه و محله محل سکونت در تهران را انتخاب کنید" }, { status: 400 });
     await ensureDiscountCodes();
-    const discount = typeof body.discountGroup === "string" && body.discountGroup.trim()
-      ? await findActiveDiscountCode(body.discountGroup)
-      : null;
-    if (typeof body.discountGroup === "string" && body.discountGroup.trim() && !discount) return NextResponse.json({ error: "گروه تخفیف معتبر نیست" }, { status: 400 });
+    const discountGroup = typeof body.discountGroup === "string" ? body.discountGroup.trim() : "";
+    const enteredDiscountCode = typeof body.discountCode === "string" ? body.discountCode.trim() : "";
+    if (discountGroup && enteredDiscountCode) return NextResponse.json({ error: "فقط گروه تخفیف یا کد تخفیف را انتخاب کنید" }, { status: 400 });
+    const discount = discountGroup ? await findActiveDiscountCode(discountGroup) : enteredDiscountCode ? await findActiveDiscountCode(enteredDiscountCode, true) : null;
+    if ((discountGroup || enteredDiscountCode) && !discount) return NextResponse.json({ error: discountGroup ? "گروه تخفیف معتبر نیست" : "کد تخفیف معتبر نیست" }, { status: 400 });
     const existingUser = await prisma.user.findUnique({ where: { id: token.id } });
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();

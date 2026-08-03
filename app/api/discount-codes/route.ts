@@ -6,7 +6,7 @@ export async function GET() {
   try {
     await ensureDiscountCodes();
     const discountCodes = await prisma.discountCode.findMany({
-      where: { active: true },
+      where: { active: true, label: { not: "" } },
       select: { label: true },
       orderBy: { label: "asc" },
     });
