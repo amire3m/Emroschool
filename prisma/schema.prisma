@@ -259,7 +259,7 @@ model PaymentSettings {
 
 model CourseApplication {
   id                   String   @id @default(cuid())
-  status               String   @default("pending_payment") // pending_payment | pending | approved | rejected
+  status               String   @default("pending") // pending | approved | rejected
   fullName             String
   email                String
   phone                String

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!applicationId) return NextResponse.json({ error: "اطلاعات پرداخت نامعتبر است" }, { status: 400 });
     const application = await prisma.courseApplication.findUnique({ where: { id: applicationId }, include: { course: true, paymentOrder: true } });
     if (!application || application.userId !== id) return NextResponse.json({ error: "درخواست ثبت‌نام پیدا نشد" }, { status: 404 });
-    if (application.status !== "pending_payment" || !application.course.published || application.course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این درخواست قابل پرداخت نیست" }, { status: 400 });
+    if (!['pending', 'pending_payment'].includes(application.status) || !application.course.published || application.course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این درخواست قابل پرداخت نیست" }, { status: 400 });
     const discount = application.discountCode ? await prisma.discountCode.findUnique({ where: { code: application.discountCode } }) : null;
     if (discount?.requiresDocument && !application.discountDocumentUrl) return NextResponse.json({ error: "بارگذاری مدرک تخفیف الزامی است" }, { status: 400 });
     if (application.paymentOrder) return NextResponse.json({ error: "برای این درخواست یک سفارش ثبت شده است" }, { status: 409 });

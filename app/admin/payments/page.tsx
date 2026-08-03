@@ -22,7 +22,7 @@ export default function PaymentsAdminPage() {
   const auth = () => ({ Authorization: `Bearer ${getCookie("token")}` });
   async function load() { const response = await fetch("/api/admin/payments", { headers: auth() }); const data = await response.json(); if (!response.ok) { toast.error(data.error || "دریافت پرداخت‌ها ناموفق بود"); return; } setOrders(data.orders || []); setSettings(data.settings || {}); setLoading(false); }
   async function loadDiscounts() { const response = await fetch("/api/admin/discount-codes", { headers: auth() }); const data = await response.json(); if (!response.ok) { toast.error(data.error || "دریافت کدها ناموفق بود"); return; } setDiscounts(data.discountCodes || []); }
-  async function loadApplications() { setApplicationsError(""); const response = await fetch("/api/course-applications?admin=1", { headers: auth() }); const data = await response.json(); if (!response.ok) { setApplicationsError(data.error || "دریافت درخواست‌ها ناموفق بود"); return; } setApplications((data.applications || []).filter((application: Application) => application.status === "pending_payment")); }
+  async function loadApplications() { setApplicationsError(""); const response = await fetch("/api/course-applications?admin=1", { headers: auth() }); const data = await response.json(); if (!response.ok) { setApplicationsError(data.error || "دریافت درخواست‌ها ناموفق بود"); return; } setApplications((data.applications || []).filter((application: Application) => ["pending", "pending_payment"].includes(application.status))); }
   useEffect(() => { load(); }, []);
   useEffect(() => { if (tab === "discounts") loadDiscounts(); }, [tab]);
   useEffect(() => { if (tab === "manual") loadApplications(); }, [tab]);

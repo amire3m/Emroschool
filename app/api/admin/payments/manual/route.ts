@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const order = await prisma.$transaction(async (tx) => {
       const application = await tx.courseApplication.findUnique({ where: { id: applicationId }, select: { id: true, status: true, userId: true, courseId: true, finalAmountTomans: true, paymentOrder: { select: { id: true } } } });
       if (!application) throw new Error("NOT_FOUND");
-      if (application.status !== "pending_payment" || application.paymentOrder) throw new Error("DUPLICATE");
+      if (!["pending", "pending_payment"].includes(application.status) || application.paymentOrder) throw new Error("DUPLICATE");
       const now = new Date();
       const created = await tx.paymentOrder.create({
         data: {

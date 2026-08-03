@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const application = await prisma.courseApplication.findUnique({ where: { id: params.id } });
     if (!application || application.userId !== user.id) return NextResponse.json({ error: "درخواست ثبت‌نام پیدا نشد" }, { status: 404 });
-    if (!application.discountCode || application.status !== "pending_payment") return NextResponse.json({ error: "این درخواست نیازی به مدرک تخفیف ندارد" }, { status: 400 });
+    if (!application.discountCode || !["pending", "pending_payment"].includes(application.status)) return NextResponse.json({ error: "این درخواست نیازی به مدرک تخفیف ندارد" }, { status: 400 });
     const file = (await req.formData()).get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "فایلی ارسال نشده است" }, { status: 400 });
     const ext = path.extname(file.name).toLowerCase();

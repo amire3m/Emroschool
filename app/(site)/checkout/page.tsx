@@ -82,7 +82,7 @@ export default function CheckoutPage() {
       );
       return;
     }
-    if (!application || application.status !== "pending_payment") {
+    if (!application || !["pending", "pending_payment"].includes(application.status)) {
       toast.error("این درخواست قابل پرداخت نیست");
       return;
     }

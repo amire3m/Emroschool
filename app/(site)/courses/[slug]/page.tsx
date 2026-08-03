@@ -490,7 +490,7 @@ export default function CourseDetailPage() {
                       <Play size={18} />
                       ادامه یادگیری
                     </button>
-                  ) : applicationStatus === "pending_payment" &&
+                  ) : ["pending", "pending_payment"].includes(applicationStatus || "") &&
                     applicationId ? (
                     <button
                       onClick={() =>

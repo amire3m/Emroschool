@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     if (course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
     const existingApplication = await prisma.courseApplication.findUnique({ where: { userId_courseId: { userId: token.id, courseId: body.courseId } } });
     if (existingApplication) {
-      if (existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
+      if (existingApplication.status === "pending" || existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
       return NextResponse.json({ error: "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
     }
     const savedForm = await prisma.registrationForm.findUnique({ where: { id: 1 } });
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
          instagramId: body.instagramId.trim(), virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null,
          discountCode: discount?.code || null, discountLabel: discount?.label || null, discountPercent: discount?.percent || 0,
          finalAmountTomans: Math.round(course.price * (100 - (discount?.percent || 0)) / 100),
-        formSchema: JSON.stringify(formSchema), customResponses: JSON.stringify(customResponses),
+        status: "pending", formSchema: JSON.stringify(formSchema), customResponses: JSON.stringify(customResponses),
       } });
     });
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
