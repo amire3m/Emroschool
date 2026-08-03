@@ -5,6 +5,7 @@ import { isValidIranianNationalCode, normalizeIranianNationalCode } from "@/lib/
 import { isValidIranianMobile, normalizeIranianMobile } from "@/lib/iranian-mobile";
 import { ensureDiscountCodes, findActiveDiscountCode } from "@/lib/discount-codes";
 import { mergeRegistrationForm, parseRegistrationForm } from "@/lib/registration-form";
+import { sendInitialCourseRegistrationNotification } from "@/lib/registration-notification";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
         status: "pending", formSchema: JSON.stringify(formSchema), customResponses: JSON.stringify(customResponses),
       } });
     });
+    await sendInitialCourseRegistrationNotification({ ...existingUser, name: fullName, email, phone }, course);
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
