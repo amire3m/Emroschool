@@ -167,6 +167,7 @@ export default function AdminCourses() {
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [instructorSearch, setInstructorSearch] = useState("");
   const [showInstructorMenu, setShowInstructorMenu] = useState(false);
+  const [instructorsChanged, setInstructorsChanged] = useState(false);
   const [studentCourse, setStudentCourse] = useState<{ title: string; students: Array<{ id: string; createdAt: string; user: { id: string; name: string; email: string; phone?: string | null; avatar?: string | null } }> } | null>(null);
 
   const [form, setForm] = useState({
@@ -243,6 +244,7 @@ export default function AdminCourses() {
       prerequisiteId: "",
     });
     setEditingCourse(null);
+    setInstructorsChanged(false);
   };
 
   const openCreateModal = () => {
@@ -297,6 +299,7 @@ export default function AdminCourses() {
       prerequisiteId: course.prerequisiteId || "",
     });
     setEditingCourse(course);
+    setInstructorsChanged(false);
     setShowModal(true);
   };
 
@@ -320,8 +323,7 @@ export default function AdminCourses() {
       description: form.description,
       price: Number(normalizePrice(form.price)) || 0,
       oldPrice: normalizePrice(form.oldPrice) ? Number(normalizePrice(form.oldPrice)) : null,
-      instructor: form.instructor || null,
-      instructorIds: form.instructorIds,
+      ...(!editingCourse || instructorsChanged ? { instructor: form.instructor || null, instructorIds: form.instructorIds } : {}),
       categoryId: selectedCategory?.id || null,
       categoryName: selectedCategory?.name || null,
       level: levelMap[form.level] || form.level || null,
@@ -577,12 +579,12 @@ export default function AdminCourses() {
                       {matchingInstructors.map((instructor) => {
                         const name = instructor.name || instructor.user?.name || "بدون نام";
                         const selected = form.instructorIds.includes(instructor.id);
-                        return <button type="button" key={instructor.id} onClick={() => { setForm((form) => ({ ...form, instructorIds: selected ? form.instructorIds.filter((id) => id !== instructor.id) : [...form.instructorIds, instructor.id] })); setInstructorSearch(""); setShowInstructorMenu(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-right text-sm transition hover:bg-surface-low ${selected ? "bg-secondary-fixed/40 text-primary" : "text-primary"}`}><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span className="min-w-0 flex-1 truncate font-medium">{name}</span>{selected && <Check size={16} className="text-secondary" />}</button>;
+                        return <button type="button" key={instructor.id} onClick={() => { setForm((form) => ({ ...form, instructorIds: selected ? form.instructorIds.filter((id) => id !== instructor.id) : [...form.instructorIds, instructor.id] })); setInstructorsChanged(true); setInstructorSearch(""); setShowInstructorMenu(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-right text-sm transition hover:bg-surface-low ${selected ? "bg-secondary-fixed/40 text-primary" : "text-primary"}`}><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span className="min-w-0 flex-1 truncate font-medium">{name}</span>{selected && <Check size={16} className="text-secondary" />}</button>;
                       })}
                       {matchingInstructors.length === 0 && <p className="p-3 text-center text-xs text-outline">مدرسی پیدا نشد</p>}
                     </div>}
                   </div>
-                  {selectedInstructors.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{selectedInstructors.map((instructor) => { const name = instructor.name || instructor.user?.name || "بدون نام"; return <span key={instructor.id} className="flex items-center gap-2 rounded-xl bg-surface-low px-2 py-1.5 text-sm text-primary"><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span>{name}</span><button type="button" onClick={() => setForm((form) => ({ ...form, instructorIds: form.instructorIds.filter((id) => id !== instructor.id) }))} className="rounded p-0.5 text-outline hover:bg-white hover:text-error" title={`حذف ${name}`}><X size={14} /></button></span>; })}</div>}
+                   {selectedInstructors.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{selectedInstructors.map((instructor) => { const name = instructor.name || instructor.user?.name || "بدون نام"; return <span key={instructor.id} className="flex items-center gap-2 rounded-xl bg-surface-low px-2 py-1.5 text-sm text-primary"><InstructorAvatar name={name} avatar={instructor.avatar || instructor.user?.avatar} /><span>{name}</span><button type="button" onClick={() => { setForm((form) => ({ ...form, instructorIds: form.instructorIds.filter((id) => id !== instructor.id) })); setInstructorsChanged(true); }} className="rounded p-0.5 text-outline hover:bg-white hover:text-error" title={`حذف ${name}`}><X size={14} /></button></span>; })}</div>}
                   <Link href="/admin/users?create=instructor" className="mt-2 inline-block text-xs font-bold text-secondary hover:underline">استاد جدید است؟ ابتدا کاربر مدرس ایجاد کنید</Link>
                 </div>
                 <div>
