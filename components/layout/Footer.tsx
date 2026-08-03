@@ -147,6 +147,20 @@ export default function Footer() {
           </div>
         </div>
 
+        <section className="mt-12 border-t border-white/10 pt-8">
+          <h5 className="text-center text-sm font-bold text-secondary-fixed">پیوندها</h5>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[
+              ["رسانه رهبر انقلاب اسلامی", "https://rahbar.ir"],
+              ["پایگاه اطلاع رسانی دفتر مقام معظم رهبری", "https://www.leader.ir/"],
+              ["وزارت فرهنگ و ارشاد اسلامی", "https://www.farhang.gov.ir/"],
+              ["پایگاه اطلاع رسانی ریاست جمهوری", "http://www.president.ir/"],
+              ["پایگاه اطلاع رسانی دولت", "https://dolat.ir/"],
+              ["پایگاه اطلاع رسانی دفتر حفظ و نشر آثار امام شهید", "https://khamenei.ir/"],
+            ].map(([label, href]) => <Link key={href} href={href} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/75 transition hover:border-secondary-fixed hover:text-secondary-fixed">{label}</Link>)}
+          </div>
+        </section>
+
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
            <div className="flex gap-6">
