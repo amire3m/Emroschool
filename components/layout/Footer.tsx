@@ -137,6 +137,19 @@ export default function Footer() {
                 </li>
               </ul>
             </div>
+            <div className="col-span-2 border-t border-white/10 pt-6">
+              <h5 className="mb-5 text-secondary-fixed font-bold">پیوندها</h5>
+              <ul className="grid gap-x-8 gap-y-3 text-sm opacity-80 sm:grid-cols-2">
+                {[
+                  ["رسانه رهبر انقلاب اسلامی", "https://rahbar.ir"],
+                  ["پایگاه اطلاع رسانی دفتر مقام معظم رهبری", "https://www.leader.ir/"],
+                  ["وزارت فرهنگ و ارشاد اسلامی", "https://www.farhang.gov.ir/"],
+                  ["پایگاه اطلاع رسانی ریاست جمهوری", "http://www.president.ir/"],
+                  ["پایگاه اطلاع رسانی دولت", "https://dolat.ir/"],
+                  ["پایگاه اطلاع رسانی دفتر حفظ و نشر آثار امام شهید", "https://khamenei.ir/"],
+                ].map(([label, href]) => <li key={href}><Link href={href} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-secondary-fixed">{label}</Link></li>)}
+              </ul>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -146,20 +159,6 @@ export default function Footer() {
               <a href="https://nshn.ir/7bvh24IxOOVa" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مسیریابی در نشان</a>
           </div>
         </div>
-
-        <section className="mt-12 border-t border-white/10 pt-8">
-          <h5 className="text-center text-sm font-bold text-secondary-fixed">پیوندها</h5>
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {[
-              ["رسانه رهبر انقلاب اسلامی", "https://rahbar.ir"],
-              ["پایگاه اطلاع رسانی دفتر مقام معظم رهبری", "https://www.leader.ir/"],
-              ["وزارت فرهنگ و ارشاد اسلامی", "https://www.farhang.gov.ir/"],
-              ["پایگاه اطلاع رسانی ریاست جمهوری", "http://www.president.ir/"],
-              ["پایگاه اطلاع رسانی دولت", "https://dolat.ir/"],
-              ["پایگاه اطلاع رسانی دفتر حفظ و نشر آثار امام شهید", "https://khamenei.ir/"],
-            ].map(([label, href]) => <Link key={href} href={href} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/75 transition hover:border-secondary-fixed hover:text-secondary-fixed">{label}</Link>)}
-          </div>
-        </section>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-60 text-sm">
           <p>© ۱۴۰۵ تمامی حقوق برای {siteName} محفوظ است.</p>
