@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (!name?.trim() || !email?.trim() || typeof password !== "string" || password.length < 6) {
       return NextResponse.json({ error: "نام، ایمیل و رمز عبور حداقل ۶ کاراکتری الزامی است" }, { status: 400 });
     }
-    if (!["student", "instructor", "alumni", "admin"].includes(userType)) return NextResponse.json({ error: "نوع کاربر نامعتبر است" }, { status: 400 });
+    if (!["student", "instructor", "alumni"].includes(userType)) return NextResponse.json({ error: "نوع کاربر نامعتبر است" }, { status: 400 });
 
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { name: name.trim(), email: email.trim().toLowerCase(), password: await hashPassword(password), userType, profileVisible: false } });

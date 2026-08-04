@@ -314,8 +314,11 @@ export default function AdminUsers() {
               {editTab === "contact" && <div className="grid gap-3 sm:grid-cols-2">{textField("phone", "شماره موبایل")}{textField("balePhone", "شماره بله")}{textField("landline", "تلفن ثابت")}{textField("virtualPhone", "تلفن مجازی")}{textField("province", "استان")}{textField("city", "شهر")}{textField("district", "منطقه")}{textField("neighborhood", "محله")}{textField("postalCode", "کدپستی")}{textField("address", "نشانی")}</div>}
               {editTab === "profile" && <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{textField("expertise", "تخصص")}{textField("instagramId", "شناسه اینستاگرام")}</div>{textField("bio", "معرفی")}{textField("socialLinks", "لینک‌های اجتماعی")}<div className="grid gap-3 sm:grid-cols-2">{toggleField("newsletterSubscribed", "خبرنامه", "دریافت خبرنامه")}{toggleField("notificationEmailEnabled", "اعلان ایمیلی", "ارسال اعلان به ایمیل")}{toggleField("notificationSmsEnabled", "اعلان پیامکی", "ارسال اعلان پیامکی")}{toggleField("notificationBaleEnabled", "اعلان بله", "ارسال اعلان در بله")}</div></div>}
               {editTab === "access" && <>
+              <div><label className="block text-sm font-medium text-primary mb-1">جایگاه اصلی</label><select value={String(editForm.userType)} onChange={(e) => setEditForm(p => ({ ...p, userType: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed"><option value="student">دانشجو</option><option value="instructor">مدرس</option><option value="alumni">فارغ‌التحصیل</option></select><p className="mt-1 text-xs text-outline">جایگاه آموزشی و نمایشی حساب، مستقل از دسترسی به پنل مدیریت است.</p></div>
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-surface-variant bg-surface-low p-4"><span><span className="block text-sm font-bold text-primary">دسترسی مدیریتی دارد</span><span className="mt-1 block text-xs text-outline">با فعال‌کردن، سطح دسترسی و مجوزهای پنل مدیریت قابل تنظیم است.</span></span><input type="checkbox" checked={editForm.role !== "user"} onChange={(event) => setEditForm((form) => ({ ...form, role: event.target.checked ? "admin" : "user", permissions: event.target.checked ? form.permissions : "" }))} className="h-5 w-5 accent-primary" /></label>
+              {editForm.role !== "user" && <>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">نقش سیستمی</label>
+                <label className="block text-sm font-medium text-primary mb-1">سطح دسترسی مدیریتی</label>
                 <select value={String(editForm.role)} onChange={(e) => setEditForm(p => ({ ...p, role: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed">
                   <option value="user">کاربر</option>
@@ -324,19 +327,9 @@ export default function AdminUsers() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">نوع کاربر</label>
-                <select value={String(editForm.userType)} onChange={(e) => setEditForm(p => ({ ...p, userType: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed">
-                  <option value="student">دانشجو</option>
-                  <option value="instructor">مدرس</option>
-                  <option value="alumni">فارغ‌التحصیل</option>
-                  <option value="admin">مدیر</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-primary mb-1">دسترسی‌ها (JSON Array)</label>
                 <div className="grid grid-cols-2 gap-2 rounded-xl border border-surface-variant p-3 sm:grid-cols-3">{[["courses", "دوره‌ها"], ["applications", "ثبت‌نام‌ها"], ["events", "رویدادها"], ["news", "اخبار"], ["instructors", "مدرس‌ها"], ["gallery", "گالری"], ["files", "فایل‌ها"], ["notifications", "اعلان‌ها"], ["users", "کاربران"], ["settings", "تنظیمات"], ["payments", "پرداخت‌ها"], ["discounts", "تخفیف"], ["support", "پشتیبانی"], ["impersonate", "ورود به حساب"]].map(([value, label]) => { let selected: string[] = []; try { selected = JSON.parse(String(editForm.permissions || "[]")); } catch {} return <label key={value} className="flex items-center gap-2 text-xs text-primary"><input type="checkbox" checked={selected.includes(value)} onChange={(event) => setEditForm((form) => ({ ...form, permissions: JSON.stringify(event.target.checked ? [...selected, value] : selected.filter((item) => item !== value)) }))} />{label}</label>; })}</div>
-              </div>
+              </div></>}
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
                 <div>
                   <label className="text-sm font-medium text-primary">پروفایل عمومی</label>

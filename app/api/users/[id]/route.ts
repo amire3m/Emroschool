@@ -11,7 +11,7 @@ async function getAdmin(token: string | null) {
 }
 
 const roles = ["user", "admin", "superadmin"];
-const userTypes = ["student", "instructor", "alumni", "admin"];
+const userTypes = ["student", "instructor", "alumni"];
 const allowedPermissions = ["courses", "applications", "events", "news", "instructors", "gallery", "files", "slider", "notifications", "users", "settings", "payments", "discounts", "support", "impersonate"];
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -41,8 +41,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       if (targetUser.role === "superadmin" && admin.role !== "superadmin") return NextResponse.json({ error: "فقط مدیر ارشد می‌تواند رمز مدیر ارشد را تغییر دهد" }, { status: 403 });
     }
 
+    const nextRole = role ?? targetUser.role;
     let normalizedPermissions: string | null | undefined;
-    if (permissions !== undefined) {
+    if (nextRole === "user") {
+      normalizedPermissions = null;
+    } else if (permissions !== undefined) {
       if (!permissions) {
         normalizedPermissions = null;
       } else {
