@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
         notificationSmsEnabled: true,
         notificationBaleEnabled: true,
         avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
+        enrollments: { orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true, progress: true, completed: true, course: { select: { id: true, title: true } } } },
+        courseApplications: { orderBy: { createdAt: "desc" }, select: { id: true, status: true, createdAt: true, discountCode: true, discountLabel: true, discountPercent: true, finalAmountTomans: true, course: { select: { id: true, title: true } } } },
         createdAt: true,
         _count: { select: { enrollments: true } },
       },
