@@ -147,7 +147,7 @@ export default function Footer() {
                   ["پایگاه اطلاع رسانی ریاست جمهوری", "http://www.president.ir/"],
                   ["پایگاه اطلاع رسانی دولت", "https://dolat.ir/"],
                   ["پایگاه اطلاع رسانی دفتر حفظ و نشر آثار امام شهید", "https://khamenei.ir/"],
-                ].map(([label, href]) => <li key={href}><Link href={href} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-secondary-fixed">{label}</Link></li>)}
+                ].map(([label, href]) => <li key={href}><Link href={href} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap text-xs transition-colors hover:text-secondary-fixed">{label}</Link></li>)}
               </ul>
             </div>
           </div>
