@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   BookOpen,
   User,
+  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -18,6 +19,7 @@ const menuItems = [
   { label: "داشبورد", href: "/dashboard", icon: LayoutDashboard },
   { label: "دوره‌های من", href: "/dashboard/courses", icon: BookOpen },
   { label: "پروفایل", href: "/dashboard/profile", icon: User },
+  { label: "پشتیبانی", href: "/dashboard/support", icon: MessageSquare },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

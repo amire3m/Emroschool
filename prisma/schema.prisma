@@ -65,6 +65,38 @@ model User {
   alumni        Alumni?
   avatarSubmissions AvatarSubmission[] @relation("AvatarOwner")
   reviewedAvatarSubmissions AvatarSubmission[] @relation("AvatarReviewer")
+  supportTickets SupportTicket[] @relation("SupportTicketOwner")
+  supportMessages SupportMessage[] @relation("SupportMessageAuthor")
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  number    String   @unique @default(cuid())
+  subject   String
+  status    String   @default("open") // open | waiting_for_user | waiting_for_support | closed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  closedAt  DateTime?
+
+  userId    String
+  user      User     @relation("SupportTicketOwner", fields: [userId], references: [id], onDelete: Cascade)
+  messages  SupportMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 model AvatarSubmission {
