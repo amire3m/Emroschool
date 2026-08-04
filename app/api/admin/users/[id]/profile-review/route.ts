@@ -22,14 +22,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   try {
     const { status, rejectionReason } = await req.json();
-    if (status !== "approved" && status !== "rejected") return NextResponse.json({ error: "وضعیت بررسی نامعتبر است" }, { status: 400 });
+    if (status !== "approved" && status !== "rejected" && status !== "pending") return NextResponse.json({ error: "وضعیت بررسی نامعتبر است" }, { status: 400 });
     const reason = typeof rejectionReason === "string" ? rejectionReason.trim() : "";
     if (status === "rejected" && (!reason || reason.length > 1000)) return NextResponse.json({ error: "دلیل رد پروفایل الزامی است و حداکثر ۱۰۰۰ کاراکتر دارد" }, { status: 400 });
     const user = await prisma.user.findUnique({ where: { id: params.id }, select: { id: true, name: true, email: true, notificationEmailEnabled: true } });
     if (!user) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     const updated = await prisma.user.update({
       where: { id: params.id },
-      data: { profileApprovalStatus: status, profileVisible: status === "approved", profileReviewedAt: new Date(), profileReviewerId: admin.id, profileRejectionReason: status === "rejected" ? reason : null },
+      data: status === "pending"
+        ? { profileApprovalStatus: "pending", profileVisible: false, profileReviewedAt: null, profileReviewerId: null, profileRejectionReason: null }
+        : { profileApprovalStatus: status, profileVisible: status === "approved", profileReviewedAt: new Date(), profileReviewerId: admin.id, profileRejectionReason: status === "rejected" ? reason : null },
       select: { id: true, profileApprovalStatus: true, profileVisible: true, profileReviewedAt: true, profileReviewerId: true },
     });
     if (status === "rejected") await sendProfileRejectionNotification(user, reason);
