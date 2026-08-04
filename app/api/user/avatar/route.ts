@@ -28,8 +28,12 @@ export async function POST(req: NextRequest) {
     const fileName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${extension}`;
     await writeFile(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));
     const url = `/uploads/profiles/${identifier}/avatar/${fileName}`;
-    await prisma.user.update({ where: { id: token.id }, data: { avatar: url, profileApprovalStatus: "pending", profileVisible: false, profileReviewedAt: null, profileReviewerId: null } });
-    return NextResponse.json({ url });
+    await prisma.$transaction(async (tx) => {
+      await tx.avatarSubmission.updateMany({ where: { userId: token.id, status: "pending" }, data: { status: "superseded" } });
+      return tx.avatarSubmission.create({ data: { userId: token.id, imageUrl: url } });
+    });
+    const submission = await prisma.avatarSubmission.findFirst({ where: { userId: token.id, imageUrl: url }, orderBy: { submittedAt: "desc" } });
+    return NextResponse.json({ url, submission, message: "تصویر برای بررسی ارسال شد" });
   } catch {
     return NextResponse.json({ error: "خطا در آپلود آواتار" }, { status: 500 });
   }

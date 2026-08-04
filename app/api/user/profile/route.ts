@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
          profileVisible: true,
          profileApprovalStatus: true,
          profileReviewedAt: true,
+         profileRejectionReason: true,
+         avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         permissions: true,
         createdAt: true,
       },
@@ -104,8 +106,9 @@ export async function PUT(req: NextRequest) {
     if (profileContentChanged) {
       data.profileApprovalStatus = "pending";
       data.profileVisible = false;
-      data.profileReviewedAt = null;
-      data.profileReviewerId = null;
+       data.profileReviewedAt = null;
+       data.profileReviewerId = null;
+       data.profileRejectionReason = null;
     }
     // Users cannot publish their own profile; approval is required even without a content edit.
     if (profileVisible === false) data.profileVisible = false;
@@ -154,6 +157,8 @@ export async function PUT(req: NextRequest) {
          profileVisible: true,
          profileApprovalStatus: true,
          profileReviewedAt: true,
+         profileRejectionReason: true,
+         avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         permissions: true,
       },
     });

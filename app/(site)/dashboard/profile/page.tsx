@@ -33,6 +33,9 @@ interface UserProfile {
   role: string;
   userType: string;
   profileVisible: boolean;
+  profileApprovalStatus: string;
+  profileRejectionReason?: string | null;
+  avatarSubmissions?: Array<{ id: string; imageUrl: string; status: string; rejectionReason?: string | null; submittedAt: string }>;
   newsletterSubscribed: boolean;
   notificationEmailEnabled: boolean;
   notificationSmsEnabled: boolean;
@@ -111,7 +114,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, ...details, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled: notificationChannel === "sms", notificationBaleEnabled: notificationChannel === "bale" };
+      const body: Record<string, unknown> = { name, ...details, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled: notificationChannel === "sms", notificationBaleEnabled: notificationChannel === "bale" };
       if (password) body.password = password;
 
       const res = await fetch("/api/user/profile", {
@@ -194,15 +197,17 @@ export default function ProfilePage() {
           {success}
         </div>
       )}
+      {profile?.profileApprovalStatus === "rejected" && profile.profileRejectionReason && <div className="mb-6 rounded-xl border border-error/30 bg-error-container p-4 text-sm leading-7 text-error"><b>پروفایل شما نیاز به اصلاح دارد.</b><br />دلیل بررسی: {profile.profileRejectionReason}<br /><span className="text-xs">پس از اصلاح و ذخیره اطلاعات، پروفایل دوباره برای بررسی ارسال می‌شود.</span></div>}
 
       <form
         onSubmit={handleSubmit}
         className="max-w-2xl bg-white rounded-2xl shadow-sm border border-outline-variant/30 p-6 md:p-8 space-y-6"
       >
         <div className="flex items-center gap-4 pb-6 border-b border-outline-variant/20">
-          <AvatarUpload value={avatar} onChange={setAvatar} />
+          <AvatarUpload value={profile?.avatarSubmissions?.[0]?.status === "pending" ? profile.avatarSubmissions[0].imageUrl : avatar} onChange={(url, submission) => { setAvatar(url); if (submission) setProfile((current) => current ? { ...current, avatarSubmissions: [submission] } : current); }} />
           <div><p className="font-bold text-primary">{profile?.name}</p><p className="text-outline text-sm">{profile?.email}</p></div>
         </div>
+        {profile?.avatarSubmissions?.[0] && <div className={`rounded-xl p-3 text-xs leading-6 ${profile.avatarSubmissions[0].status === "rejected" ? "bg-error-container text-error" : profile.avatarSubmissions[0].status === "pending" ? "bg-[#fff8e9] text-secondary" : "bg-surface-low text-outline"}`}>{profile.avatarSubmissions[0].status === "pending" ? "تصویر جدید شما در انتظار بررسی مدیر است و هنوز عمومی نشده است." : profile.avatarSubmissions[0].status === "rejected" ? <>تصویر پروفایل تایید نشد. دلیل: {profile.avatarSubmissions[0].rejectionReason || "نیاز به تصویر مناسب‌تر"}<br />می‌توانید تصویر جدیدی بارگذاری کنید.</> : null}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>

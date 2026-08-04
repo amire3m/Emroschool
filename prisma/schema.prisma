@@ -46,6 +46,7 @@ model User {
   socialLinks String?
   profileVisible Boolean @default(false)
   profileApprovalStatus String @default("pending") // pending | approved | rejected
+  profileRejectionReason String?
   profileReviewedAt DateTime?
   profileReviewerId String?
   permissions   String?                  // JSON array for content admins
@@ -62,6 +63,23 @@ model User {
   notifications UserNotification[]
   instructor    Instructor?
   alumni        Alumni?
+  avatarSubmissions AvatarSubmission[] @relation("AvatarOwner")
+  reviewedAvatarSubmissions AvatarSubmission[] @relation("AvatarReviewer")
+}
+
+model AvatarSubmission {
+  id              String   @id @default(cuid())
+  imageUrl        String
+  status          String   @default("pending") // pending | approved | rejected | superseded
+  rejectionReason String?
+  submittedAt     DateTime @default(now())
+  reviewedAt      DateTime?
+  userId          String
+  reviewerId      String?
+  user            User     @relation("AvatarOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer        User?    @relation("AvatarReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, submittedAt])
 }
 
 model VerificationCode {

@@ -18,7 +18,7 @@ interface UserData {
   profileReviewedAt: string | null;
   createdAt: string;
   enrollmentCount: number;
-  avatar: string | null; phone: string | null; bio: string | null; expertise: string | null; socialLinks: string | null; birthDate: string | null; gender: string | null; province: string | null; city: string | null; district: string | null; neighborhood: string | null; educationLevel: string | null; educationField: string | null; university: string | null; universityField: string | null; workHistory: string | null; artHistory: string | null; instagramId: string | null;
+  avatar: string | null; phone: string | null; bio: string | null; expertise: string | null; socialLinks: string | null; birthDate: string | null; gender: string | null; province: string | null; city: string | null; district: string | null; neighborhood: string | null; educationLevel: string | null; educationField: string | null; university: string | null; universityField: string | null; workHistory: string | null; artHistory: string | null; instagramId: string | null; profileRejectionReason?: string | null; avatarSubmissions?: Array<{ id: string; imageUrl: string; status: string; rejectionReason?: string | null; submittedAt: string }>;
 }
 
 const userTypeLabels: Record<string, string> = {
@@ -56,6 +56,7 @@ export default function AdminUsers() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [profileReviewUser, setProfileReviewUser] = useState<UserData | null>(null);
+  const [avatarReviewUser, setAvatarReviewUser] = useState<UserData | null>(null);
 
   const getToken = () => getCookie("token") || "";
 
@@ -129,14 +130,31 @@ export default function AdminUsers() {
   };
 
   const reviewProfile = async (user: UserData, status: "approved" | "rejected") => {
+    const rejectionReason = status === "rejected" ? window.prompt("دلیل رد پروفایل را برای کاربر بنویسید:")?.trim() : "";
+    if (status === "rejected" && !rejectionReason) return;
     setReviewingId(user.id);
     try {
-      const response = await fetch(`/api/admin/users/${user.id}/profile-review`, { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ status }) });
+      const response = await fetch(`/api/admin/users/${user.id}/profile-review`, { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ status, rejectionReason }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "بررسی پروفایل انجام نشد");
       toast.success(status === "approved" ? "پروفایل تایید شد" : "درخواست پروفایل رد شد");
       fetchUsers();
     } catch (err) { toast.error(err instanceof Error ? err.message : "بررسی پروفایل انجام نشد"); }
+    finally { setReviewingId(null); }
+  };
+  const reviewAvatar = async (user: UserData, status: "approved" | "rejected") => {
+    const submission = user.avatarSubmissions?.[0];
+    if (!submission) return;
+    const rejectionReason = status === "rejected" ? window.prompt("دلیل رد تصویر را برای کاربر بنویسید:")?.trim() : "";
+    if (status === "rejected" && !rejectionReason) return;
+    setReviewingId(user.id);
+    try {
+      const response = await fetch(`/api/admin/avatar-submissions/${submission.id}`, { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ status, rejectionReason }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "بررسی تصویر انجام نشد");
+      toast.success(status === "approved" ? "تصویر پروفایل تایید شد" : "تصویر پروفایل رد شد");
+      setAvatarReviewUser(null); fetchUsers();
+    } catch (err) { toast.error(err instanceof Error ? err.message : "بررسی تصویر انجام نشد"); }
     finally { setReviewingId(null); }
   };
 
@@ -261,6 +279,7 @@ export default function AdminUsers() {
                   <td className="p-3">
                     <div className="flex items-center gap-2 justify-end">
                       {user.profileApprovalStatus === "pending" && <button onClick={() => setProfileReviewUser(user)} className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-xs font-bold text-white" title="مشاهده و بررسی پروفایل"><Eye size={14} /><span className="hidden xl:inline">بررسی</span></button>}
+                      {user.avatarSubmissions?.[0]?.status === "pending" && <button onClick={() => setAvatarReviewUser(user)} className="rounded-lg border border-secondary px-2 py-1 text-xs font-bold text-secondary" title="بررسی تصویر پروفایل">تصویر</button>}
                       {user.role === "user" && <button onClick={() => impersonate(user)} disabled={impersonatingId === user.id} className="inline-flex items-center gap-1 rounded-lg border border-secondary px-2 py-1 text-xs font-bold text-secondary disabled:opacity-50" title="ورود به حساب کاربر">{impersonatingId === user.id ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}<span className="hidden xl:inline">ورود به حساب</span></button>}
                       <button onClick={() => openEdit(user)}
                         className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-colors" title="ویرایش">
@@ -345,6 +364,7 @@ export default function AdminUsers() {
         </div>
       )}
       {profileReviewUser && <div className="modal-overlay" onClick={() => !reviewingId && setProfileReviewUser(null)}><div className="modal-content max-w-3xl" onClick={(event) => event.stopPropagation()}><div className="mb-6 flex items-start justify-between gap-4"><div className="flex items-center gap-3">{profileReviewUser.avatar ? <img src={profileReviewUser.avatar} alt="" className="h-14 w-14 rounded-2xl object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed text-xl font-black text-primary">{profileReviewUser.name.charAt(0)}</span>}<div><p className="text-xs font-bold text-secondary">بررسی پروفایل عمومی</p><h2 className="mt-1 text-xl font-black text-primary">{profileReviewUser.name}</h2><p className="mt-1 text-xs text-outline">{profileReviewUser.email} {profileReviewUser.phone ? `· ${profileReviewUser.phone}` : ""}</p></div></div><button onClick={() => setProfileReviewUser(null)} disabled={Boolean(reviewingId)} className="p-2 text-outline"><X size={20} /></button></div><div className="grid gap-3 sm:grid-cols-2">{[["معرفی", profileReviewUser.bio], ["تخصص", profileReviewUser.expertise], ["استان و شهر", [profileReviewUser.province, profileReviewUser.city, profileReviewUser.district, profileReviewUser.neighborhood].filter(Boolean).join("، ")], ["تاریخ تولد و جنسیت", [profileReviewUser.birthDate ? new Date(profileReviewUser.birthDate).toLocaleDateString("fa-IR") : "", profileReviewUser.gender === "male" ? "مرد" : profileReviewUser.gender === "female" ? "زن" : ""].filter(Boolean).join("، ")], ["تحصیلات", [profileReviewUser.educationLevel, profileReviewUser.educationField, profileReviewUser.university, profileReviewUser.universityField].filter(Boolean).join("، ")], ["اینستاگرام", profileReviewUser.instagramId], ["سوابق کاری", profileReviewUser.workHistory], ["سوابق هنری و فرهنگی", profileReviewUser.artHistory], ["شبکه‌های اجتماعی", profileReviewUser.socialLinks]].filter(([, value]) => value).map(([label, value]) => <div key={String(label)} className={`rounded-xl border border-surface-variant bg-surface-low p-3 ${["معرفی", "سوابق کاری", "سوابق هنری و فرهنگی", "شبکه‌های اجتماعی"].includes(String(label)) ? "sm:col-span-2" : ""}`}><p className="text-[11px] text-outline">{label}</p><p className="mt-1 whitespace-pre-line text-sm leading-7 text-primary">{value}</p></div>)}</div><div className="mt-6 flex flex-wrap gap-3 border-t border-surface-variant pt-5"><button onClick={async () => { await reviewProfile(profileReviewUser, "approved"); setProfileReviewUser(null); }} disabled={reviewingId === profileReviewUser.id} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Check size={16} />تایید پروفایل</button><button onClick={async () => { await reviewProfile(profileReviewUser, "rejected"); setProfileReviewUser(null); }} disabled={reviewingId === profileReviewUser.id} className="rounded-xl bg-error px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">رد پروفایل</button></div></div></div>}
+      {avatarReviewUser?.avatarSubmissions?.[0]?.status === "pending" && <div className="modal-overlay" onClick={() => !reviewingId && setAvatarReviewUser(null)}><div className="modal-content max-w-md" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-start justify-between"><div><p className="text-xs font-bold text-secondary">بررسی تصویر پروفایل</p><h2 className="mt-1 text-lg font-black text-primary">{avatarReviewUser.name}</h2></div><button onClick={() => setAvatarReviewUser(null)} className="text-outline"><X size={20} /></button></div><img src={avatarReviewUser.avatarSubmissions[0].imageUrl} alt="تصویر پیشنهادی پروفایل" className="mx-auto max-h-80 rounded-3xl object-contain" /><p className="mt-4 text-xs leading-6 text-outline">با تایید، این تصویر در پروفایل عمومی نمایش داده می‌شود. با رد، پروفایل فرد می‌تواند بدون تصویر تایید شود.</p><div className="mt-5 flex gap-3"><button onClick={() => reviewAvatar(avatarReviewUser, "approved")} disabled={reviewingId === avatarReviewUser.id} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white"><Check size={16} />تایید تصویر</button><button onClick={() => reviewAvatar(avatarReviewUser, "rejected")} disabled={reviewingId === avatarReviewUser.id} className="rounded-xl bg-error px-5 py-2.5 text-sm font-bold text-white">رد تصویر</button></div></div></div>}
       {showCreate && <div className="modal-overlay" onClick={() => !saving && setShowCreate(false)}><div className="modal-content max-w-md" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h3 className="text-lg font-bold text-primary">ایجاد کاربر جدید</h3><button onClick={() => setShowCreate(false)} className="text-outline"><X size={20} /></button></div><div className="space-y-4"><div><label className="mb-1 block text-sm font-medium text-primary">نام و نام خانوادگی</label><input value={createForm.name} onChange={(event) => setCreateForm((form) => ({ ...form, name: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">ایمیل</label><input type="email" value={createForm.email} onChange={(event) => setCreateForm((form) => ({ ...form, email: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">رمز عبور</label><input type="password" minLength={6} value={createForm.password} onChange={(event) => setCreateForm((form) => ({ ...form, password: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm" /></div><div><label className="mb-1 block text-sm font-medium text-primary">نوع کاربر</label><select value={createForm.userType} onChange={(event) => setCreateForm((form) => ({ ...form, userType: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm"><option value="student">دانشجو</option><option value="instructor">مدرس</option></select><p className="mt-1 text-xs text-outline">با انتخاب مدرس، پروفایل استاد نیز خودکار ایجاد و قابل اتصال به دوره می‌شود.</p></div><button onClick={createUser} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={16} className="animate-spin" />}ایجاد کاربر</button></div></div></div>}
     </div>
   );

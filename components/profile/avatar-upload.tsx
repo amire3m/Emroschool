@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageEditor from "@/components/ui/image-editor";
 
-export default function AvatarUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+export default function AvatarUpload({ value, onChange }: { value: string; onChange: (url: string, submission?: { id: string; imageUrl: string; status: string; rejectionReason?: string | null; submittedAt: string }) => void }) {
   const [source, setSource] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -26,10 +26,10 @@ export default function AvatarUpload({ value, onChange }: { value: string; onCha
       const response = await fetch("/api/user/avatar", { method: "POST", headers: { authorization: `Bearer ${getCookie("token") || ""}` }, body: formData });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "خطا در آپلود آواتار");
-      onChange(`${data.url}?v=${Date.now()}`);
+      onChange(`${data.url}?v=${Date.now()}`, data.submission);
       window.dispatchEvent(new Event("profile-updated"));
       setSource("");
-      toast.success("آواتار با موفقیت ذخیره شد");
+      toast.success("تصویر برای بررسی ارسال شد");
     } catch (error) { toast.error(error instanceof Error ? error.message : "خطا در آپلود آواتار"); throw error; }
     finally { setUploading(false); }
   }
