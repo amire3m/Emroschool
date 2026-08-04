@@ -18,7 +18,7 @@ interface UserData {
   profileReviewedAt: string | null;
   createdAt: string;
   enrollmentCount: number;
-  avatar: string | null; phone: string | null; bio: string | null; expertise: string | null; socialLinks: string | null; birthDate: string | null; gender: string | null; province: string | null; city: string | null; district: string | null; neighborhood: string | null; educationLevel: string | null; educationField: string | null; university: string | null; universityField: string | null; workHistory: string | null; artHistory: string | null; instagramId: string | null; profileRejectionReason?: string | null; avatarSubmissions?: Array<{ id: string; imageUrl: string; status: string; rejectionReason?: string | null; submittedAt: string }>;
+  avatar: string | null; phone: string | null; balePhone: string | null; nationalCode: string | null; emailVerified: boolean; phoneVerified: boolean; bio: string | null; expertise: string | null; socialLinks: string | null; birthDate: string | null; gender: string | null; province: string | null; city: string | null; district: string | null; neighborhood: string | null; address: string | null; postalCode: string | null; educationLevel: string | null; educationField: string | null; university: string | null; universityField: string | null; workHistory: string | null; artHistory: string | null; instagramId: string | null; virtualPhone: string | null; landline: string | null; newsletterSubscribed: boolean; notificationEmailEnabled: boolean; notificationSmsEnabled: boolean; notificationBaleEnabled: boolean; profileRejectionReason?: string | null; avatarSubmissions?: Array<{ id: string; imageUrl: string; status: string; rejectionReason?: string | null; submittedAt: string }>;
 }
 
 const userTypeLabels: Record<string, string> = {
@@ -49,7 +49,8 @@ export default function AdminUsers() {
   const [filterType, setFilterType] = useState<string>("all");
   const [profileFilter, setProfileFilter] = useState<"all" | "pending">("all");
   const [editUser, setEditUser] = useState<UserData | null>(null);
-  const [editForm, setEditForm] = useState({ role: "", userType: "", permissions: "", profileVisible: true, password: "" });
+  const [editForm, setEditForm] = useState<Record<string, string | boolean>>({ role: "", userType: "", permissions: "", profileVisible: true, password: "" });
+  const [editTab, setEditTab] = useState<"identity" | "contact" | "profile" | "access">("identity");
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: "", email: "", password: "", userType: "student" });
@@ -101,8 +102,12 @@ export default function AdminUsers() {
       permissions: user.permissions || "",
       profileVisible: user.profileVisible,
       password: "",
+      name: user.name, email: user.email, phone: user.phone || "", balePhone: user.balePhone || "", nationalCode: user.nationalCode || "", birthDate: user.birthDate || "", gender: user.gender || "", province: user.province || "", city: user.city || "", district: user.district || "", neighborhood: user.neighborhood || "", address: user.address || "", postalCode: user.postalCode || "", educationLevel: user.educationLevel || "", educationField: user.educationField || "", university: user.university || "", universityField: user.universityField || "", workHistory: user.workHistory || "", artHistory: user.artHistory || "", instagramId: user.instagramId || "", virtualPhone: user.virtualPhone || "", landline: user.landline || "", bio: user.bio || "", expertise: user.expertise || "", socialLinks: user.socialLinks || "", newsletterSubscribed: user.newsletterSubscribed, notificationEmailEnabled: user.notificationEmailEnabled, notificationSmsEnabled: user.notificationSmsEnabled, notificationBaleEnabled: user.notificationBaleEnabled,
     });
+    setEditTab("identity");
   };
+  const textField = (field: string, label: string, type = "text") => <div><label className="mb-1 block text-sm font-medium text-primary">{label}</label><input type={type} value={String(editForm[field] || "")} onChange={(event) => setEditForm((form) => ({ ...form, [field]: event.target.value }))} className="w-full rounded-xl border border-surface-variant px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /></div>;
+  const toggleField = (field: string, label: string, hint: string) => <label className="flex cursor-pointer items-center justify-between rounded-xl border border-surface-variant bg-surface-low p-3"><span><span className="block text-sm font-medium text-primary">{label}</span><span className="mt-0.5 block text-xs text-outline">{hint}</span></span><input type="checkbox" checked={Boolean(editForm[field])} onChange={(event) => setEditForm((form) => ({ ...form, [field]: event.target.checked }))} className="h-4 w-4 accent-primary" /></label>;
 
   const saveEdit = async () => {
     if (!editUser) return;
@@ -304,14 +309,14 @@ export default function AdminUsers() {
               <button onClick={() => setEditUser(null)} className="text-outline hover:text-primary p-1"><X size={20} /></button>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">ایمیل</label>
-                <input type="text" value={editUser.email} disabled
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm bg-surface-low text-outline" />
-              </div>
+              <div className="flex flex-wrap gap-2 border-b border-surface-variant pb-3">{[["identity", "هویت و تحصیل"], ["contact", "تماس و نشانی"], ["profile", "پروفایل و اعلان"], ["access", "دسترسی و امنیت"]].map(([tab, label]) => <button key={tab} type="button" onClick={() => setEditTab(tab as typeof editTab)} className={`rounded-lg px-3 py-2 text-xs font-bold ${editTab === tab ? "bg-primary text-white" : "bg-surface-low text-outline"}`}>{label}</button>)}</div>
+              {editTab === "identity" && <div className="grid gap-3 sm:grid-cols-2">{textField("name", "نام و نام خانوادگی")}{textField("email", "ایمیل", "email")}<p className="sm:col-span-2 text-xs text-outline">ایمیل ثبت‌شده توسط مدیر، تاییدشده محسوب می‌شود.</p>{textField("nationalCode", "کد ملی")}{textField("birthDate", "تاریخ تولد")}{textField("gender", "جنسیت")}{textField("educationLevel", "مقطع تحصیلی")}{textField("educationField", "رشته تحصیلی")}{textField("university", "دانشگاه")}{textField("universityField", "رشته دانشگاهی")}{textField("workHistory", "سابقه کاری")}{textField("artHistory", "سابقه هنری")}</div>}
+              {editTab === "contact" && <div className="grid gap-3 sm:grid-cols-2">{textField("phone", "شماره موبایل")}{textField("balePhone", "شماره بله")}{textField("landline", "تلفن ثابت")}{textField("virtualPhone", "تلفن مجازی")}{textField("province", "استان")}{textField("city", "شهر")}{textField("district", "منطقه")}{textField("neighborhood", "محله")}{textField("postalCode", "کدپستی")}{textField("address", "نشانی")}</div>}
+              {editTab === "profile" && <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{textField("expertise", "تخصص")}{textField("instagramId", "شناسه اینستاگرام")}</div>{textField("bio", "معرفی")}{textField("socialLinks", "لینک‌های اجتماعی")}<div className="grid gap-3 sm:grid-cols-2">{toggleField("newsletterSubscribed", "خبرنامه", "دریافت خبرنامه")}{toggleField("notificationEmailEnabled", "اعلان ایمیلی", "ارسال اعلان به ایمیل")}{toggleField("notificationSmsEnabled", "اعلان پیامکی", "ارسال اعلان پیامکی")}{toggleField("notificationBaleEnabled", "اعلان بله", "ارسال اعلان در بله")}</div></div>}
+              {editTab === "access" && <>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">نقش سیستمی</label>
-                <select value={editForm.role} onChange={(e) => setEditForm(p => ({ ...p, role: e.target.value }))}
+                <select value={String(editForm.role)} onChange={(e) => setEditForm(p => ({ ...p, role: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed">
                   <option value="user">کاربر</option>
                   <option value="admin">ادمین</option>
@@ -320,7 +325,7 @@ export default function AdminUsers() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">نوع کاربر</label>
-                <select value={editForm.userType} onChange={(e) => setEditForm(p => ({ ...p, userType: e.target.value }))}
+                <select value={String(editForm.userType)} onChange={(e) => setEditForm(p => ({ ...p, userType: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed">
                   <option value="student">دانشجو</option>
                   <option value="instructor">مدرس</option>
@@ -330,10 +335,7 @@ export default function AdminUsers() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">دسترسی‌ها (JSON Array)</label>
-                <input type="text" value={editForm.permissions} onChange={(e) => setEditForm(p => ({ ...p, permissions: e.target.value }))}
-                  placeholder='["courses", "events"]'
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed font-mono" />
-                <p className="text-xs text-outline mt-1">مقادیر مجاز: courses, applications, events, news, instructors, gallery, files, slider, notifications, users, settings, payments, support, impersonate</p>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-surface-variant p-3 sm:grid-cols-3">{[["courses", "دوره‌ها"], ["applications", "ثبت‌نام‌ها"], ["events", "رویدادها"], ["news", "اخبار"], ["instructors", "مدرس‌ها"], ["gallery", "گالری"], ["files", "فایل‌ها"], ["notifications", "اعلان‌ها"], ["users", "کاربران"], ["settings", "تنظیمات"], ["payments", "پرداخت‌ها"], ["discounts", "تخفیف"], ["support", "پشتیبانی"], ["impersonate", "ورود به حساب"]].map(([value, label]) => { let selected: string[] = []; try { selected = JSON.parse(String(editForm.permissions || "[]")); } catch {} return <label key={value} className="flex items-center gap-2 text-xs text-primary"><input type="checkbox" checked={selected.includes(value)} onChange={(event) => setEditForm((form) => ({ ...form, permissions: JSON.stringify(event.target.checked ? [...selected, value] : selected.filter((item) => item !== value)) }))} />{label}</label>; })}</div>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
                 <div>
@@ -345,7 +347,7 @@ export default function AdminUsers() {
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.profileVisible ? "translate-x-6" : "translate-x-0.5"}`} />
                 </button>
               </div>
-              <div><label className="block text-sm font-medium text-primary mb-1">رمز عبور جدید</label><input type="password" value={editForm.password} onChange={(e) => setEditForm((current) => ({ ...current, password: e.target.value }))} minLength={6} placeholder="برای حفظ رمز فعلی خالی بگذارید" className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /><p className="text-xs text-outline mt-1">حداقل ۶ کاراکتر؛ مدیر می‌تواند برای کاربر رمز جدید تعیین کند.</p></div>
+              <div><label className="block text-sm font-medium text-primary mb-1">رمز عبور جدید</label><input type="password" value={String(editForm.password)} onChange={(e) => setEditForm((current) => ({ ...current, password: e.target.value }))} minLength={6} placeholder="برای حفظ رمز فعلی خالی بگذارید" className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /><p className="text-xs text-outline mt-1">حداقل ۶ کاراکتر؛ مدیر می‌تواند برای کاربر رمز جدید تعیین کند.</p></div></>}
               <div className="flex items-center gap-3 pt-2">
                 <button onClick={saveEdit} disabled={saving}
                   className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">

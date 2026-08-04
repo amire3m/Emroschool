@@ -67,6 +67,20 @@ model User {
   reviewedAvatarSubmissions AvatarSubmission[] @relation("AvatarReviewer")
   supportTickets SupportTicket[] @relation("SupportTicketOwner")
   supportMessages SupportMessage[] @relation("SupportMessageAuthor")
+  auditLogs UserAuditLog[] @relation("UserAuditActor")
+}
+
+model UserAuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  fields    String
+  createdAt DateTime @default(now())
+
+  targetUserId String
+  actorId      String
+  actor        User     @relation("UserAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([targetUserId, createdAt])
 }
 
 model SupportTicket {
@@ -137,6 +151,8 @@ model Instructor {
   profileSlug String? @unique
   avatar     String?
   showOnSite Boolean  @default(true)
+  archivedAt DateTime?
+  archivedUserId String? @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -430,6 +446,8 @@ model Alumni {
   achievements String?
   order        Int      @default(0)
   showOnSite   Boolean  @default(true)
+  archivedAt   DateTime?
+  archivedUserId String? @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

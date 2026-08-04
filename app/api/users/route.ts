@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { hashPassword, isAdminRole, verifyToken } from "@/lib/auth";
+import { getUserFromToken, hashPassword } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -8,16 +8,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "توکن معتبر نیست" }, { status: 401 });
   }
 
-  const payload = verifyToken(authHeader.slice(7));
-  if (!payload || !isAdminRole(payload.role)) {
+  const payload = await getUserFromToken(authHeader.slice(7));
+  if (!payload || !["admin", "superadmin"].includes(payload.role)) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
+  if (payload.role !== "superadmin" && payload.permissions) { try { const permissions = JSON.parse(payload.permissions); if (Array.isArray(permissions) && permissions.length && !permissions.includes("users")) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } catch { return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } }
 
   try {
     const users = await prisma.user.findMany({
       select: {
         id: true,
         email: true,
+        emailVerified: true,
         name: true,
         role: true,
         userType: true,
@@ -28,6 +30,9 @@ export async function GET(req: NextRequest) {
         profileRejectionReason: true,
         avatar: true,
         phone: true,
+        balePhone: true,
+        nationalCode: true,
+        phoneVerified: true,
         bio: true,
         expertise: true,
         socialLinks: true,
@@ -37,6 +42,8 @@ export async function GET(req: NextRequest) {
         city: true,
         district: true,
         neighborhood: true,
+        address: true,
+        postalCode: true,
         educationLevel: true,
         educationField: true,
         university: true,
@@ -44,6 +51,12 @@ export async function GET(req: NextRequest) {
         workHistory: true,
         artHistory: true,
         instagramId: true,
+        virtualPhone: true,
+        landline: true,
+        newsletterSubscribed: true,
+        notificationEmailEnabled: true,
+        notificationSmsEnabled: true,
+        notificationBaleEnabled: true,
         avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         createdAt: true,
         _count: { select: { enrollments: true } },
@@ -51,39 +64,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = users.map((user) => ({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      userType: user.userType,
-      permissions: user.permissions,
-      profileVisible: user.profileVisible,
-      profileApprovalStatus: user.profileApprovalStatus,
-      profileReviewedAt: user.profileReviewedAt,
-      profileRejectionReason: user.profileRejectionReason,
-      avatar: user.avatar,
-      phone: user.phone,
-      bio: user.bio,
-      expertise: user.expertise,
-      socialLinks: user.socialLinks,
-      birthDate: user.birthDate,
-      gender: user.gender,
-      province: user.province,
-      city: user.city,
-      district: user.district,
-      neighborhood: user.neighborhood,
-      educationLevel: user.educationLevel,
-      educationField: user.educationField,
-      university: user.university,
-      universityField: user.universityField,
-      workHistory: user.workHistory,
-      artHistory: user.artHistory,
-      instagramId: user.instagramId,
-      avatarSubmissions: user.avatarSubmissions,
-      createdAt: user.createdAt,
-      enrollmentCount: user._count.enrollments,
-    }));
+    const result = users.map(({ _count, ...user }) => ({ ...user, enrollmentCount: _count.enrollments }));
 
     return NextResponse.json({ users: result });
   } catch (error) {
@@ -93,8 +74,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  const payload = authHeader?.startsWith("Bearer ") ? verifyToken(authHeader.slice(7)) : null;
-  if (!payload || !isAdminRole(payload.role)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+  const payload = authHeader?.startsWith("Bearer ") ? await getUserFromToken(authHeader.slice(7)) : null;
+  if (!payload || !["admin", "superadmin"].includes(payload.role)) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
+  if (payload.role !== "superadmin" && payload.permissions) { try { const permissions = JSON.parse(payload.permissions); if (Array.isArray(permissions) && permissions.length && !permissions.includes("users")) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } catch { return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 }); } }
 
   try {
     const { name, email, password, userType = "student" } = await req.json();
