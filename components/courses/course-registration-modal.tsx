@@ -71,7 +71,6 @@ export default function CourseRegistrationModal({
   const [universities, setUniversities] = useState<string[]>([]);
   const [universitySearch, setUniversitySearch] = useState("");
   const [showUniversities, setShowUniversities] = useState(false);
-  const [profileComplete, setProfileComplete] = useState(false);
   const [formSchema, setFormSchema] = useState<RegistrationFormSchema>(defaultRegistrationForm);
   const [customResponses, setCustomResponses] = useState<Record<string, string>>({});
   const [customFiles, setCustomFiles] = useState<Record<string, File | null>>({});
@@ -111,7 +110,6 @@ export default function CourseRegistrationModal({
             virtualPhone: user.virtualPhone || user.phone || "",
             landline: user.landline || "",
           });
-        if (user && [user.name, user.email, user.phone, user.nationalCode, user.birthDate, user.gender, user.province, user.city, user.address, user.educationLevel, user.educationField, user.university, user.universityField, user.workHistory, user.artHistory, user.instagramId, user.virtualPhone].every((value) => typeof value === "string" && value.trim())) { setProfileComplete(true); setStep(3); }
       })
       .finally(() => setLoading(false));
     fetch("/api/discount-codes")
@@ -256,7 +254,7 @@ export default function CourseRegistrationModal({
             <X size={21} />
           </button>
         </div>
-        {!profileComplete && <div className="px-6 md:px-8 pt-6">
+        <div className="px-6 md:px-8 pt-6">
           <div className="flex items-center gap-2">
             {formSchema.steps.map((item, index) => { const number = index + 1; return (
               <div key={number} className="flex-1">
@@ -271,7 +269,7 @@ export default function CourseRegistrationModal({
               </div>
             ); })}
           </div>
-        </div>}
+        </div>
         <div className="p-6 md:p-8">
           {loading ? (
             <div className="py-20 flex justify-center">
@@ -279,7 +277,6 @@ export default function CourseRegistrationModal({
             </div>
           ) : (
             <>
-              {profileComplete && step === 3 && <div className="mb-5 rounded-xl bg-secondary-fixed/30 p-3 text-xs leading-6 text-secondary">اطلاعات شخصی و تحصیلی شما از پروفایل قبلی استفاده می‌شود و نیازی به تکمیل دوباره آن‌ها نیست.</div>}
                 {step === 1 && (
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 rounded-xl bg-secondary-fixed/30 text-secondary p-3 text-xs leading-6">
@@ -592,12 +589,12 @@ export default function CourseRegistrationModal({
               <div className="flex justify-between gap-3 mt-7 pt-5 border-t border-surface-variant">
                 <button
                   type="button"
-                  onClick={() => profileComplete || step === 1 ? onClose() : setStep((current) => current - 1)}
+                  onClick={() => step === 1 ? onClose() : setStep((current) => current - 1)}
                   disabled={saving}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-surface-variant text-sm text-outline"
                 >
                   <ArrowRight size={16} />
-                  {profileComplete || step === 1 ? "انصراف" : "مرحله قبل"}
+                  {step === 1 ? "انصراف" : "مرحله قبل"}
                 </button>
                 {step < formSchema.steps.length ? (
                   <button
