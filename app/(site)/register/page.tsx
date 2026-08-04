@@ -178,6 +178,8 @@ export default function RegisterPage() {
                 />
                 <input
                   type="text"
+                  name="name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -196,7 +198,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-sm font-bold text-primary mb-2">شماره موبایل</label>
-              <div className="relative"><Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none" /><input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" placeholder="09123456789" className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none" /></div>
+              <div className="relative"><Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none" /><input type="tel" name="tel" autoComplete="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" placeholder="09123456789" className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none" /></div>
               <p className="mt-1 text-xs text-outline">برای تکمیل ثبت‌نام، روش تأیید را در مرحله بعد انتخاب می‌کنید.</p>
             </div>
 
@@ -211,6 +213,8 @@ export default function RegisterPage() {
                 />
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -232,6 +236,8 @@ export default function RegisterPage() {
                 />
                 <input
                   type={showPass ? "text" : "password"}
+                  name="newPassword"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -260,6 +266,8 @@ export default function RegisterPage() {
                 />
                 <input
                   type={showConfirm ? "text" : "password"}
+                  name="confirmPassword"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required

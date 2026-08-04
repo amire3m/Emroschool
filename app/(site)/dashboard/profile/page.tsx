@@ -216,6 +216,8 @@ export default function ProfilePage() {
             </label>
             <input
               type="text"
+              name="name"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
@@ -229,6 +231,8 @@ export default function ProfilePage() {
             </label>
             <input
               type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
@@ -242,7 +246,9 @@ export default function ProfilePage() {
               تلفن
             </label>
             <input
-              type="text"
+              type="tel"
+              name="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none"
@@ -267,8 +273,8 @@ export default function ProfilePage() {
         <div className="border-t border-outline-variant/20 pt-6 space-y-5">
           <div><h3 className="font-bold text-primary">اطلاعات تکمیلی ثبت‌نام</h3><p className="text-xs text-outline mt-1">این اطلاعات در فرم دوره‌ها به‌صورت خودکار تکمیل می‌شود.</p></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {[{ key: "province", label: "استان" }, { key: "city", label: "شهر" }, { key: "postalCode", label: "کد پستی" }, { key: "educationLevel", label: "مقطع تحصیلی" }, { key: "educationField", label: "رشته تحصیلی" }, { key: "instagramId", label: "آیدی اینستاگرام" }, { key: "virtualPhone", label: "شماره فعال در فضای مجازی" }, { key: "landline", label: "تلفن ثابت" }].map((item) => <div key={item.key}><label className="block text-sm font-bold text-primary mb-1.5">{item.label}</label><input value={details[item.key as keyof typeof details]} onChange={(e) => setDetails((current) => ({ ...current, [item.key]: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>)}
-            <div className="md:col-span-2"><label className="block text-sm font-bold text-primary mb-1.5">آدرس محل سکونت</label><textarea rows={2} value={details.address} onChange={(e) => setDetails((current) => ({ ...current, address: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
+            {[{ key: "province", label: "استان", autoComplete: "address-level1" }, { key: "city", label: "شهر", autoComplete: "address-level2" }, { key: "postalCode", label: "کد پستی", autoComplete: "postal-code" }, { key: "educationLevel", label: "مقطع تحصیلی", autoComplete: "off" }, { key: "educationField", label: "رشته تحصیلی", autoComplete: "off" }, { key: "instagramId", label: "آیدی اینستاگرام", autoComplete: "off" }, { key: "virtualPhone", label: "شماره فعال در فضای مجازی", autoComplete: "tel" }, { key: "landline", label: "تلفن ثابت", autoComplete: "tel" }].map((item) => <div key={item.key}><label className="block text-sm font-bold text-primary mb-1.5">{item.label}</label><input name={item.key} autoComplete={item.autoComplete} value={details[item.key as keyof typeof details]} onChange={(e) => setDetails((current) => ({ ...current, [item.key]: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>)}
+            <div className="md:col-span-2"><label className="block text-sm font-bold text-primary mb-1.5">آدرس محل سکونت</label><textarea name="address" autoComplete="street-address" rows={2} value={details.address} onChange={(e) => setDetails((current) => ({ ...current, address: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
             <div><label className="block text-sm font-bold text-primary mb-1.5">سوابق کاری</label><textarea rows={3} value={details.workHistory} onChange={(e) => setDetails((current) => ({ ...current, workHistory: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
             <div><label className="block text-sm font-bold text-primary mb-1.5">سوابق هنری</label><textarea rows={3} value={details.artHistory} onChange={(e) => setDetails((current) => ({ ...current, artHistory: e.target.value }))} className="w-full bg-surface border border-outline-variant rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-secondary focus:outline-none" /></div>
           </div>
@@ -350,6 +356,8 @@ export default function ProfilePage() {
               </label>
               <input
                 type="password"
+                name="newPassword"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="ترجیحاً حداقل ۸ کاراکتر"
@@ -362,6 +370,8 @@ export default function ProfilePage() {
               </label>
               <input
                 type="password"
+                name="confirmPassword"
+                autoComplete="new-password"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 placeholder="تکرار کلمه عبور جدید"
@@ -371,7 +381,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {contactVerification && <div className="rounded-2xl border border-secondary-fixed bg-[#fff8e9] p-4"><p className="text-sm font-bold text-primary">کد تأیید {contactVerification.method === "bale" ? "بله" : contactVerification.method === "sms" ? "پیامکی" : contactVerification.method === "call" ? "تماس تلفنی" : "ایمیل"} را وارد کنید</p><div className="mt-3 flex gap-3"><input autoFocus inputMode="numeric" maxLength={6} value={contactVerification.code} onChange={(event) => setContactVerification((current) => current ? { ...current, code: event.target.value.replace(/\D/g, "") } : current)} className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-white px-3 py-2.5 text-center text-lg font-bold tracking-[.4em]" dir="ltr" /><button type="button" onClick={confirmContactCode} disabled={saving || contactVerification.code.length !== 6} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">تأیید</button></div></div>}
+        {contactVerification && <div className="rounded-2xl border border-secondary-fixed bg-[#fff8e9] p-4"><p className="text-sm font-bold text-primary">کد تأیید {contactVerification.method === "bale" ? "بله" : contactVerification.method === "sms" ? "پیامکی" : contactVerification.method === "call" ? "تماس تلفنی" : "ایمیل"} را وارد کنید</p><div className="mt-3 flex gap-3"><input autoFocus name="oneTimeCode" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={contactVerification.code} onChange={(event) => setContactVerification((current) => current ? { ...current, code: event.target.value.replace(/\D/g, "") } : current)} className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-white px-3 py-2.5 text-center text-lg font-bold tracking-[.4em]" dir="ltr" /><button type="button" onClick={confirmContactCode} disabled={saving || contactVerification.code.length !== 6} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">تأیید</button></div></div>}
 
         <button
           type="submit"
