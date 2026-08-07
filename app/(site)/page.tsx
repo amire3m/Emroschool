@@ -123,7 +123,7 @@ function AnimatedSection({
     <div
       ref={ref}
       style={{ order }}
-      className={`${className} transition-all duration-700 ${
+      className={`${className} transition-[opacity,transform] duration-700 ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
       }`}
     >

@@ -26,9 +26,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="text-right">
              <div className="flex items-center justify-end mb-6">
-               <svg viewBox="330 610 1380 790" role="img" aria-label="آکادمی هنر و رسانه امام روح‌الله" className="h-16 w-auto max-w-[170px] overflow-visible">
-                  <image href={footerLogo} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
-               </svg>
+               <img src={footerLogo} alt="آکادمی هنر و رسانه امام روح‌الله" width={170} height={65} loading="lazy" decoding="async" className="h-16 w-auto max-w-[170px] object-contain" />
             </div>
             <p className="text-sm leading-loose opacity-80 mb-8">
               {siteName}، نهادی تخصصی برای تربیت نیروی
