@@ -55,36 +55,42 @@
   font-family: Ray;
   font-style: normal;
   font-weight: 300;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray_Light.ttf') format('truetype');
 }
 @font-face {
   font-family: Ray;
   font-style: normal;
   font-weight: 500;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray-Medium.ttf') format('truetype');
 }
 @font-face {
   font-family: Ray;
   font-style: normal;
   font-weight: 700;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray_Bold.ttf') format('truetype');
 }
 @font-face {
   font-family: Ray;
   font-style: normal;
   font-weight: 800;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray_ExtraBold.ttf') format('truetype');
 }
 @font-face {
   font-family: Ray;
   font-style: normal;
   font-weight: 900;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray_Black.ttf') format('truetype');
 }
 @font-face {
   font-family: Ray;
   font-style: normal;
   font-weight: 950;
+  font-display: swap;
   src: url('../font-w/Webfonts/Ray Family/Ray_ExtraBlack.ttf') format('truetype');
 }
 

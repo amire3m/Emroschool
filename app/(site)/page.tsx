@@ -325,9 +325,11 @@ export default function HomePage() {
       <div style={{ order: orderFor("hero", 1) }}>
       {sectionVisibility.hero !== false && (
         slidersLoading ? (
-        <div className="min-h-screen flex items-center justify-center bg-primary">
-          <Loader2 size={40} className="animate-spin text-secondary" />
-        </div>
+        <section className="relative flex min-h-[65svh] items-center overflow-hidden bg-primary md:min-h-screen">
+          <img src={String(heroContent.imageUrl)} alt="" aria-hidden="true" width={1920} height={1080} fetchPriority="high" className="absolute inset-0 h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-l from-primary via-primary/80 to-primary/60" />
+          <div className="relative z-10 mx-auto w-full max-w-[1280px] px-5 text-right md:px-8"><div className="max-w-3xl"><span className="mb-6 inline-block rounded-full border border-secondary/30 bg-secondary/20 px-4 py-1.5 text-sm font-bold text-secondary-fixed">{heroContent.badge}</span><h1 className="font-playfair text-4xl leading-tight text-secondary-fixed md:text-5xl lg:text-6xl">{heroContent.title}</h1></div></div>
+        </section>
       ) : sliders.length > 0 ? (
         <section className="relative h-[65svh] min-h-[420px] max-h-[560px] overflow-hidden md:min-h-screen md:max-h-none">
           {sliders.map((slide, index) => (
@@ -337,14 +339,17 @@ export default function HomePage() {
                 index === currentSlide ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
             >
-              <div
-                className="w-full h-full bg-cover bg-center scale-105"
-                style={{
-                  backgroundImage: `url(${slide.imageUrl})`,
-                  transform: index === currentSlide ? "scale(1)" : "scale(1.05)",
-                  transition: "transform 10s ease-out",
-                }}
-              />
+               <img
+                 src={slide.imageUrl}
+                 alt=""
+                 aria-hidden="true"
+                 width={1920}
+                 height={900}
+                 loading={index === 0 ? "eager" : "lazy"}
+                 fetchPriority={index === 0 ? "high" : "low"}
+                 decoding={index === 0 ? "sync" : "async"}
+                 className={`h-full w-full object-cover object-center transition-transform duration-[10000ms] ${index === currentSlide ? "scale-100" : "scale-105"}`}
+               />
               <div className="absolute inset-0 bg-gradient-to-l from-primary via-primary/80 to-primary/60" />
               <div className="absolute inset-0 bg-primary/40 mix-blend-multiply" />
             </div>
@@ -676,10 +681,14 @@ export default function HomePage() {
            <AutoLoopRow slideClassName="basis-[42%] sm:basis-[25%] lg:basis-[16%]" speed={0.55} showControls={false}>
               {partners.map((partner) => (
                 <div key={partner.id} className="group flex h-28 items-center justify-center rounded-2xl border border-outline-variant/40 bg-white p-5 shadow-sm transition hover:border-secondary/40 hover:shadow-md">
-                  <img
-                    src={partner.logoUrl}
-                    alt={partner.name}
-                    className="max-h-16 w-auto max-w-full grayscale opacity-55 transition-all duration-300 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100"
+                   <img
+                     src={partner.logoUrl}
+                     alt={partner.name}
+                     width={160}
+                     height={112}
+                     loading="lazy"
+                     decoding="async"
+                     className="max-h-16 w-auto max-w-full grayscale opacity-55 transition-all duration-300 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100"
                     title={partner.name}
                   />
                 </div>

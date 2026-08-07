@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
+import DeferredMap from "@/components/ui/deferred-map";
 
 export default function Footer() {
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
@@ -26,7 +27,7 @@ export default function Footer() {
           <div className="text-right">
              <div className="flex items-center justify-end mb-6">
                <svg viewBox="330 610 1380 790" role="img" aria-label="آکادمی هنر و رسانه امام روح‌الله" className="h-16 w-auto max-w-[170px] overflow-visible">
-                 <image href={footerLogo} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
+                  <image href={footerLogo} width="2048" height="2048" preserveAspectRatio="xMidYMid meet" />
                </svg>
             </div>
             <p className="text-sm leading-loose opacity-80 mb-8">
@@ -113,10 +114,10 @@ export default function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="#"
+                     href="/privacy-policy"
                     className="hover:text-secondary-fixed transition-colors"
                   >
-                    قوانین و مقررات
+                    حریم خصوصی
                   </Link>
                 </li>
                 <li>
@@ -154,7 +155,7 @@ export default function Footer() {
 
           <div className="flex flex-col gap-3">
             <h5 className="text-secondary-fixed font-bold flex items-center gap-2"><MapPin size={17} />موقعیت آکادمی</h5>
-             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><iframe title="موقعیت آکادمی امام روح‌الله روی نقشه" src="https://www.google.com/maps?q=35.699257969493395,51.39662703655142&z=16&output=embed" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="w-full h-full border-0 grayscale-[35%]" /></div>
+             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><DeferredMap title="موقعیت آکادمی امام روح‌الله روی نقشه" className="h-full w-full border-0 grayscale-[35%]" /></div>
              <p className="text-sm leading-7 text-white/70">تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72</p>
               <a href="https://nshn.ir/7bvh24IxOOVa" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مسیریابی در نشان</a>
           </div>

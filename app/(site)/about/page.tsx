@@ -1,8 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowLeft, Instagram, MapPin, Phone } from "lucide-react";
 import VintagePhotoSlideshow from "@/components/about/vintage-photo-slideshow";
+import DeferredMap from "@/components/ui/deferred-map";
 
 const address = "تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72";
+
+export const metadata: Metadata = {
+  title: "درباره آکادمی",
+  description: "با آکادمی هنر و رسانه امام روح‌الله (ره)، مسیر آموزشی و راه‌های ارتباط با ما آشنا شوید.",
+  alternates: { canonical: "/about" },
+};
 
 export default function AboutPage() {
   return (
@@ -65,7 +73,7 @@ export default function AboutPage() {
             </div>
           </div>
           <div className="overflow-hidden rounded-[2rem] border border-white bg-white p-2 shadow-xl">
-            <iframe title="موقعیت آکادمی هنر و رسانه امام روح‌الله" src="https://www.google.com/maps?q=35.699257969493395,51.39662703655142&z=16&output=embed" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-[420px] w-full rounded-[1.5rem] border-0 grayscale-[25%]" />
+             <DeferredMap title="موقعیت آکادمی هنر و رسانه امام روح‌الله" className="h-[420px] w-full rounded-[1.5rem] border-0 grayscale-[25%]" />
           </div>
         </div>
       </section>
