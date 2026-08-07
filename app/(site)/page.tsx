@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { HomeSectionContent, parseHomeSectionContent } from "@/lib/home-sections";
 import CategoryIcon from "@/components/CategoryIcon";
-import AutoScrollSlider from "@/components/ui/autoscroll-slider";
+const AutoScrollSlider = dynamic(() => import("@/components/ui/autoscroll-slider"), { ssr: false });
 import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
-import AutoLoopRow from "@/components/ui/auto-loop-row";
-import { GlowEffect } from "@/components/ui/glow-effect";
+const AutoLoopRow = dynamic(() => import("@/components/ui/auto-loop-row"), { ssr: false });
+const GlowEffect = dynamic(() => import("@/components/ui/glow-effect").then((module) => module.GlowEffect), { ssr: false });
 import { getCookie } from "@/lib/cookie";
-import NewsletterCta from "@/components/home/newsletter-cta";
+const NewsletterCta = dynamic(() => import("@/components/home/newsletter-cta"), { ssr: false });
 import {
   Star,
   ArrowLeft,
