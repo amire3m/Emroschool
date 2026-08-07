@@ -16,8 +16,8 @@ export async function ensureDiscountCodes() {
   await Promise.all(initialCodes.map(([label, code, percent]) =>
     prisma.discountCode.upsert({
       where: { code },
-      create: { label, code, percent, active: true, requiresDocument: true },
-      update: {},
+      create: { label, code, percent, active: true, requiresDocument: false },
+      update: { requiresDocument: false },
     }),
   ));
 }

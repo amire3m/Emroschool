@@ -180,8 +180,8 @@ export default function CourseRegistrationModal({
       toast.error("محل آشنایی با اساتید را بنویسید");
       return false;
     }
-    if (step === 3 && discountGroup && !discountDocument) {
-      toast.error("بارگذاری مدرک عضویت برای گروه انتخاب‌شده الزامی است");
+    if (step === 3 && discountGroup && !discountCode.trim()) {
+      toast.error("برای تأیید گروه تخفیف، کد تخفیف را وارد کنید");
       return false;
     }
     return true;
@@ -212,8 +212,7 @@ export default function CourseRegistrationModal({
           },
         );
         const uploadData = await uploadResponse.json();
-        if (!uploadResponse.ok)
-          throw new Error(uploadData.error || "بارگذاری مدرک انجام نشد");
+        if (!uploadResponse.ok) throw new Error(uploadData.error || "بارگذاری مدرک انجام نشد");
       }
       for (const [key, file] of Object.entries(customFiles)) {
         if (!file) continue;
@@ -455,7 +454,6 @@ export default function CourseRegistrationModal({
                         value={discountGroup}
                         onChange={(event) => {
                           setDiscountGroup(event.target.value);
-                          setDiscountCode("");
                           setDiscountDocument(null);
                         }}
                         className={inputClass}
@@ -468,38 +466,26 @@ export default function CourseRegistrationModal({
                         ))}
                       </select>
                     </label>
-                    {discountGroup && (
-                      <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-secondary/60 bg-[#fffaf0] px-4 py-4 text-sm font-bold text-primary">
-                        {discountDocument
-                          ? discountDocument.name
-                          : "بارگذاری مدرک عضویت *"}
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0] || null;
-                            if (!file) return setDiscountDocument(null);
-                            if (
-                              ![
-                                "image/jpeg",
-                                "image/png",
-                                "image/webp",
-                              ].includes(file.type) ||
-                              file.size > 5 * 1024 * 1024
-                            ) {
-                              event.target.value = "";
-                              toast.error(
-                                "فقط تصویر JPG، PNG یا WebP تا ۵ مگابایت مجاز است",
-                              );
-                              return;
-                            }
-                            setDiscountDocument(file);
-                          }}
-                        />
-                      </label>
-                    )}
-                    <label className="mt-4 block text-sm font-bold text-primary">کد تخفیف دارید؟<input value={discountCode} onChange={(event) => { setDiscountCode(event.target.value.toUpperCase()); setDiscountGroup(""); setDiscountDocument(null); }} placeholder="کد تخفیف را وارد کنید" dir="ltr" className={inputClass} /></label>
+                    <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-secondary/60 bg-[#fffaf0] px-4 py-4 text-sm font-bold text-primary">
+                      {discountDocument ? discountDocument.name : "بارگذاری کارت عضویت یا مدرک (اختیاری)"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          if (!file) return setDiscountDocument(null);
+                          if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                            event.target.value = "";
+                            toast.error("فقط تصویر JPG، PNG یا WebP تا ۵ مگابایت مجاز است");
+                            return;
+                          }
+                          setDiscountDocument(file);
+                        }}
+                      />
+                    </label>
+                    <p className="text-xs leading-6 text-outline">ارائه کارت عضویت یا مدرک اجباری نیست؛ فقط در صورت داشتن می‌توانید آن را بارگذاری کنید.</p>
+                    <label className="mt-4 block text-sm font-bold text-primary">{discountGroup ? "کد تخفیف برای تأیید گروه *" : "کد تخفیف دارید؟"}<input value={discountCode} onChange={(event) => setDiscountCode(event.target.value.toUpperCase())} placeholder="کد تخفیف را وارد کنید" dir="ltr" className={inputClass} />{discountGroup && <span className="mt-1 block text-xs font-normal text-outline">کد واردشده باید متعلق به گروه انتخاب‌شده باشد.</span>}</label>
                   </div>
                   <label className="block text-sm font-bold text-primary">
                     دلیل انتخاب این دوره *

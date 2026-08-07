@@ -70,9 +70,10 @@ export async function POST(req: NextRequest) {
     await ensureDiscountCodes();
     const discountGroup = typeof body.discountGroup === "string" ? body.discountGroup.trim() : "";
     const enteredDiscountCode = typeof body.discountCode === "string" ? body.discountCode.trim() : "";
-    if (discountGroup && enteredDiscountCode) return NextResponse.json({ error: "فقط گروه تخفیف یا کد تخفیف را انتخاب کنید" }, { status: 400 });
-    const discount = discountGroup ? await findActiveDiscountCode(discountGroup) : enteredDiscountCode ? await findActiveDiscountCode(enteredDiscountCode, true) : null;
-    if ((discountGroup || enteredDiscountCode) && !discount) return NextResponse.json({ error: discountGroup ? "گروه تخفیف معتبر نیست" : "کد تخفیف معتبر نیست" }, { status: 400 });
+    if (discountGroup && !enteredDiscountCode) return NextResponse.json({ error: "برای تأیید گروه تخفیف، کد تخفیف را وارد کنید" }, { status: 400 });
+    const discount = enteredDiscountCode ? await findActiveDiscountCode(enteredDiscountCode, true) : null;
+    if (enteredDiscountCode && !discount) return NextResponse.json({ error: "کد تخفیف معتبر نیست" }, { status: 400 });
+    if (discountGroup && discount?.label !== discountGroup) return NextResponse.json({ error: "این کد تخفیف متعلق به گروه انتخاب‌شده نیست" }, { status: 400 });
     const existingUser = await prisma.user.findUnique({ where: { id: token.id } });
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();
