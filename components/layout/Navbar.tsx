@@ -17,7 +17,7 @@ const navLinks = [
   { label: "درباره ما", href: "/about" },
 ];
 
-const HEADER_LOGO = "https://imamruhollahschool.com/uploads/1785365353558-5c082fe5-logo-main.png";
+const HEADER_LOGO = "/_next/image?url=%2Fuploads%2F1785365353558-5c082fe5-logo-main.png&w=256&q=75";
 
 interface NotificationItem {
   id: string;

@@ -8,7 +8,6 @@ import CategoryIcon from "@/components/CategoryIcon";
 const AutoScrollSlider = dynamic(() => import("@/components/ui/autoscroll-slider"), { ssr: false });
 import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 const AutoLoopRow = dynamic(() => import("@/components/ui/auto-loop-row"), { ssr: false });
-const GlowEffect = dynamic(() => import("@/components/ui/glow-effect").then((module) => module.GlowEffect), { ssr: false });
 import { getCookie } from "@/lib/cookie";
 const NewsletterCta = dynamic(() => import("@/components/home/newsletter-cta"), { ssr: false });
 import {
@@ -402,7 +401,7 @@ export default function HomePage() {
                   onClick={() => goToSlide(index)}
                   aria-label={`رفتن به اسلاید ${index + 1}`}
                   aria-current={index === currentSlide ? "true" : undefined}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    className={`h-3 rounded-full transition-none ${
                     index === currentSlide
                       ? "bg-secondary-fixed w-8"
                       : "bg-secondary-fixed/40 hover:bg-secondary-fixed/60"
@@ -483,7 +482,7 @@ export default function HomePage() {
                     title={category.description || category.name}
                     className="group relative isolate block h-full rounded-3xl p-[2px] text-center transition-all duration-500 hover:-translate-y-1"
                   >
-                    <GlowEffect colors={["#03004b", "#7b5814", "#ffdeab", "#7b5814", "#03004b"]} mode="rotate" blur="softest" duration={5.5} scale={1.035} className="z-0 rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-60" />
+                     <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary via-secondary-fixed to-secondary opacity-0 blur-sm transition-opacity duration-500 group-hover:opacity-50" />
                     <div className="relative z-10 flex h-full min-h-40 flex-col rounded-[22px] border border-outline-variant/60 bg-white p-5 shadow-sm transition-all duration-500 group-hover:border-transparent group-hover:shadow-xl">
                       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-fixed/40 text-secondary transition-all group-hover:rotate-3 group-hover:bg-secondary-fixed">
                         <CategoryIcon name={category.icon} className="group-hover:scale-110 transition-transform" />

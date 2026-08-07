@@ -7,7 +7,7 @@ import DeferredMap from "@/components/ui/deferred-map";
 
 export default function Footer() {
   const [siteName, setSiteName] = useState("آکادمی هنر و رسانه امام روح‌الله (ره)");
-  const footerLogo = "https://imamruhollahschool.com/uploads/1785365353558-5c082fe5-logo-main.png";
+   const footerLogo = "/_next/image?url=%2Fuploads%2F1785365353558-5c082fe5-logo-main.png&w=256&q=75";
 
   useEffect(() => {
     fetch("/api/site-settings")
