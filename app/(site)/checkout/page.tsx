@@ -19,6 +19,9 @@ type Order = {
   amountTomans: number;
   method: string;
   status: string;
+  rejectionReason?: string | null;
+  balePayload?: string | null;
+  receiptUrl?: string | null;
 };
 type Application = {
   id: string;
@@ -68,7 +71,16 @@ export default function CheckoutPage() {
           (item: Application) => item.id === applicationId,
         );
         if (!found) throw new Error("درخواست ثبت‌نام پیدا نشد");
-        setApplication(found);
+         setApplication(found);
+         const orderResponse = await fetch(`/api/payments?applicationId=${encodeURIComponent(applicationId)}`, { headers: { Authorization: `Bearer ${token}` } });
+         const orderData = await orderResponse.json();
+         const existingOrder = orderData.orders?.[0] as Order | undefined;
+         if (existingOrder) {
+           setOrder(existingOrder);
+           setMethod(existingOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
+           if (existingOrder.method === "card_to_card") setInstructions(orderData.paymentInstructions || null);
+           if (existingOrder.method === "bale_wallet" && existingOrder.balePayload) setBotUrl(`https://ble.ir/${process.env.NEXT_PUBLIC_BALE_BOT_USERNAME || "imamruhollahschool_bot"}?start=${encodeURIComponent(existingOrder.balePayload)}`);
+         }
       })
       .catch((error) => toast.error(error.message || "خطا در دریافت درخواست"))
       .finally(() => setApplicationLoading(false));
@@ -113,6 +125,20 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function changeMethod() {
+    if (!order) return;
+    const nextMethod = order.method === "card_to_card" ? "bale_wallet" : "card_to_card";
+    if (!window.confirm("روش پرداخت فعلی غیرفعال می‌شود و باید پرداخت را با روش جدید ادامه دهید. ادامه می‌دهید؟")) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/payments/${order.id}/change-method`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token") || ""}` }, body: JSON.stringify({ method: nextMethod }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setOrder(data.order); setMethod(nextMethod); setFile(null); setInstructions(data.paymentInstructions || null); setBotUrl(data.baleBotUrl || "");
+      toast.success("روش پرداخت تغییر کرد");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "تغییر روش پرداخت انجام نشد"); } finally { setLoading(false); }
   }
 
   async function uploadReceipt() {
@@ -260,9 +286,10 @@ export default function CheckoutPage() {
               <MessageCircle size={19} />
               باز کردن بله و پرداخت
             </a>
-            <p className="mt-4 text-xs text-outline">
-              شماره سفارش: <span dir="ltr">{order.orderNumber}</span>
-            </p>
+             <p className="mt-4 text-xs text-outline">
+               شماره سفارش: <span dir="ltr">{order.orderNumber}</span>
+             </p>
+             <button type="button" onClick={changeMethod} disabled={loading} className="mt-4 w-full rounded-xl border border-primary px-4 py-2.5 text-sm font-bold text-primary disabled:opacity-50">تغییر روش پرداخت</button>
           </section>
         ) : (
           <section className="rounded-[2rem] border border-outline-variant/40 bg-white p-5 shadow-sm md:p-7">
@@ -296,11 +323,11 @@ export default function CheckoutPage() {
                 <p className="mt-2 text-outline">{instructions.instructions}</p>
               )}
             </div>
-            {order.status === "under_review" ? (
-              <div className="rounded-xl bg-yellow-50 p-4 text-center text-sm font-bold text-yellow-800">
-                رسید شما دریافت شد و در انتظار بررسی است.
-              </div>
-            ) : (
+             {order.status === "under_review" ? (
+               <div className="rounded-xl bg-yellow-50 p-4 text-center text-sm font-bold text-yellow-800">
+                 رسید شما دریافت شد و در انتظار بررسی است.
+               </div>
+             ) : (
               <>
                 <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-secondary/60 bg-[#fffaf0] px-4 py-5 text-sm font-bold text-primary">
                   <Upload size={18} />
@@ -323,8 +350,10 @@ export default function CheckoutPage() {
                   {loading && <Loader2 className="animate-spin" size={18} />}
                   ارسال رسید برای بررسی
                 </button>
-              </>
-            )}
+               </>
+             )}
+             {order.status === "rejected" && <div className="mt-4 rounded-xl bg-error-container p-4 text-sm leading-7 text-error">رسید قبلی رد شده است.{order.rejectionReason ? ` دلیل: ${order.rejectionReason}` : ""}</div>}
+             {order.status !== "under_review" && order.status !== "paid" && <button type="button" onClick={changeMethod} disabled={loading} className="mt-4 w-full rounded-xl border border-primary px-4 py-2.5 text-sm font-bold text-primary disabled:opacity-50">تغییر روش پرداخت</button>}
             <p className="mt-4 flex items-center justify-center gap-1 text-xs text-outline">
               <ShieldCheck size={14} />
               شماره سفارش: <span dir="ltr">{order.orderNumber}</span>

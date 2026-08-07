@@ -8,6 +8,11 @@ function userId(req: NextRequest) {
   return header?.startsWith("Bearer ") ? verifyToken(header.slice(7))?.id : null;
 }
 
+async function cardInstructions() {
+  const settings = await prisma.paymentSettings.findUnique({ where: { id: 1 } });
+  return settings ? { cardNumber: settings.cardNumber, cardHolder: settings.cardHolder, instructions: settings.cardInstructions } : undefined;
+}
+
 export async function POST(req: NextRequest) {
   const id = userId(req);
   if (!id) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
@@ -19,7 +24,10 @@ export async function POST(req: NextRequest) {
     if (!['pending', 'pending_payment'].includes(application.status) || !application.course.published || application.course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این درخواست قابل پرداخت نیست" }, { status: 400 });
     const discount = application.discountCode ? await prisma.discountCode.findUnique({ where: { code: application.discountCode } }) : null;
     if (discount?.requiresDocument && !application.discountDocumentUrl) return NextResponse.json({ error: "بارگذاری مدرک تخفیف الزامی است" }, { status: 400 });
-    if (application.paymentOrder) return NextResponse.json({ error: "برای این درخواست یک سفارش ثبت شده است" }, { status: 409 });
+    if (application.paymentOrder) {
+      const order = await prisma.paymentOrder.findUnique({ where: { id: application.paymentOrder.id }, include: { attempts: { orderBy: { sequence: "desc" } } } });
+      return NextResponse.json({ order, paymentInstructions: application.paymentOrder.method === "card_to_card" ? await cardInstructions() : undefined, existing: true });
+    }
     const course = application.course;
     if (application.finalAmountTomans === 0) {
       await prisma.$transaction(async (tx) => {
@@ -32,7 +40,9 @@ export async function POST(req: NextRequest) {
 
     const orderNumber = `PAY-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
     const payload = method === "bale_wallet" ? `payment:${orderNumber}:${crypto.randomBytes(16).toString("hex")}` : null;
-    const order = await prisma.paymentOrder.create({ data: { orderNumber, amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", balePayload: payload, userId: id, courseId: course.id, applicationId: application.id } });
+    const order = await prisma.paymentOrder.create({ data: { orderNumber, amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", balePayload: payload, userId: id, courseId: course.id, applicationId: application.id, attempts: { create: { sequence: 1, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, balePayload: payload } } } });
+    const attempt = await prisma.paymentAttempt.findFirst({ where: { orderId: order.id }, orderBy: { sequence: "desc" } });
+    if (attempt) await prisma.paymentOrder.update({ where: { id: order.id }, data: { activeAttemptId: attempt.id } });
     const settings = method === "card_to_card" ? await prisma.paymentSettings.findUnique({ where: { id: 1 } }) : null;
     const botUsername = process.env.BALE_BOT_USERNAME || "imamruhollahschool_bot";
     return NextResponse.json({ order, baleBotUrl: method === "bale_wallet" ? `https://ble.ir/${botUsername}?start=${encodeURIComponent(payload!)}` : undefined, paymentInstructions: settings ? { cardNumber: settings.cardNumber, cardHolder: settings.cardHolder, instructions: settings.cardInstructions } : undefined }, { status: 201 });
@@ -46,6 +56,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const id = userId(req);
   if (!id) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
-  const orders = await prisma.paymentOrder.findMany({ where: { userId: id }, include: { course: { select: { id: true, title: true, slug: true, thumbnail: true } }, application: { select: { id: true, status: true, finalAmountTomans: true } } }, orderBy: { createdAt: "desc" } });
-  return NextResponse.json({ orders });
+    const applicationId = new URL(req.url).searchParams.get("applicationId");
+    const orders = await prisma.paymentOrder.findMany({ where: { userId: id, ...(applicationId ? { applicationId } : {}) }, include: { course: { select: { id: true, title: true, slug: true, thumbnail: true } }, application: { select: { id: true, status: true, finalAmountTomans: true } }, attempts: { orderBy: { sequence: "desc" } } }, orderBy: { createdAt: "desc" } });
+    const instructions = orders[0]?.method === "card_to_card" ? await cardInstructions() : undefined;
+    return NextResponse.json({ orders, paymentInstructions: instructions });
 }

@@ -294,8 +294,10 @@ model PaymentOrder {
   updatedAt            DateTime @updatedAt
   receiptSubmittedAt   DateTime?
   reviewedAt           DateTime?
+  rejectionReason      String?
   paidAt               DateTime?
   expiresAt            DateTime?
+  activeAttemptId      String?
 
   userId               String
   user                 User     @relation("PaymentOrderUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -309,9 +311,31 @@ model PaymentOrder {
   manualNote           String?
   createdById          String?
   createdBy            User?    @relation("PaymentOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  attempts             PaymentAttempt[]
 
   @@index([userId, createdAt])
   @@index([courseId, status])
+}
+
+model PaymentAttempt {
+  id            String   @id @default(cuid())
+  sequence      Int
+  method        String
+  status        String
+  amountTomans  Int
+  amountRials   Int
+  balePayload   String?  @unique
+  receiptUrl    String?
+  rejectionReason String?
+  createdAt     DateTime @default(now())
+  submittedAt   DateTime?
+  invalidatedAt DateTime?
+
+  orderId       String
+  order         PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, sequence])
+  @@index([orderId, status])
 }
 
 model PaymentSettings {
