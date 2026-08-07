@@ -51,12 +51,16 @@ async function listFiles(directory: string, prefix = "") {
 }
 
 async function getReferences() {
-  const [courses, courseImages, galleries, sliders, users, instructors, alumni, events, partners, settings, sections, news, magazineSettings] = await Promise.all([
+  const [courses, courseImages, galleries, sliders, users, avatarSubmissions, paymentOrders, paymentAttempts, applications, instructors, alumni, events, partners, settings, sections, news, magazineSettings] = await Promise.all([
     prisma.course.findMany({ select: { title: true, thumbnail: true, videoUrl: true } }),
     prisma.courseImage.findMany({ select: { url: true, course: { select: { title: true } } } }),
     prisma.gallery.findMany({ select: { imageUrl: true, altText: true } }),
     prisma.slider.findMany({ select: { imageUrl: true, title: true } }),
     prisma.user.findMany({ select: { avatar: true, name: true } }),
+    prisma.avatarSubmission.findMany({ select: { imageUrl: true, user: { select: { name: true } } } }),
+    prisma.paymentOrder.findMany({ select: { receiptUrl: true, orderNumber: true, user: { select: { name: true } } } }),
+    prisma.paymentAttempt.findMany({ select: { receiptUrl: true, order: { select: { orderNumber: true, user: { select: { name: true } } } } } }),
+    prisma.courseApplication.findMany({ select: { discountDocumentUrl: true, fullName: true } }),
     prisma.instructor.findMany({ select: { avatar: true, name: true } }),
     prisma.alumni.findMany({ select: { imageUrl: true, name: true } }),
     prisma.event.findMany({ select: { imageUrl: true, title: true } }),
@@ -79,6 +83,10 @@ async function getReferences() {
   galleries.forEach((item) => add(item.imageUrl, `گالری: ${item.altText || "بدون عنوان"}`));
   sliders.forEach((item) => add(item.imageUrl, `اسلایدر: ${item.title || "بدون عنوان"}`));
   users.forEach((item) => add(item.avatar, `پروفایل کاربر: ${item.name}`));
+  avatarSubmissions.forEach((item) => add(item.imageUrl, `درخواست تصویر پروفایل: ${item.user.name}`));
+  paymentOrders.forEach((item) => add(item.receiptUrl, `رسید پرداخت: ${item.user.name} (${item.orderNumber})`));
+  paymentAttempts.forEach((item) => add(item.receiptUrl, `رسید پرداخت: ${item.order.user.name} (${item.order.orderNumber})`));
+  applications.forEach((item) => add(item.discountDocumentUrl, `مدرک تخفیف: ${item.fullName}`));
   instructors.forEach((item) => add(item.avatar, `استاد: ${item.name || "بدون نام"}`));
   alumni.forEach((item) => add(item.imageUrl, `هنرآموخته: ${item.name}`));
   events.forEach((item) => add(item.imageUrl, `رویداد: ${item.title}`));
@@ -222,6 +230,10 @@ export async function PATCH(req: NextRequest) {
       prisma.gallery.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
       prisma.slider.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
       prisma.user.updateMany({ where: { avatar: oldUrl }, data: { avatar: newUrl } }),
+      prisma.avatarSubmission.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
+      prisma.paymentOrder.updateMany({ where: { receiptUrl: oldUrl }, data: { receiptUrl: newUrl } }),
+      prisma.paymentAttempt.updateMany({ where: { receiptUrl: oldUrl }, data: { receiptUrl: newUrl } }),
+      prisma.courseApplication.updateMany({ where: { discountDocumentUrl: oldUrl }, data: { discountDocumentUrl: newUrl } }),
       prisma.instructor.updateMany({ where: { avatar: oldUrl }, data: { avatar: newUrl } }),
       prisma.alumni.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),
       prisma.event.updateMany({ where: { imageUrl: oldUrl }, data: { imageUrl: newUrl } }),

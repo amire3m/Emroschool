@@ -21,11 +21,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!(file instanceof File) || !allowed.has(file.type)) return NextResponse.json({ error: "فقط تصویر JPG، PNG یا WebP مجاز است" }, { status: 400 });
     if (!file.size || file.size > 5 * 1024 * 1024) return NextResponse.json({ error: "حداکثر حجم رسید ۵ مگابایت است" }, { status: 413 });
     const ext = allowed.get(file.type)!;
-    const directory = path.join(process.cwd(), "public", "uploads", "payment-receipts", order.id);
+    const directory = path.join(process.cwd(), "public", "uploads", "users", "receipts", user.id, order.id);
     await mkdir(directory, { recursive: true });
     const name = `${crypto.randomUUID()}${ext}`;
     await writeFile(path.join(directory, name), Buffer.from(await file.arrayBuffer()));
-    const receiptUrl = `/uploads/payment-receipts/${order.id}/${name}`;
+    const receiptUrl = `/uploads/users/receipts/${user.id}/${order.id}/${name}`;
     const updated = await prisma.$transaction(async (tx) => {
       const current = await tx.paymentOrder.findUnique({ where: { id: order.id } });
       if (!current || !["awaiting_receipt", "rejected"].includes(current.status)) throw new Error("INVALID_STATUS");
