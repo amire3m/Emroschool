@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { issueEmailVerificationCode } from "@/lib/verification";
-import { issueBaleOtp } from "@/lib/bale-otp";
+import { issueBaleOtp, issuePhoneOtp } from "@/lib/bale-otp";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
     if (channel === "bale") {
       await issueBaleOtp(phone || user.phone || "", "register");
       return NextResponse.json({ message: "رمز جدید در بله ارسال شد" });
+    }
+    if (channel === "sms" || channel === "call") {
+      await issuePhoneOtp(phone || user.phone || "", "register", channel);
+      return NextResponse.json({ message: channel === "sms" ? "رمز جدید پیامک شد" : "تماس گویای رمز برقرار شد" });
     }
     if (user.emailVerified) return NextResponse.json({ error: "درخواست تأیید معتبری پیدا نشد" }, { status: 400 });
     await issueEmailVerificationCode(normalized, user.name);

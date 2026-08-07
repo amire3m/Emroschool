@@ -6,11 +6,17 @@ import { NextResponse, NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, name, password, phone, notificationEmailEnabled, notificationChannel } = await req.json();
+    const { email, name, gender, password, phone, notificationEmailEnabled, notificationChannel } = await req.json();
 
-    if (!email || !name || !password || !phone) {
-      return NextResponse.json({ error: "ایمیل، نام، موبایل و رمز عبور الزامی است" }, { status: 400 });
+    if (!email || !name || !gender || !password || !phone) {
+      return NextResponse.json({ error: "نام، جنسیت، ایمیل، موبایل و رمز عبور الزامی است" }, { status: 400 });
     }
+
+    const normalizedName = String(name).trim().replace(/\s+/g, " ");
+    if (!/^[آ-ی ]+$/.test(normalizedName) || normalizedName.split(" ").filter(Boolean).length < 2) {
+      return NextResponse.json({ error: "نام و نام خانوادگی را فقط با حروف فارسی وارد کنید" }, { status: 400 });
+    }
+    if (!["male", "female"].includes(gender)) return NextResponse.json({ error: "جنسیت را انتخاب کنید" }, { status: 400 });
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = normalizeBalePhone(phone);
@@ -33,16 +39,18 @@ export async function POST(req: NextRequest) {
 
     const hashed = await hashPassword(password);
 
-    const user = existing ? await prisma.user.update({ where: { id: existing.id }, data: { name: name.trim(), password: hashed, phone: normalizedPhone, emailVerified: false, phoneVerified: false, ...preferences } }) : await prisma.user.create({
+    const user = existing ? await prisma.user.update({ where: { id: existing.id }, data: { name: normalizedName, gender, password: hashed, phone: normalizedPhone, emailVerified: false, phoneVerified: false, registrationCompleted: false, ...preferences } }) : await prisma.user.create({
       data: {
         email: normalizedEmail,
-        name,
+        name: normalizedName,
+        gender,
         password: hashed,
         phone: normalizedPhone,
         role: "user",
         userType: "student",
         profileVisible: false,
         emailVerified: false,
+        registrationCompleted: false,
         ...preferences,
       },
     });

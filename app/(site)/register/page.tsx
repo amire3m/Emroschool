@@ -1,339 +1,123 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, User, Eye, EyeOff, Loader2, ChevronLeft, KeyRound, Phone } from "lucide-react";
+import { CheckCircle2, ChevronLeft, KeyRound, Loader2, Mail, MapPin, Phone, User } from "lucide-react";
 import { setCookie } from "@/lib/cookie";
-import GoogleAuthButton from "@/components/auth/google-auth-button";
+import AvatarUpload from "@/components/profile/avatar-upload";
+
+type VerificationMethod = "email" | "bale" | "sms" | "call";
+type Province = { id: number; name: string };
+type TehranDistrict = { name?: string; district?: string; neighborhoods?: string[]; areas?: string[] };
+
+const discoveryOptions = ["دوستان و آشنایان", "گوگل", "اینستاگرام", "پیام‌رسان‌ها", "تبلیغات", "سایر"];
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [step, setStep] = useState<"account" | "verify" | "details" | "avatar">("account");
   const [name, setName] = useState("");
+  const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [method, setMethod] = useState<VerificationMethod | null>(null);
+  const [code, setCode] = useState("");
+  const [token, setToken] = useState("");
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
+  const [districts, setDistricts] = useState<TehranDistrict[]>([]);
+  const [district, setDistrict] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [discoverySource, setDiscoverySource] = useState("");
+  const [avatar, setAvatar] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [verificationChannel, setVerificationChannel] = useState("email");
-  const [balePhone, setBalePhone] = useState("");
-  const [notificationEmailEnabled, setNotificationEmailEnabled] = useState(true);
-  const [notificationChannel, setNotificationChannel] = useState<"sms" | "bale">("sms");
-  useEffect(() => { const pendingEmail = new URLSearchParams(window.location.search).get("verify"); if (pendingEmail) { setVerificationEmail(pendingEmail); setVerificationChannel(""); } }, []);
 
-  function validateForm(): string | null {
-    if (!name.trim()) return "لطفاً نام و نام خانوادگی خود را وارد کنید";
-    if (!email.trim()) return "لطفاً ایمیل خود را وارد کنید";
-    if (!/^09\d{9}$/.test(phone.replace(/[^0-9]/g, ""))) return "شماره موبایل معتبر وارد کنید";
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return "فرمت ایمیل وارد شده صحیح نیست";
-    if (!password) return "لطفاً رمز عبور را وارد کنید";
-    if (password.length < 6) return "رمز عبور باید حداقل ۶ کاراکتر باشد";
-    if (password !== confirmPassword) return "رمز عبور و تکرار آن مطابقت ندارند";
-    return null;
-  }
+  useEffect(() => {
+    if (step !== "details") return;
+    fetch("/api/locations").then((res) => res.json()).then((data) => setProvinces(data.provinces || [])).catch(() => setError("دریافت فهرست استان‌ها ناموفق بود"));
+  }, [step]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
+  useEffect(() => {
+    if (!province) return setCities([]);
+    const selected = provinces.find((item) => item.name === province);
+    if (!selected) return;
+    setCity(""); setDistrict(""); setNeighborhood("");
+    fetch(`/api/locations?provinceId=${selected.id}`).then((res) => res.json()).then((data) => setCities(data.cities || [])).catch(() => setError("دریافت فهرست شهرها ناموفق بود"));
+    if (province === "تهران") fetch("/api/tehran-neighborhoods").then((res) => res.json()).then((data) => setDistricts(data.districts || [])).catch(() => setError("دریافت فهرست مناطق تهران ناموفق بود"));
+  }, [province, provinces]);
 
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+  const selectedDistrict = districts.find((item) => (item.name || item.district) === district);
+  const neighborhoods = selectedDistrict?.neighborhoods || selectedDistrict?.areas || [];
+  const clearMessages = () => { setError(""); setNotice(""); };
 
+  async function createAccount(event: FormEvent) {
+    event.preventDefault(); clearMessages();
+    const normalizedName = name.trim().replace(/\s+/g, " ");
+    if (!/^[آ-ی ]+$/.test(normalizedName) || normalizedName.split(" ").filter(Boolean).length < 2) return setError("نام و نام خانوادگی را فقط با حروف فارسی وارد کنید");
+    if (!gender) return setError("جنسیت را انتخاب کنید");
+    if (!/^09\d{9}$/.test(phone.replace(/\D/g, ""))) return setError("شماره موبایل معتبر وارد کنید");
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("ایمیل معتبر وارد کنید");
+    if (password.length < 6) return setError("رمز عبور باید حداقل ۶ کاراکتر باشد");
+    if (password !== confirmPassword) return setError("رمز عبور و تکرار آن مطابقت ندارند");
     setLoading(true);
-
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, notificationEmailEnabled, notificationChannel }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "خطا در ثبت‌نام");
-        return;
-      }
-
-        if (data.requiresVerification) { setVerificationEmail(data.email); setVerificationChannel(""); setBalePhone(""); }
-       else {
-         setCookie("token", data.token);
-         window.dispatchEvent(new Event("auth-changed"));
-         router.push("/dashboard");
-       }
-    } catch {
-      setError("خطا در برقراری ارتباط با سرور");
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: normalizedName, gender, email, phone, password, notificationChannel: "sms" }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setStep("verify"); setNotice("حساب شما ایجاد شد. برای ادامه حداقل یکی از روش‌های زیر را تأیید کنید.");
+    } catch (err) { setError(err instanceof Error ? err.message : "ثبت‌نام ناموفق بود"); } finally { setLoading(false); }
   }
 
-  async function verifyCode(e: FormEvent) {
-    e.preventDefault(); setError(""); setLoading(true);
-     try { const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verificationChannel === "bale" ? { email: verificationEmail, phone: balePhone || phone, code: verificationCode, channel: "bale" } : { email: verificationEmail, code: verificationCode }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); router.push("/dashboard"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در تأیید کد"); } finally { setLoading(false); }
+  async function sendCode(nextMethod: VerificationMethod) {
+    clearMessages(); setLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, phone, channel: nextMethod }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setMethod(nextMethod); setCode(""); setNotice(data.message || "کد تأیید ارسال شد");
+    } catch (err) { setError(err instanceof Error ? err.message : "ارسال کد ناموفق بود"); } finally { setLoading(false); }
   }
 
-   async function resendCode(channel = verificationChannel) {
-    setError(""); setLoading(true);
-     try { const res = await fetch("/api/auth/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channel === "bale" ? { email: verificationEmail, phone: balePhone || phone, channel: "bale" } : { email: verificationEmail }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setVerificationChannel(channel); setError(channel === "bale" ? "کد جدید در بله ارسال شد" : "کد جدید به ایمیل شما ارسال شد"); } catch (error) { setError(error instanceof Error ? error.message : "خطا در ارسال کد"); } finally { setLoading(false); }
+  async function verifyCode(event: FormEvent) {
+    event.preventDefault(); if (!method) return; clearMessages(); setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, phone, code, channel: method }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setCookie("token", data.token); window.dispatchEvent(new Event("auth-changed")); setToken(data.token); setStep("details");
+    } catch (err) { setError(err instanceof Error ? err.message : "تأیید کد ناموفق بود"); } finally { setLoading(false); }
   }
 
-  return (
-    <div className="min-h-[calc(100vh-96px)] pt-24 flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-b from-[#03004b] to-[#1a1b5e] flex-col items-center justify-center px-12 py-16 select-none">
-        {/* Decorative geometric patterns */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ opacity: 0.05 }}
-          viewBox="0 0 1000 1000"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <pattern id="grid-r" width="80" height="80" patternUnits="userSpaceOnUse">
-              <path d="M 80 0 L 0 0 0 80" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-            <pattern id="dots-r" width="40" height="40" patternUnits="userSpaceOnUse">
-              <circle cx="20" cy="20" r="1.5" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="1000" height="1000" fill="url(#grid-r)" />
-          <rect y="200" width="1000" height="600" fill="url(#dots-r)" />
-          <polygon points="50,950 150,800 250,950" fill="white" opacity="0.3" />
-          <polygon points="800,50 900,50 850,150" fill="white" opacity="0.2" />
-          <circle cx="850" cy="200" r="120" fill="none" stroke="white" strokeWidth="0.5" opacity="0.3" />
-          <circle cx="150" cy="800" r="80" fill="none" stroke="white" strokeWidth="0.5" opacity="0.2" />
-        </svg>
+  async function saveDetails(event: FormEvent) {
+    event.preventDefault(); clearMessages();
+    if (!province || !city || !discoverySource) return setError("استان، شهر و نحوه آشنایی با سایت را انتخاب کنید");
+    if (province === "تهران" && (!district || !neighborhood)) return setError("برای تهران، منطقه و محله را انتخاب کنید");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/complete-registration", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ province, city, district, neighborhood, discoverySource }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error); setStep("avatar");
+    } catch (err) { setError(err instanceof Error ? err.message : "ذخیره اطلاعات ناموفق بود"); } finally { setLoading(false); }
+  }
 
-        <div className="absolute top-12 right-12 w-24 h-24 border-t-2 border-l-2 border-secondary-fixed/20 rounded-tr-full" />
-        <div className="absolute bottom-12 left-12 w-32 h-32 border-b-2 border-r-2 border-secondary-fixed/20 rounded-br-full" />
+  function finish() { window.dispatchEvent(new Event("profile-updated")); router.push("/dashboard"); }
+  const stepNumber = step === "account" ? 1 : step === "verify" ? 2 : step === "details" ? 3 : 4;
 
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="w-20 h-20 rounded-full bg-secondary-fixed flex items-center justify-center mb-6 shadow-lg shadow-black/20">
-            <span className="text-primary font-playfair font-bold text-3xl">ه</span>
-          </div>
-
-          <h2 className="font-playfair text-3xl font-bold text-white mb-1">
-            آکادمی هنر و رسانه
-          </h2>
-          <p className="font-playfair text-secondary-fixed text-xl font-semibold tracking-wider">
-            امام روح‌الله
-          </p>
-
-          <div className="w-16 h-0.5 bg-secondary-fixed rounded-full my-6" />
-
-          <p className="text-white/60 text-sm leading-relaxed max-w-xs">
-            آموزش هنر و رسانه در تراز انقلاب اسلامی، پرورش استعدادهای متعهد و متخصص برای ساختن آینده‌ای روشن
-          </p>
-        </div>
-
-        <div className="absolute bottom-12 z-10 flex items-center gap-3">
-          <span className="w-2 h-2 rounded-full bg-secondary-fixed" />
-          <span className="text-white/50 text-sm font-medium tracking-widest">
-            هنر متعالی، رسانه انقلابی
-          </span>
-          <span className="w-2 h-2 rounded-full bg-secondary-fixed" />
-        </div>
-      </div>
-
-      {/* Right Panel - Form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center px-6 py-16 md:py-0 bg-surface">
-        <div className="w-full max-w-sm">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <div className="md:hidden w-14 h-14 rounded-full bg-primary flex items-center justify-center mx-auto mb-4">
-              <span className="text-secondary-fixed font-playfair font-bold text-xl">ه</span>
-            </div>
-            <h1 className="text-2xl font-bold text-primary">ایجاد حساب کاربری</h1>
-            <p className="text-outline text-sm mt-2">به جمع هنرمندان متعهد بپیوندید</p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="bg-error-container/80 text-error px-4 py-3 rounded-xl text-sm mb-6 flex items-center gap-2 border border-error/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {/* Form */}
-          {verificationEmail ? (!verificationChannel ? <div className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">روش تأیید حساب</h2><p className="text-sm text-outline leading-7 mt-2">روش دریافت رمز یک‌بارمصرف را انتخاب کنید.</p></div><button type="button" disabled={loading} onClick={() => resendCode("email")} className="w-full rounded-xl border border-outline-variant bg-white px-4 py-4 text-right"><span className="block font-bold text-primary">تأیید از طریق ایمیل</span><span className="mt-1 block text-xs text-outline" dir="ltr">{verificationEmail}</span></button><button type="button" disabled={loading} onClick={() => resendCode("bale")} className="w-full rounded-xl border border-secondary bg-[#fff8e9] px-4 py-4 text-right"><span className="block font-bold text-primary">تأیید از طریق پیام‌رسان بله</span><span className="mt-1 block text-xs text-outline">ابتدا با شماره موبایل ثبت‌شده امتحان می‌شود.</span></button></div> : <form onSubmit={verifyCode} className="space-y-5"><div className="w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mx-auto"><KeyRound size={28} /></div><div className="text-center"><h2 className="font-black text-primary text-xl">تأیید {verificationChannel === "bale" ? "بله" : "ایمیل"}</h2><p className="text-sm text-outline leading-7 mt-2">کد شش‌رقمی ارسال‌شده {verificationChannel === "bale" ? "در پیام‌رسان بله" : "به"} <span dir="ltr" className="font-bold text-primary">{verificationChannel === "bale" ? "" : verificationEmail}</span> را وارد کنید.</p></div>{verificationChannel === "bale" && <div><label className="block text-sm font-bold text-primary mb-2">شماره متصل به بله</label><input inputMode="numeric" dir="ltr" value={balePhone} onChange={(event) => setBalePhone(event.target.value)} placeholder={phone || "09123456789"} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-secondary" /><p className="mt-1 text-xs text-outline">اگر شماره اصلی شما بله ندارد، شماره بله را اینجا وارد و «ارسال مجدد کد» را بزنید.</p></div>}<input autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))} className="w-full bg-white border border-outline-variant rounded-xl px-4 py-4 text-center text-2xl tracking-[.5em] font-black outline-none focus:ring-2 focus:ring-secondary" dir="ltr" /><button disabled={loading || verificationCode.length !== 6} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50 flex justify-center gap-2">{loading && <Loader2 size={18} className="animate-spin" />}تأیید و ورود</button><div className="flex justify-between text-xs"><button type="button" onClick={() => resendCode()} disabled={loading} className="text-secondary font-bold">ارسال مجدد کد</button><button type="button" onClick={() => { setVerificationChannel(""); setVerificationCode(""); setError(""); }} className="text-outline">تغییر روش</button></div></form>) : <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-primary mb-2">
-                نام و نام خانوادگی
-              </label>
-              <div className="relative">
-                <User
-                  size={18}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
-                />
-                <input
-                  type="text"
-                  name="name"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none transition-all placeholder:text-outline/50"
-                  placeholder="محمدرضا حسینی"
-                />
-              </div>
-            </div>
-
-            <fieldset className="rounded-2xl border border-secondary-fixed/70 bg-[#fff8e9] p-4">
-              <legend className="px-1 text-sm font-bold text-primary">ترجیحات دریافت اعلان</legend>
-              <p className="mb-3 text-xs leading-6 text-outline">یکی از روش‌های پیامکی یا بله را انتخاب کنید. دریافت ایمیل اختیاری است و ایمیل حساب شما تغییری نمی‌کند.</p>
-              <label className="flex items-center justify-between gap-3 border-b border-secondary-fixed/50 pb-3 text-sm font-bold text-primary"><span>دریافت اعلان از طریق ایمیل</span><input type="checkbox" checked={notificationEmailEnabled} onChange={(e) => setNotificationEmailEnabled(e.target.checked)} className="h-5 w-5 accent-primary" /></label>
-              <div className="mt-3 grid grid-cols-2 gap-2"><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "sms" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="notificationChannel" value="sms" checked={notificationChannel === "sms"} onChange={() => setNotificationChannel("sms")} />پیامک</label><label className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${notificationChannel === "bale" ? "border-primary bg-primary text-white" : "border-outline-variant bg-white text-primary"}`}><input className="sr-only" type="radio" name="notificationChannel" value="bale" checked={notificationChannel === "bale"} onChange={() => setNotificationChannel("bale")} />پیام‌رسان بله</label></div>
-            </fieldset>
-
-            <div>
-              <label className="block text-sm font-bold text-primary mb-2">شماره موبایل</label>
-              <div className="relative"><Phone size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none" /><input type="tel" name="tel" autoComplete="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" placeholder="09123456789" className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none" /></div>
-              <p className="mt-1 text-xs text-outline">برای تکمیل ثبت‌نام، روش تأیید را در مرحله بعد انتخاب می‌کنید.</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-primary mb-2">
-                ایمیل
-              </label>
-              <div className="relative">
-                <Mail
-                  size={18}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
-                />
-                <input
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-4 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none transition-all placeholder:text-outline/50"
-                  placeholder="example@email.com"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-primary mb-2">
-                رمز عبور
-              </label>
-              <div className="relative">
-                <Lock
-                  size={18}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
-                />
-                <input
-                  type={showPass ? "text" : "password"}
-                  name="newPassword"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-12 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none transition-all placeholder:text-outline/50"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors p-1"
-                >
-                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-primary mb-2">
-                تکرار رمز عبور
-              </label>
-              <div className="relative">
-                <Lock
-                  size={18}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
-                />
-                <input
-                  type={showConfirm ? "text" : "password"}
-                  name="confirmPassword"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full bg-white border border-outline-variant rounded-xl pr-12 pl-12 py-3.5 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none transition-all placeholder:text-outline/50"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors p-1"
-                >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-l from-primary to-primary-container text-white py-3.5 rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 flex items-center justify-center gap-2.5"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  در حال ثبت‌نام...
-                </>
-              ) : (
-                "ثبت‌نام"
-              )}
-            </button>
-          </form>}
-
-          {/* Divider */}
-           <div className="flex items-center gap-3 my-7">
-            <div className="flex-1 h-px bg-outline-variant/60" />
-            <span className="text-outline text-sm">یا</span>
-            <div className="flex-1 h-px bg-outline-variant/60" />
-           </div>
-           {!verificationEmail && <GoogleAuthButton label="ثبت‌نام با گوگل" />}
-
-           {/* Login link */}
-           <div className="text-center mt-6">
-            <p className="text-outline text-sm">
-              قبلاً ثبت‌نام کرده‌اید؟{" "}
-              <Link
-                href="/login"
-                className="text-secondary font-bold hover:text-secondary/80 transition-colors"
-              >
-                وارد شوید
-              </Link>
-            </p>
-          </div>
-
-          {/* Back to home */}
-          <div className="mt-6 text-center">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1 text-sm text-outline hover:text-primary transition-colors"
-            >
-              <ChevronLeft size={16} />
-              بازگشت به صفحه اصلی
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <main className="min-h-[calc(100vh-96px)] bg-surface px-4 py-24"><div className="mx-auto w-full max-w-xl rounded-3xl border border-outline-variant/30 bg-white p-6 shadow-sm md:p-9">
+    <div className="mb-8 text-center"><h1 className="text-2xl font-black text-primary">ایجاد حساب کاربری</h1><p className="mt-2 text-sm text-outline">مرحله {stepNumber} از 4</p><div className="mt-4 flex gap-2">{[1, 2, 3, 4].map((item) => <span key={item} className={`h-1.5 flex-1 rounded-full ${item <= stepNumber ? "bg-secondary" : "bg-outline-variant/30"}`} />)}</div></div>
+    {(error || notice) && <div className={`mb-6 flex gap-2 rounded-xl px-4 py-3 text-sm ${error ? "bg-error-container text-error" : "bg-green-50 text-green-800"}`}>{error ? <KeyRound size={17} /> : <CheckCircle2 size={17} />}{error || notice}</div>}
+    {step === "account" && <form onSubmit={createAccount} className="space-y-5"><Field label="نام و نام خانوادگی"><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="محمدرضا حسینی" /></Field><fieldset><legend className="mb-2 block text-sm font-bold text-primary">جنسیت</legend><div className="grid grid-cols-2 gap-3">{[["male", "آقا"], ["female", "خانم"]].map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${gender === value ? "border-primary bg-primary text-white" : "border-outline-variant text-primary"}`}><input className="sr-only" type="radio" name="gender" checked={gender === value} onChange={() => setGender(value)} />{label}</label>)}</div></fieldset><Field label="شماره تلفن همراه"><input dir="ltr" inputMode="numeric" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="09123456789" /></Field><Field label="ایمیل"><input dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="example@email.com" /></Field><Field label="رمز عبور"><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></Field><Field label="تکرار رمز عبور"><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" /></Field><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
+    {step === "verify" && !method && <div className="space-y-3"><p className="text-center text-sm leading-7 text-outline">حداقل یکی از روش‌ها را تأیید کنید.</p><VerificationButton icon={<Mail />} title="تأیید ایمیل" description={email} onClick={() => sendCode("email")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیام‌رسان بله" description="کد در پیام‌رسان بله ارسال می‌شود" onClick={() => sendCode("bale")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیامک" description="کد به شماره همراه ارسال می‌شود" onClick={() => sendCode("sms")} disabled={loading} /><VerificationButton icon={<Phone />} title="تماس گویای کد" description="در صورت نرسیدن پیامک، کد را تلفنی دریافت کنید" onClick={() => sendCode("call")} disabled={loading} /></div>}
+    {step === "verify" && method && <form onSubmit={verifyCode} className="space-y-5"><div className="text-center"><KeyRound className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">کد تأیید را وارد کنید</h2><p className="mt-1 text-sm text-outline">{method === "email" ? email : phone}</p></div><Field label="کد شش‌رقمی"><input dir="ltr" inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} className="text-center tracking-[0.5em]" /></Field><Submit loading={loading}>تأیید و ادامه <ChevronLeft size={18} /></Submit><button type="button" onClick={() => { clearMessages(); setMethod(null); }} className="w-full text-sm font-bold text-secondary">تغییر روش تأیید</button></form>}
+    {step === "details" && <form onSubmit={saveDetails} className="space-y-5"><div className="text-center"><MapPin className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">اطلاعات تکمیلی</h2></div><Select label="استان" value={province} onChange={setProvince} options={provinces.map((item) => item.name)} /><Select label="شهر" value={city} onChange={setCity} options={cities} disabled={!province} />{province === "تهران" && <><Select label="منطقه" value={district} onChange={(value) => { setDistrict(value); setNeighborhood(""); }} options={districts.map((item) => item.name || item.district || "").filter(Boolean)} /><Select label="محله" value={neighborhood} onChange={setNeighborhood} options={neighborhoods} disabled={!district} /></>}<Select label="چطور با سایت ما آشنا شدید؟" value={discoverySource} onChange={setDiscoverySource} options={discoveryOptions} /><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
+    {step === "avatar" && <div className="space-y-6 text-center"><User className="mx-auto text-secondary" size={32} /><div><h2 className="font-bold text-primary">تصویر پروفایل</h2><p className="mt-2 text-sm leading-7 text-outline">برای صدور گواهی پایان دوره، داشتن تصویر پروفایل مناسب الزامی است. می‌توانید اکنون تصویر را انتخاب کنید یا بعداً از بخش پروفایل آن را تکمیل کنید.</p></div><div className="flex justify-center text-right"><AvatarUpload value={avatar} onChange={(url) => setAvatar(url)} /></div><button type="button" onClick={finish} className="w-full rounded-xl bg-primary py-3.5 font-bold text-white">{avatar ? "پایان ثبت‌نام" : "بعداً انتخاب می‌کنم"}</button></div>}
+    <p className="mt-7 text-center text-sm text-outline">حساب دارید؟ <Link className="font-bold text-secondary" href="/login">وارد شوید</Link></p>
+  </div></main>;
 }
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm font-bold text-primary [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-outline-variant [&_input]:bg-white [&_input]:px-4 [&_input]:py-3.5 [&_input]:text-sm [&_input]:font-normal [&_input]:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-secondary"><span className="mb-2 block">{label}</span>{children}</label>; }
+function Select({ label, value, onChange, options, disabled }: { label: string; value: string; onChange: (value: string) => void; options: string[]; disabled?: boolean }) { return <label className="block text-sm font-bold text-primary"><span className="mb-2 block">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} className="w-full rounded-xl border border-outline-variant bg-white px-4 py-3.5 text-sm disabled:opacity-50"><option value="">انتخاب کنید</option>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>; }
+function Submit({ loading, children }: { loading: boolean; children: React.ReactNode }) { return <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-white disabled:opacity-60">{loading ? <Loader2 className="animate-spin" size={18} /> : children}</button>; }
+function VerificationButton({ icon, title, description, onClick, disabled }: { icon: React.ReactNode; title: string; description: string; onClick: () => void; disabled: boolean }) { return <button type="button" onClick={onClick} disabled={disabled} className="flex w-full items-center gap-3 rounded-xl border border-outline-variant p-4 text-right transition hover:border-secondary disabled:opacity-60"><span className="text-secondary">{icon}</span><span><span className="block font-bold text-primary">{title}</span><span className="mt-1 block text-xs text-outline">{description}</span></span></button>; }
