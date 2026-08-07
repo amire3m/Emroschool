@@ -384,7 +384,7 @@ export default function HomePage() {
                           href={slide.linkUrl}
                           className="bg-gradient-to-l from-secondary to-secondary/90 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-secondary/20 transition-all active:scale-95"
                         >
-                          {slide.linkText || "مشاهده بیشتر"}
+                           {slide.linkText || "مشاهده بیشتر"} برای {slide.subtitle || slide.title || "این بخش"}
                         </Link>
                       </div>
                     )}
@@ -400,6 +400,8 @@ export default function HomePage() {
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
+                  aria-label={`رفتن به اسلاید ${index + 1}`}
+                  aria-current={index === currentSlide ? "true" : undefined}
                   className={`w-3 h-3 rounded-full transition-all duration-300 ${
                     index === currentSlide
                       ? "bg-secondary-fixed w-8"
@@ -563,9 +565,9 @@ export default function HomePage() {
                         {course.instructor}
                       </p>
                     )}
-                    <h4 className="font-bold text-primary text-sm md:text-base mb-2 line-clamp-2 leading-relaxed">
+                     <h3 className="font-bold text-primary text-sm md:text-base mb-2 line-clamp-2 leading-relaxed">
                       {course.title}
-                    </h4>
+                     </h3>
 
                     <div className="flex items-center gap-1 text-secondary mb-3">
                       <StarRating rating={course.rating} />
@@ -623,7 +625,7 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
-                    <h4 className="font-bold text-lg text-primary mb-1 line-clamp-1">{instName}</h4>
+                     <h3 className="font-bold text-lg text-primary mb-1 line-clamp-1">{instName}</h3>
                     <p className="text-secondary text-sm">{instructor.expertise || "مدرس آکادمی"}</p>
                   </Link>
                 )})}
@@ -677,7 +679,7 @@ export default function HomePage() {
         <section style={{ order: orderFor("partners", 6) }} className="mx-5 md:mx-auto my-20 w-[calc(100%-2.5rem)] max-w-[1280px] overflow-hidden">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">{partnersContent.title}</h2>
-            <p className="text-outline max-w-lg mx-auto">{partnersContent.description}</p>
+           <p className="text-primary/75 max-w-lg mx-auto">{partnersContent.description}</p>
           </div>
            <AutoLoopRow slideClassName="basis-[42%] sm:basis-[25%] lg:basis-[16%]" speed={0.55} showControls={false}>
               {partners.map((partner) => (

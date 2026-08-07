@@ -155,6 +155,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
+              aria-label={searchOpen ? "بستن جستجو" : "باز کردن جستجو"}
               className="lg:hidden text-secondary-fixed p-1"
             >
               <Search size={20} />
@@ -164,6 +165,7 @@ export default function Navbar() {
                 <div className="relative" ref={notifRef}>
                   <button
                     onClick={toggleNotif}
+                    aria-label={`اعلان‌ها${unreadCount ? `، ${unreadCount} اعلان خوانده‌نشده` : ""}`}
                     className="relative text-secondary-fixed p-2 hover:bg-secondary-fixed/10 rounded-lg transition-colors"
                   >
                     <Bell size={20} />
@@ -246,6 +248,7 @@ export default function Navbar() {
             )}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label={mobileOpen ? "بستن منوی اصلی" : "باز کردن منوی اصلی"}
               className="md:hidden text-secondary-fixed p-1"
             >
               {mobileOpen ? <X size={24} /> : <Menu size={24} />}

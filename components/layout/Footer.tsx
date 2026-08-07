@@ -61,9 +61,9 @@ export default function Footer() {
 
           <div className="grid grid-cols-2 gap-8">
             <div>
-              <h5 className="text-secondary-fixed font-bold mb-6">
+               <h2 className="text-secondary-fixed font-bold mb-6 text-base">
                 لینک‌های سریع
-              </h5>
+               </h2>
               <ul className="space-y-3 text-sm opacity-80">
                 <li>
                   <Link
@@ -100,7 +100,7 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h5 className="text-secondary-fixed font-bold mb-6">پشتیبانی</h5>
+               <h2 className="text-secondary-fixed font-bold mb-6 text-base">پشتیبانی</h2>
               <ul className="space-y-3 text-sm opacity-80">
                 <li>
                   <Link
@@ -137,7 +137,7 @@ export default function Footer() {
               </ul>
             </div>
             <div className="col-span-2 border-t border-white/10 pt-6">
-              <h5 className="mb-5 text-secondary-fixed font-bold">پیوندها</h5>
+               <h2 className="mb-5 text-secondary-fixed font-bold text-base">پیوندها</h2>
               <ul className="grid gap-x-8 gap-y-3 text-sm opacity-80 sm:grid-cols-2">
                 {[
                   ["رسانه رهبر انقلاب اسلامی", "https://rahbar.ir"],

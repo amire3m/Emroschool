@@ -109,6 +109,7 @@
 
 body {
   font-family: var(--site-font);
+  color: #1a1b25;
   background-color: #fbf8ff;
   overflow-x: hidden;
   direction: rtl;
