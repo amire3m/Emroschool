@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft, KeyRound, Loader2, Mail, MapPin, Phone, User } from "lucide-react";
-import { setCookie } from "@/lib/cookie";
+import { getCookie, setCookie } from "@/lib/cookie";
 import AvatarUpload from "@/components/profile/avatar-upload";
 
 type VerificationMethod = "email" | "bale" | "sms" | "call";
@@ -16,6 +16,7 @@ const discoveryOptions = ["دوستان و آشنایان", "گوگل", "این�
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<"account" | "verify" | "details" | "avatar">("account");
+  const [googleRegistration, setGoogleRegistration] = useState(false);
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
@@ -37,6 +38,25 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("google") !== "1") return;
+    const currentToken = getCookie("token");
+    if (!currentToken) return;
+    fetch("/api/user/profile", { headers: { Authorization: `Bearer ${currentToken}` } })
+      .then((res) => res.json())
+      .then(({ user }) => {
+        if (!user) return;
+        if (user.registrationCompleted) { router.replace("/dashboard"); return; }
+        setGoogleRegistration(true);
+        setToken(currentToken);
+        setName(user.name || "");
+        setEmail(user.email || "");
+        setPhone(user.phone || "");
+        setGender(user.gender || "");
+      })
+      .catch(() => setError("دریافت اطلاعات حساب گوگل ناموفق بود"));
+  }, [router]);
 
   useEffect(() => {
     if (step !== "details") return;
@@ -63,10 +83,16 @@ export default function RegisterPage() {
     if (!gender) return setError("جنسیت را انتخاب کنید");
     if (!/^09\d{9}$/.test(phone.replace(/\D/g, ""))) return setError("شماره موبایل معتبر وارد کنید");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("ایمیل معتبر وارد کنید");
-    if (password.length < 6) return setError("رمز عبور باید حداقل ۶ کاراکتر باشد");
-    if (password !== confirmPassword) return setError("رمز عبور و تکرار آن مطابقت ندارند");
+    if (!googleRegistration && password.length < 6) return setError("رمز عبور باید حداقل ۶ کاراکتر باشد");
+    if (!googleRegistration && password !== confirmPassword) return setError("رمز عبور و تکرار آن مطابقت ندارند");
     setLoading(true);
     try {
+      if (googleRegistration) {
+        const res = await fetch("/api/auth/google-registration", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: normalizedName, gender, phone }) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error);
+        setStep("details");
+        return;
+      }
       const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: normalizedName, gender, email, phone, password, notificationChannel: "sms" }) });
       const data = await res.json(); if (!res.ok) throw new Error(data.error);
       setStep("verify"); setNotice("حساب شما ایجاد شد. برای ادامه حداقل یکی از روش‌های زیر را تأیید کنید.");
@@ -108,7 +134,7 @@ export default function RegisterPage() {
   return <main className="min-h-[calc(100vh-96px)] bg-surface px-4 py-24"><div className="mx-auto w-full max-w-xl rounded-3xl border border-outline-variant/30 bg-white p-6 shadow-sm md:p-9">
     <div className="mb-8 text-center"><h1 className="text-2xl font-black text-primary">ایجاد حساب کاربری</h1><p className="mt-2 text-sm text-outline">مرحله {stepNumber} از 4</p><div className="mt-4 flex gap-2">{[1, 2, 3, 4].map((item) => <span key={item} className={`h-1.5 flex-1 rounded-full ${item <= stepNumber ? "bg-secondary" : "bg-outline-variant/30"}`} />)}</div></div>
     {(error || notice) && <div className={`mb-6 flex gap-2 rounded-xl px-4 py-3 text-sm ${error ? "bg-error-container text-error" : "bg-green-50 text-green-800"}`}>{error ? <KeyRound size={17} /> : <CheckCircle2 size={17} />}{error || notice}</div>}
-    {step === "account" && <form onSubmit={createAccount} className="space-y-5"><Field label="نام و نام خانوادگی"><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="محمدرضا حسینی" /></Field><fieldset><legend className="mb-2 block text-sm font-bold text-primary">جنسیت</legend><div className="grid grid-cols-2 gap-3">{[["male", "آقا"], ["female", "خانم"]].map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${gender === value ? "border-primary bg-primary text-white" : "border-outline-variant text-primary"}`}><input className="sr-only" type="radio" name="gender" checked={gender === value} onChange={() => setGender(value)} />{label}</label>)}</div></fieldset><Field label="شماره تلفن همراه"><input dir="ltr" inputMode="numeric" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="09123456789" /></Field><Field label="ایمیل"><input dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="example@email.com" /></Field><Field label="رمز عبور"><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></Field><Field label="تکرار رمز عبور"><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" /></Field><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
+    {step === "account" && <form onSubmit={createAccount} className="space-y-5">{googleRegistration && <p className="rounded-xl bg-green-50 p-3 text-sm leading-6 text-green-800">ایمیل شما توسط گوگل تأیید شده است. برای تکمیل ثبت‌نام، اطلاعات زیر را وارد کنید.</p>}<Field label="نام و نام خانوادگی"><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="محمدرضا حسینی" /></Field><fieldset><legend className="mb-2 block text-sm font-bold text-primary">جنسیت</legend><div className="grid grid-cols-2 gap-3">{[["male", "آقا"], ["female", "خانم"]].map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${gender === value ? "border-primary bg-primary text-white" : "border-outline-variant text-primary"}`}><input className="sr-only" type="radio" name="gender" checked={gender === value} onChange={() => setGender(value)} />{label}</label>)}</div></fieldset><Field label="شماره تلفن همراه"><input dir="ltr" inputMode="numeric" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="09123456789" /></Field><Field label="ایمیل"><input readOnly={googleRegistration} dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="example@email.com" /></Field>{!googleRegistration && <><Field label="رمز عبور"><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></Field><Field label="تکرار رمز عبور"><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" /></Field></>}<Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
     {step === "verify" && !method && <div className="space-y-3"><p className="text-center text-sm leading-7 text-outline">حداقل یکی از روش‌ها را تأیید کنید.</p><VerificationButton icon={<Mail />} title="تأیید ایمیل" description={email} onClick={() => sendCode("email")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیام‌رسان بله" description="کد در پیام‌رسان بله ارسال می‌شود" onClick={() => sendCode("bale")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیامک" description="کد به شماره همراه ارسال می‌شود" onClick={() => sendCode("sms")} disabled={loading} /><VerificationButton icon={<Phone />} title="تماس گویای کد" description="در صورت نرسیدن پیامک، کد را تلفنی دریافت کنید" onClick={() => sendCode("call")} disabled={loading} /></div>}
     {step === "verify" && method && <form onSubmit={verifyCode} className="space-y-5"><div className="text-center"><KeyRound className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">کد تأیید را وارد کنید</h2><p className="mt-1 text-sm text-outline">{method === "email" ? email : phone}</p></div><Field label="کد شش‌رقمی"><input dir="ltr" inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} className="text-center tracking-[0.5em]" /></Field><Submit loading={loading}>تأیید و ادامه <ChevronLeft size={18} /></Submit><button type="button" onClick={() => { clearMessages(); setMethod(null); }} className="w-full text-sm font-bold text-secondary">تغییر روش تأیید</button></form>}
     {step === "details" && <form onSubmit={saveDetails} className="space-y-5"><div className="text-center"><MapPin className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">اطلاعات تکمیلی</h2></div><Select label="استان" value={province} onChange={setProvince} options={provinces.map((item) => item.name)} /><Select label="شهر" value={city} onChange={setCity} options={cities} disabled={!province} />{province === "تهران" && <><Select label="منطقه" value={district} onChange={(value) => { setDistrict(value); setNeighborhood(""); }} options={districts.map((item) => item.name || item.district || "").filter(Boolean)} /><Select label="محله" value={neighborhood} onChange={setNeighborhood} options={neighborhoods} disabled={!district} /></>}<Select label="چطور با سایت ما آشنا شدید؟" value={discoverySource} onChange={setDiscoverySource} options={discoveryOptions} /><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}

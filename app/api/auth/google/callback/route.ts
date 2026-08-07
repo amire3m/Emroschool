@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     if (isNewUser) sendWelcomeEmail(user.email, user.name).catch((error) => console.error("Google welcome email error:", error));
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
-    const redirect = user.role === "admin" || user.role === "superadmin" ? "/admin" : oauthState.redirect || "/dashboard";
+    const redirect = user.role === "admin" || user.role === "superadmin" ? "/admin" : !user.registrationCompleted ? "/register?google=1" : oauthState.redirect || "/dashboard";
     const response = NextResponse.redirect(new URL(redirect, siteUrl));
     response.cookies.set("token", token, { httpOnly: false, secure: siteUrl.startsWith("https://"), sameSite: "lax", maxAge: 7 * 86400, path: "/", domain: siteUrl.includes("imamruhollahschool.com") ? ".imamruhollahschool.com" : undefined });
     response.cookies.set("google_oauth_state", "", { maxAge: 0, path: "/" });
