@@ -62,7 +62,7 @@ interface RenameTarget {
 }
 
 const filters = [
-  { value: "all", label: "همه فایل‌ها" },
+  { value: "all", label: "فایل‌های عمومی" },
   { value: "image", label: "تصاویر" },
   { value: "video", label: "ویدئو" },
   { value: "audio", label: "صدا" },
@@ -309,7 +309,8 @@ export default function AdminFilesPage() {
   }
 
   const filteredFiles = files.filter((file) => {
-    const matchesFilter = filter === "all" || (filter === "user" ? file.path.startsWith("users/") : file.type === filter);
+    const isUserFile = file.path.startsWith("users/");
+    const matchesFilter = filter === "all" ? !isUserFile : filter === "user" ? isUserFile : file.type === filter;
     const normalizedSearch = search.trim().toLowerCase();
     return matchesFilter && (!normalizedSearch || file.name.toLowerCase().includes(normalizedSearch) || file.extension.toLowerCase().includes(normalizedSearch));
   });
