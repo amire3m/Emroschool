@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import { getIranianCardInfo } from "@/lib/iranian-card";
 
 type Order = {
   id: string;
@@ -44,6 +45,7 @@ export default function CheckoutPage() {
   } | null>(null);
   const [botUrl, setBotUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [payerCardNumber, setPayerCardNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [application, setApplication] = useState<Application | null>(null);
   const [applicationLoading, setApplicationLoading] = useState(true);
@@ -106,7 +108,7 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ applicationId: application.id, method }),
+        body: JSON.stringify({ applicationId: application.id, method, payerCardNumber: method === "card_to_card" ? payerCardNumber : undefined }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
@@ -131,9 +133,11 @@ export default function CheckoutPage() {
     if (!order) return;
     const nextMethod = order.method === "card_to_card" ? "bale_wallet" : "card_to_card";
     if (!window.confirm("روش پرداخت فعلی غیرفعال می‌شود و باید پرداخت را با روش جدید ادامه دهید. ادامه می‌دهید؟")) return;
+    const nextPayerCardNumber = nextMethod === "card_to_card" ? window.prompt("شماره کارت پرداخت‌کننده را وارد کنید:")?.trim() : undefined;
+    if (nextMethod === "card_to_card" && !nextPayerCardNumber) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/payments/${order.id}/change-method`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token") || ""}` }, body: JSON.stringify({ method: nextMethod }) });
+      const response = await fetch(`/api/payments/${order.id}/change-method`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token") || ""}` }, body: JSON.stringify({ method: nextMethod, payerCardNumber: nextPayerCardNumber }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setOrder(data.order); setMethod(nextMethod); setFile(null); setInstructions(data.paymentInstructions || null); setBotUrl(data.baleBotUrl || "");
@@ -256,9 +260,10 @@ export default function CheckoutPage() {
                   </small>
                 </span>
               </button>
+              {method === "card_to_card" && <PayerCardInput value={payerCardNumber} onChange={setPayerCardNumber} />}
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || (method === "card_to_card" && !getIranianCardInfo(payerCardNumber))}
                 onClick={createOrder}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-white transition hover:bg-primary-container disabled:opacity-60"
               >
@@ -363,4 +368,10 @@ export default function CheckoutPage() {
       </div>
     </main>
   );
+}
+
+function PayerCardInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const info = getIranianCardInfo(value);
+  const digits = value.replace(/[^0-9۰-۹٠-٩]/g, "");
+  return <div className="rounded-2xl border border-secondary/40 bg-[#fffaf0] p-4"><label className="block text-sm font-bold text-primary">کارت پرداخت‌کننده<input value={value} onChange={(event) => onChange(event.target.value)} inputMode="numeric" maxLength={19} dir="ltr" placeholder="6037 9977 1234 5678" className={`mt-2 w-full rounded-xl border bg-white px-4 py-3 text-center text-base tracking-[0.12em] outline-none ${info ? "border-green-500" : digits.length >= 16 ? "border-error" : "border-outline-variant"}`} /></label>{info ? <p className="mt-2 text-xs font-bold text-green-700">کارت معتبر است · {info.bankName}</p> : <p className="mt-2 text-xs text-outline">شماره کارت برای تشخیص بانک و بررسی رسید ثبت می‌شود.</p>}</div>;
 }

@@ -292,6 +292,10 @@ model PaymentOrder {
   baleInvoiceUrl       String?
   payerBaleId          String?
   payerBaleName        String?
+  payerCardEncrypted   String?
+  payerCardMasked      String?
+  payerBankName        String?
+  payerBankSlug        String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   receiptSubmittedAt   DateTime?

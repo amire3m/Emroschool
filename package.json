@@ -34,6 +34,7 @@
     "react-hot-toast": "^2.4.1",
     "react-multi-date-picker": "^4.5.2",
     "react-player": "^2.15.0",
+    "shaba": "^1.0.1",
     "xlsx": "^0.18.5",
     "zustand": "^4.5.0"
   },

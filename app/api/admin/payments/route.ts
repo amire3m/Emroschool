@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { decryptPaymentCard } from "@/lib/payment-card-crypto";
 
 async function admin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -27,7 +28,11 @@ export async function GET(req: NextRequest) {
     }),
     prisma.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
-  return NextResponse.json({ orders, settings });
+  const safeOrders = orders.map(({ payerCardEncrypted, ...order }) => ({
+    ...order,
+    payerCardNumber: payerCardEncrypted ? (() => { try { return decryptPaymentCard(payerCardEncrypted); } catch { return null; } })() : null,
+  }));
+  return NextResponse.json({ orders: safeOrders, settings });
 }
 
 export async function PATCH(req: NextRequest) {
