@@ -154,7 +154,7 @@ export default function Footer() {
           <div className="flex flex-col gap-3">
             <h5 className="text-secondary-fixed font-bold flex items-center gap-2"><MapPin size={17} />موقعیت آکادمی</h5>
              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 h-48"><DeferredMap title="موقعیت آکادمی امام روح‌الله روی نقشه" className="h-full w-full border-0 grayscale-[35%]" /></div>
-             <p className="text-sm leading-7 text-white/70">تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72</p>
+             <p className="text-sm leading-7 text-white/70">تهران، میدان انقلاب، کارگر جنوبی، خیابان نظری، بین خیابان دانشگاه و قدیری، پلاک 72</p>
               <a href="https://nshn.ir/7bvh24IxOOVa" target="_blank" rel="noopener noreferrer" className="text-xs text-white/55 hover:text-secondary-fixed">مسیریابی در نشان</a>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { ArrowLeft, Instagram, MapPin, Phone } from "lucide-react";
 import VintagePhotoSlideshow from "@/components/about/vintage-photo-slideshow";
 import DeferredMap from "@/components/ui/deferred-map";
 
-const address = "تهران، کارگر جنوبی، نظری، بین دانشگاه و قدیری، پلاک 72";
+const address = "تهران، میدان انقلاب، کارگر جنوبی، خیابان نظری، بین خیابان دانشگاه و قدیری، پلاک 72";
 
 export const metadata: Metadata = {
   title: "درباره آکادمی",
