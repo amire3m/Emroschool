@@ -4,6 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { Check, LogIn, Mail, SendHorizontal, Sparkles, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function NewsletterCta({ title, description, isLoggedIn }: { title: string; description: string; isLoggedIn: boolean }) {
   const router = useRouter();
@@ -42,8 +43,16 @@ export default function NewsletterCta({ title, description, isLoggedIn }: { titl
             <div className="relative h-14 rounded-full bg-black/20 p-1" dir="ltr">
               <motion.div className="absolute inset-y-1 left-1 rounded-full bg-secondary-fixed/20" style={{ width: fillWidth }} />
                {!completed ? <motion.button type="button" aria-label="کشیدن برای عضویت" drag="x" dragConstraints={{ left: 0, right: 170 }} dragElastic={0.04} dragMomentum={false} style={{ x: springX }} onDragEnd={finish} className="absolute left-1 top-1 z-10 flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-secondary-fixed text-primary shadow-lg active:cursor-grabbing">{isLoggedIn ? <SendHorizontal size={20} aria-hidden="true" /> : <UserPlus size={20} aria-hidden="true" />}</motion.button> : <motion.div initial={{ scale: .7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute inset-0 flex items-center justify-center gap-2 text-secondary-fixed"><Check size={20} aria-hidden="true" /> آماده شد!</motion.div>}
-               {!completed && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/85">برای عضویت بکشید ←</span>}
+                {!completed && <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/85">برای عضویت بکشید ←</span>}
             </div>
+            {!completed && (
+              <Link
+                href={isLoggedIn ? "/dashboard/profile" : "/register"}
+                className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-secondary-fixed px-5 text-sm font-bold text-primary transition-transform hover:-translate-y-0.5 active:scale-95"
+              >
+                {isLoggedIn ? "تکمیل پروفایل" : "ثبت نام در آکادمی"}
+              </Link>
+            )}
           </div>
         </div>
       </div>

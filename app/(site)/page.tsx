@@ -19,6 +19,10 @@ import {
   Image as ImageIcon,
   X,
   AlertCircle,
+  BookOpen,
+  CalendarCheck,
+  GraduationCap,
+  Users,
 } from "lucide-react";
 
 interface HomeCategory {
@@ -319,6 +323,12 @@ export default function HomePage() {
   const featured = courses.filter((c) => c.featured).slice(0, courseLimit);
   const displayCourses = featured.length > 0 ? featured : courses.slice(0, courseLimit);
   const displayInstructors = instructorLimit > 0 ? homeInstructors.slice(0, instructorLimit) : homeInstructors;
+  const trustItems = [
+    { icon: BookOpen, value: courses.length > 0 ? courses.length.toLocaleString("fa-IR") : "", label: "دوره برای انتخاب" },
+    { icon: GraduationCap, value: homeInstructors.length > 0 ? homeInstructors.length.toLocaleString("fa-IR") : "", label: "استاد همراه شما" },
+    { icon: Users, value: categories.length > 0 ? categories.length.toLocaleString("fa-IR") : "", label: "مسیر آموزشی" },
+    { icon: CalendarCheck, value: "آنلاین", label: "شروع ثبت نام" },
+  ];
 
   return (
     <div className="flex flex-col">
@@ -383,7 +393,7 @@ export default function HomePage() {
                           href={slide.linkUrl}
                           className="bg-gradient-to-l from-secondary to-secondary/90 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-secondary/20 transition-all active:scale-95"
                         >
-                           {slide.linkText || "مشاهده بیشتر"} برای {slide.subtitle || slide.title || "این بخش"}
+                           {slide.linkText || "مشاهده و ثبت نام"}
                         </Link>
                       </div>
                     )}
@@ -462,6 +472,23 @@ export default function HomePage() {
       ))}
       </div>
 
+      <section
+        style={{ order: orderFor("hero", 1) + 0.1 }}
+        className="relative z-20 mx-5 -mt-8 rounded-3xl border border-outline-variant/30 bg-white px-3 py-4 shadow-xl md:mx-auto md:w-[calc(100%-4rem)] md:max-w-[1180px] md:px-8"
+      >
+        <div className="grid grid-cols-2 divide-x-0 divide-outline-variant/30 sm:grid-cols-4 sm:divide-x" dir="rtl">
+          {trustItems.map(({ icon: Icon, value, label }) => (
+            <div key={label} className="flex items-center justify-center gap-2 px-2 py-2 text-center sm:px-5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary-fixed text-secondary"><Icon size={18} /></span>
+              <span>
+                {value && <strong className="block text-base leading-5 text-primary">{value}</strong>}
+                <span className="block text-xs font-medium text-outline">{label}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {sectionVisibility.departments !== false && (
       <AnimatedSection order={orderFor("departments", 2)} className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
@@ -497,6 +524,32 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
       )}
+
+      <section style={{ order: orderFor("departments", 2) + 0.1 }} className="bg-primary py-16 text-white md:py-20">
+        <div className="mx-auto max-w-[1280px] px-5 md:px-8">
+          <div className="mb-10 max-w-2xl">
+            <p className="mb-3 text-sm font-bold text-secondary-fixed">مسیر ثبت نام در آکادمی</p>
+            <h2 className="text-3xl font-black leading-relaxed md:text-4xl">از علاقه تا یادگیری، مسیرتان روشن است.</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              ["۱", "مسیرتان را انتخاب کنید", "دوره‌ها را بر اساس علاقه و مهارت موردنیازتان ببینید."],
+              ["۲", "دوره مناسب را پیدا کنید", "جزئیات مدرس، محتوا و شیوه برگزاری را مقایسه کنید."],
+              ["۳", "ثبت نام را شروع کنید", "در چند قدم ساده، جایگاه خود را در دوره رزرو کنید."],
+            ].map(([number, title, description]) => (
+              <div key={number} className="rounded-3xl border border-white/15 bg-white/5 p-6 backdrop-blur-sm">
+                <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-secondary-fixed font-black text-primary">{number}</span>
+                <h3 className="mb-3 text-lg font-bold">{title}</h3>
+                <p className="text-sm leading-7 text-white/75">{description}</p>
+              </div>
+            ))}
+          </div>
+          <Link href="/courses" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-secondary px-6 py-3 font-bold text-white transition-transform hover:-translate-y-0.5 active:scale-95">
+            مشاهده دوره‌ها
+            <ArrowLeft size={18} />
+          </Link>
+        </div>
+      </section>
 
       {sectionVisibility.courses !== false && (
       <AnimatedSection order={orderFor("courses", 3)} className="py-20 md:py-24 bg-surface-low">
@@ -556,6 +609,9 @@ export default function HomePage() {
                         {course.categoryName}
                       </div>
                     )}
+                    <div className="absolute bottom-3 right-3 rounded-full bg-primary/90 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
+                      {course.registrationMode === "registration" ? "ثبت نام فعال" : "دوره منتخب"}
+                    </div>
                   </div>
 
                    <div className="flex min-h-[190px] flex-col p-5">
