@@ -12,6 +12,7 @@ export function middleware(req: NextRequest) {
     const canonicalUrl = req.nextUrl.clone();
     canonicalUrl.protocol = "https:";
     canonicalUrl.host = MAIN_HOST;
+    canonicalUrl.port = "";
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
