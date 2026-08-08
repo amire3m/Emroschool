@@ -172,6 +172,13 @@ export default function CourseRegistrationModal({
       toast.error("کد ملی واردشده معتبر نیست");
       return false;
     }
+    if (step === 1) {
+      const fullName = form.fullName.trim().replace(/\s+/g, " ");
+      if (!/^[آ-ی ]+$/.test(fullName) || fullName.split(" ").filter(Boolean).length < 2) {
+        toast.error("نام و نام خانوادگی را فقط با حروف فارسی وارد کنید");
+        return false;
+      }
+    }
     if (
       step === 3 &&
       form.knowsInstructors &&

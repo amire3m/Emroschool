@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
     if (customFields.some((field) => field.required && !String(customResponses[field.key] || "").trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای سفارشی الزامی را تکمیل کنید" }, { status: 400 });
      const requiredFields = ["courseId", "fullName", "email", "phone", "nationalCode", "birthDate", "gender", "province", "city", "address", "educationLevel", "educationField", "university", "universityField", "reason", "workHistory", "artHistory", "instagramId", "virtualPhone"];
     if (requiredFields.some((field) => typeof body[field] !== "string" || !body[field].trim())) return NextResponse.json({ error: "لطفاً تمام فیلدهای الزامی فرم را تکمیل کنید" }, { status: 400 });
+    const fullName = body.fullName.trim().replace(/\s+/g, " ");
+    if (!/^[آ-ی ]+$/.test(fullName) || fullName.split(" ").filter(Boolean).length < 2) return NextResponse.json({ error: "نام و نام خانوادگی را فقط با حروف فارسی وارد کنید" }, { status: 400 });
      if (body.knowsInstructors === true && !body.familiarityDetails?.trim()) return NextResponse.json({ error: "محل آشنایی قبلی با اساتید را وارد کنید" }, { status: 400 });
     const nationalCode = normalizeIranianNationalCode(body.nationalCode);
     if (!isValidIranianNationalCode(nationalCode)) return NextResponse.json({ error: "کد ملی واردشده معتبر نیست" }, { status: 400 });
@@ -77,7 +79,6 @@ export async function POST(req: NextRequest) {
     const existingUser = await prisma.user.findUnique({ where: { id: token.id } });
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();
-    const fullName = body.fullName.trim();
     const phone = normalizedPhone;
     const profileUpdated = existingUser.name !== fullName || existingUser.email !== email || existingUser.phone !== phone || existingUser.nationalCode !== nationalCode;
 
