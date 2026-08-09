@@ -21,10 +21,17 @@ export function middleware(req: NextRequest) {
   if (isMagazine) {
     const mainOnly = ["/login", "/register", "/dashboard", "/admin", "/courses", "/events", "/instructors", "/honar-amooztegan", "/profile"];
     if (mainOnly.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
-      return NextResponse.redirect(new URL(`${MAIN_SITE}${pathname}${req.nextUrl.search}`));
+      return NextResponse.redirect(new URL(`${MAIN_SITE}${pathname}${req.nextUrl.search}`), 308);
     }
-    if (pathname === "/") return NextResponse.rewrite(new URL("/news", req.url));
+    if (pathname === "/news") return NextResponse.redirect(new URL(`${MAGAZINE_SITE}/${req.nextUrl.search}`), 308);
+    if (pathname === "/") {
+      const response = NextResponse.rewrite(new URL("/news", req.url));
+      response.headers.set("Link", `<${MAGAZINE_SITE}/>; rel="canonical"`);
+      return response;
+    }
   } else {
+    if (pathname === "/news") return NextResponse.redirect(new URL(`${MAGAZINE_SITE}/${req.nextUrl.search}`), 308);
+    if (pathname.startsWith("/news/")) return NextResponse.redirect(new URL(`${MAGAZINE_SITE}${pathname}${req.nextUrl.search}`), 308);
     if (pathname === "/admin/news" || pathname.startsWith("/admin/news/")) return NextResponse.redirect(new URL("/mag-admin/posts", MAGAZINE_SITE));
     if (pathname === "/mag-admin" || pathname.startsWith("/mag-admin/")) return NextResponse.redirect(new URL(pathname, MAGAZINE_SITE));
   }

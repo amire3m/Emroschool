@@ -5,13 +5,15 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, Clock3, Loader2, Share2 } from "lucide-react";
 import toast from "react-hot-toast";
 import CopyLinkButton from "@/components/ui/copy-link-button";
+import { useInitialData } from "@/components/seo/initial-data-provider";
 
 interface NewsPost { id: string; title: string; slug: string; excerpt: string; content: string; coverImage: string | null; category: string; authorName: string | null; publishedAt: string | null; createdAt: string; }
 const categoryLabels: Record<string, string> = { general: "خبر آکادمی", course: "دوره‌ها", instructor: "اساتید", alumni: "هنرآموختگان" };
 
 export default function NewsDetailPage({ params }: { params: { slug: string } }) {
-  const [post, setPost] = useState<NewsPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialPost = useInitialData<NewsPost>("post");
+  const [post, setPost] = useState<NewsPost | null>(initialPost);
+  const [loading, setLoading] = useState(!initialPost);
   const [progress, setProgress] = useState(0);
   const headerRef = useRef<HTMLElement>(null);
 

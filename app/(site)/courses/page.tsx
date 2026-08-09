@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, Star, Loader2 } from "lucide-react";
+import { useInitialData } from "@/components/seo/initial-data-provider";
 
 interface Course {
   id: string;
@@ -36,9 +37,11 @@ function formatPrice(price: number) {
 }
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCourses = useInitialData<Course[]>("courses") || [];
+  const initialCategories = useInitialData<Category[]>("categories") || [];
+  const [courses, setCourses] = useState<Course[]>(initialCourses);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [loading, setLoading] = useState(initialCourses.length === 0);
   const [activeCategory, setActiveCategory] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -50,6 +53,7 @@ export default function CoursesPage() {
     if (query) setSearchQuery(query);
 
     async function fetchData() {
+      if (initialCourses.length > 0) return;
       try {
         const [coursesRes, categoriesRes] = await Promise.all([
           fetch("/api/courses"),
@@ -67,7 +71,7 @@ export default function CoursesPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [initialCourses.length]);
 
   const filtered = courses.filter((course) => {
     const selectedCategory = categories.find((category) => category.slug === activeCategory);

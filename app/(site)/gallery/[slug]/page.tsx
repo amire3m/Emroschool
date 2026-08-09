@@ -8,7 +8,12 @@ import CopyLinkButton from "@/components/ui/copy-link-button";
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const image = await prisma.gallery.findFirst({ where: { slug: params.slug } });
   if (!image) return {};
-  return { title: image.seoTitle || image.title || "گالری آکادمی", description: image.seoDescription || image.description || image.altText || undefined, openGraph: { images: [image.imageUrl] } };
+  return {
+    title: image.seoTitle || image.title || "گالری آکادمی",
+    description: image.seoDescription || image.description || image.altText || undefined,
+    alternates: { canonical: `/gallery/${params.slug}` },
+    openGraph: { images: [image.imageUrl] },
+  };
 }
 
 export default async function GalleryDetailPage({ params }: { params: { slug: string } }) {
