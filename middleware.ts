@@ -19,13 +19,21 @@ export function middleware(req: NextRequest) {
   const isMagazine = hostname === "mag.imamruhollahschool.com" || hostname.startsWith("mag.");
 
   if (isMagazine) {
+    const isHomeRewrite = pathname === "/news" && req.nextUrl.searchParams.get("_magazineHome") === "1";
     const mainOnly = ["/login", "/register", "/dashboard", "/admin", "/courses", "/events", "/instructors", "/honar-amooztegan", "/profile"];
     if (mainOnly.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
       return NextResponse.redirect(new URL(`${MAIN_SITE}${pathname}${req.nextUrl.search}`), 308);
     }
-    if (pathname === "/news") return NextResponse.redirect(new URL(`${MAGAZINE_SITE}/${req.nextUrl.search}`), 308);
+    if (pathname === "/news" && !isHomeRewrite) return NextResponse.redirect(new URL(`${MAGAZINE_SITE}/${req.nextUrl.search}`), 308);
     if (pathname === "/") {
-      const response = NextResponse.rewrite(new URL("/news", req.url));
+      const rewriteUrl = new URL("/news", req.url);
+      rewriteUrl.searchParams.set("_magazineHome", "1");
+      const response = NextResponse.rewrite(rewriteUrl);
+      response.headers.set("Link", `<${MAGAZINE_SITE}/>; rel="canonical"`);
+      return response;
+    }
+    if (isHomeRewrite) {
+      const response = NextResponse.next();
       response.headers.set("Link", `<${MAGAZINE_SITE}/>; rel="canonical"`);
       return response;
     }
