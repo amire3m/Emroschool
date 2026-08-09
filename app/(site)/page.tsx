@@ -525,7 +525,7 @@ export default function HomePage() {
       </AnimatedSection>
       )}
 
-      <section style={{ order: orderFor("departments", 2) + 0.1 }} className="bg-primary py-16 text-white md:py-20">
+      <section style={{ order: orderFor("hero", 1) + 0.05 }} className="bg-primary py-16 text-white md:py-20">
         <div className="mx-auto max-w-[1280px] px-5 md:px-8">
           <div className="mb-10 max-w-2xl">
             <p className="mb-3 text-sm font-bold text-secondary-fixed">مسیر ثبت نام در آکادمی</p>
