@@ -38,7 +38,8 @@ export function middleware(req: NextRequest) {
 
   const response = NextResponse.next();
   const canonicalBase = isMagazine ? MAGAZINE_SITE : MAIN_SITE;
-  response.headers.set("Link", `<${canonicalBase}${pathname}>; rel="canonical"`);
+  const canonicalUrl = pathname === "/magazine-home-internal" ? `${MAGAZINE_SITE}/` : `${canonicalBase}${pathname}`;
+  response.headers.set("Link", `<${canonicalUrl}>; rel="canonical"`);
   return response;
 }
 
