@@ -331,7 +331,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="home-cinematic flex flex-col">
+    <div className="flex flex-col">
       <div style={{ order: orderFor("hero", 1) }}>
       {sectionVisibility.hero !== false && (
         slidersLoading ? (
@@ -341,7 +341,7 @@ export default function HomePage() {
           <div className="relative z-10 mx-auto w-full max-w-[1280px] px-5 text-right md:px-8"><div className="max-w-3xl"><span className="mb-6 inline-block rounded-full border border-secondary/30 bg-secondary/20 px-4 py-1.5 text-sm font-bold text-secondary-fixed">{heroContent.badge}</span><h1 className="font-playfair text-4xl leading-tight text-secondary-fixed md:text-5xl lg:text-6xl">{heroContent.title}</h1></div></div>
         </section>
       ) : sliders.length > 0 ? (
-        <section className="home-cinematic-hero relative h-[65svh] min-h-[420px] max-h-[560px] overflow-hidden md:min-h-screen md:max-h-none">
+        <section className="relative h-[65svh] min-h-[420px] max-h-[560px] overflow-hidden md:min-h-screen md:max-h-none">
           {sliders.map((slide, index) => (
             <div
               key={slide.id}
@@ -422,7 +422,7 @@ export default function HomePage() {
           )}
         </section>
       ) : (
-        <header className="home-cinematic-hero relative min-h-screen flex items-center overflow-hidden">
+        <header className="relative min-h-screen flex items-center overflow-hidden">
           <div className="absolute inset-0 z-0">
             <div
               className="w-full h-full bg-cover bg-center scale-105"
@@ -465,7 +465,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-secondary-fixed/50 animate-pulse">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-secondary-fixed/50 animate-bounce">
             <ChevronDown size={32} />
           </div>
         </header>
@@ -474,7 +474,7 @@ export default function HomePage() {
 
       <section
         style={{ order: orderFor("hero", 1) + 0.1 }}
-        className="home-cinematic-trust relative z-20 mx-5 -mt-8 rounded-3xl border border-outline-variant/30 bg-white px-3 py-4 shadow-xl md:mx-auto md:w-[calc(100%-4rem)] md:max-w-[1180px] md:px-8"
+        className="relative z-20 mx-5 -mt-8 rounded-3xl border border-outline-variant/30 bg-white px-3 py-4 shadow-xl md:mx-auto md:w-[calc(100%-4rem)] md:max-w-[1180px] md:px-8"
       >
         <div className="grid grid-cols-2 divide-x-0 divide-outline-variant/30 sm:grid-cols-4 sm:divide-x" dir="rtl">
           {trustItems.map(({ icon: Icon, value, label }) => (
@@ -490,7 +490,7 @@ export default function HomePage() {
       </section>
 
       {sectionVisibility.departments !== false && (
-      <AnimatedSection order={orderFor("departments", 2)} className="home-cinematic-departments py-20 md:py-24">
+      <AnimatedSection order={orderFor("departments", 2)} className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-4">
@@ -525,7 +525,7 @@ export default function HomePage() {
       </AnimatedSection>
       )}
 
-      <section style={{ order: orderFor("departments", 2) + 0.1 }} className="home-cinematic-journey bg-primary py-16 text-white md:py-20">
+      <section style={{ order: orderFor("departments", 2) + 0.1 }} className="bg-primary py-16 text-white md:py-20">
         <div className="mx-auto max-w-[1280px] px-5 md:px-8">
           <div className="mb-10 max-w-2xl">
             <p className="mb-3 text-sm font-bold text-secondary-fixed">مسیر ثبت نام در آکادمی</p>
@@ -552,7 +552,7 @@ export default function HomePage() {
       </section>
 
       {sectionVisibility.courses !== false && (
-      <AnimatedSection order={orderFor("courses", 3)} className="home-cinematic-courses py-20 md:py-24 bg-surface-low">
+      <AnimatedSection order={orderFor("courses", 3)} className="py-20 md:py-24 bg-surface-low">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="flex justify-between items-end mb-10">
             <div>
@@ -645,7 +645,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.instructors !== false && (
-      <AnimatedSection order={orderFor("instructors", 4)} className="home-cinematic-instructors py-20 md:py-24">
+      <AnimatedSection order={orderFor("instructors", 4)} className="py-20 md:py-24">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="flex justify-between items-end mb-10">
             <div>
@@ -693,7 +693,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.gallery !== false && (
-      <AnimatedSection order={orderFor("gallery", 5)} className="home-cinematic-gallery py-20 md:py-24 bg-surface-low">
+      <AnimatedSection order={orderFor("gallery", 5)} className="py-20 md:py-24 bg-surface-low">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
             <h2 className="font-playfair text-3xl md:text-4xl text-primary mb-2">
@@ -731,7 +731,7 @@ export default function HomePage() {
       )}
 
       {sectionVisibility.partners !== false && partners.length > 0 && (
-        <section style={{ order: orderFor("partners", 6) }} className="home-cinematic-partners mx-5 md:mx-auto my-20 w-[calc(100%-2.5rem)] max-w-[1280px] overflow-hidden">
+        <section style={{ order: orderFor("partners", 6) }} className="mx-5 md:mx-auto my-20 w-[calc(100%-2.5rem)] max-w-[1280px] overflow-hidden">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">{partnersContent.title}</h2>
            <p className="text-primary/75 max-w-lg mx-auto">{partnersContent.description}</p>

@@ -140,48 +140,6 @@ strong, b { font-weight: 700; }
 
 .font-site { font-family: var(--site-font); }
 
-/* Homepage: cinematic collage treatment while preserving the existing data and order. */
-.home-cinematic { background: #f0ebe1; }
-.home-cinematic-hero::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at 12% 22%, rgba(255, 61, 110, .72) 0 9%, transparent 25%), radial-gradient(circle at 74% 12%, rgba(71, 157, 253, .45) 0 12%, transparent 31%), linear-gradient(106deg, rgba(4, 1, 31, .14) 20%, rgba(4, 1, 31, .92) 78%); mix-blend-mode: screen; }
-.home-cinematic-hero > .relative { z-index: 2; }
-.home-cinematic-hero h1 { max-width: 10ch; font-family: Ray, sans-serif; font-size: clamp(3rem, 7.2vw, 7rem); font-weight: 950; letter-spacing: -.055em; line-height: .98; text-shadow: 5px 5px 0 #ff3d6e, -3px -2px 0 #479dfd; }
-.home-cinematic-hero a { border-radius: 4px !important; background: #efff52 !important; color: #10052f !important; box-shadow: 0 14px 38px rgba(0, 0, 0, .42); }
-.home-cinematic-hero button { border-radius: 0; }
-.home-cinematic-trust { border: 1px solid #17103d !important; border-radius: 0 !important; background: #efff52 !important; box-shadow: 14px 14px 0 #ff3d6e !important; }
-.home-cinematic-trust span { color: #12072e !important; }
-.home-cinematic-trust > div > span:first-child { border-radius: 0 !important; background: #12072e !important; color: #efff52 !important; transform: rotate(-8deg); }
-.home-cinematic-departments { position: relative; overflow: hidden; background: #f0ebe1; }
-.home-cinematic-departments::before { content: ""; position: absolute; width: 42vw; height: 42vw; min-width: 420px; min-height: 420px; top: -24vw; left: -15vw; border: 26px solid #ff8b38; border-radius: 50%; opacity: .55; }
-.home-cinematic-departments h2, .home-cinematic-courses h2, .home-cinematic-instructors h2, .home-cinematic-gallery h2 { font-family: Ray, sans-serif; font-weight: 950; letter-spacing: -.04em; }
-.home-cinematic-departments a { border-radius: 0 !important; border-color: #161039 !important; background: #fff !important; box-shadow: 5px 6px 0 #161039; }
-.home-cinematic-departments a:nth-child(3n+2) { transform: translateY(16px) rotate(-2deg); background: #ffda99 !important; }
-.home-cinematic-departments a:nth-child(3n+3) { transform: translateY(-10px) rotate(2deg); background: #d9d2ff !important; }
-.home-cinematic-journey { position: relative; overflow: hidden; background: #110635 !important; }
-.home-cinematic-journey::before { content: "خلق"; position: absolute; left: -2vw; bottom: -8vw; color: rgba(255,255,255,.055); font: 900 clamp(10rem, 27vw, 27rem) Ray, sans-serif; line-height: 1; }
-.home-cinematic-journey > div { position: relative; }
-.home-cinematic-journey h2 { font-family: Ray, sans-serif; font-weight: 950; font-size: clamp(2.6rem, 5vw, 5rem); letter-spacing: -.05em; }
-.home-cinematic-journey .grid > div { border: 1px solid rgba(239,255,82,.7) !important; border-radius: 0 !important; background: rgba(255,255,255,.06) !important; transform: skewY(-1deg); }
-.home-cinematic-journey .grid > div:nth-child(2) { transform: translateY(18px) skewY(1deg); background: rgba(255,61,110,.18) !important; }
-.home-cinematic-journey .grid > div:nth-child(3) { background: rgba(71,157,253,.18) !important; }
-.home-cinematic-journey a { border-radius: 0 !important; background: #efff52 !important; color: #12072e !important; }
-.home-cinematic-courses { background: #eeebe1 !important; }
-.home-cinematic-courses > div > div:last-child > div > div { border-radius: 0 !important; border: 1px solid #160939 !important; box-shadow: 7px 8px 0 #160939; transition: transform .35s ease, box-shadow .35s ease; }
-.home-cinematic-courses > div > div:last-child > div:nth-child(2n) > div { transform: translateY(22px) rotate(1.4deg); }
-.home-cinematic-courses > div > div:last-child > div:nth-child(3n) > div { transform: rotate(-1.5deg); }
-.home-cinematic-courses > div > div:last-child > div:hover > div { transform: translateY(-8px) rotate(0); box-shadow: 13px 15px 0 #ff3d6e; }
-.home-cinematic-courses [class*="aspect-"] { clip-path: polygon(0 0, 100% 4%, 94% 100%, 4% 93%); }
-.home-cinematic-courses [class*="bottom-3"] { border-radius: 0 !important; background: #ff3d6e !important; }
-.home-cinematic-courses .group\/course-button { border-radius: 0 !important; border-color: #12072e !important; }
-.home-cinematic-courses .group\/course-button > span:last-child { border-radius: 0 !important; background: #12072e !important; }
-.home-cinematic-instructors { background: #12072e; color: white; position: relative; overflow: hidden; }
-.home-cinematic-instructors::after { content: "اساتید"; position: absolute; left: -30px; top: 10px; color: rgba(255,255,255,.035); font: 900 15vw Ray, sans-serif; white-space: nowrap; }
-.home-cinematic-instructors h2 { color: #efff52 !important; }.home-cinematic-instructors p { color: #ded8f1 !important; }.home-cinematic-instructors a { color: #efff52 !important; }
-.home-cinematic-instructors .group { border-radius: 0 !important; border-color: #efff52 !important; box-shadow: 7px 8px 0 #ff3d6e; }.home-cinematic-instructors .group:nth-child(2n) { transform: translateY(18px) rotate(1.5deg); }.home-cinematic-instructors .group h3 { color: #12072e !important; }
-.home-cinematic-gallery { background: #ff6b45 !important; }.home-cinematic-gallery h2 { color: #12072e !important; font-size: clamp(2.5rem, 5vw, 4.6rem); }.home-cinematic-gallery p { color: #291237 !important; font-weight: 700; }
-.home-cinematic-partners { border-top: 2px solid #12072e; border-bottom: 2px solid #12072e; padding: 2.5rem 0; }.home-cinematic-partners > div > div { border-radius: 0 !important; border-color: #12072e !important; }
-.home-cinematic-cta { border: 1px solid #efff52; border-radius: 0 !important; box-shadow: 14px 15px 0 #ff3d6e !important; }.home-cinematic-cta::after { content: "خلق"; position: absolute; left: -3rem; bottom: -7rem; color: rgba(255,255,255,.07); font: 900 16rem Ray, sans-serif; pointer-events: none; }
-@media (max-width: 767px) { .home-cinematic-hero h1 { font-size: clamp(2.9rem, 15vw, 4.8rem); text-shadow: 3px 3px 0 #ff3d6e, -2px -1px 0 #479dfd; }.home-cinematic-trust { margin-right: 1rem; margin-left: 1rem; box-shadow: 7px 8px 0 #ff3d6e !important; }.home-cinematic-departments a:nth-child(n) { transform: none; }.home-cinematic-courses > div > div:last-child > div:nth-child(n) > div { transform: none; }.home-cinematic-instructors .group:nth-child(n) { transform: none; }.home-cinematic-journey .grid > div:nth-child(n) { transform: none; } }
-
 .glass-card {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);

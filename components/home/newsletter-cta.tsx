@@ -25,7 +25,7 @@ export default function NewsletterCta({ title, description, isLoggedIn }: { titl
   }
 
   return (
-    <section className="home-cinematic-cta relative mx-5 my-20 overflow-hidden rounded-[2.5rem] bg-[#03004b] text-white shadow-[0_25px_80px_rgba(3,0,75,.22)] md:mx-auto md:max-w-[1280px]" dir="rtl">
+    <section className="relative mx-5 my-20 overflow-hidden rounded-[2.5rem] bg-[#03004b] text-white shadow-[0_25px_80px_rgba(3,0,75,.22)] md:mx-auto md:max-w-[1280px]" dir="rtl">
       <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 15% 20%, #ffdeab 0, transparent 27%), radial-gradient(circle at 85% 80%, #7b5814 0, transparent 32%)" }} />
       <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full border border-secondary-fixed/20" />
       <div className="absolute -bottom-32 right-1/3 h-80 w-80 rounded-full border border-secondary-fixed/10" />
