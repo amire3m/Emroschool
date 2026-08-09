@@ -473,7 +473,7 @@ export default function HomePage() {
       </div>
 
       <section
-        style={{ order: orderFor("hero", 1) + 0.1 }}
+        style={{ order: orderFor("hero", 1) + 1 }}
         className="relative z-20 mx-5 -mt-8 rounded-3xl border border-outline-variant/30 bg-white px-3 py-4 shadow-xl md:mx-auto md:w-[calc(100%-4rem)] md:max-w-[1180px] md:px-8"
       >
         <div className="grid grid-cols-2 divide-x-0 divide-outline-variant/30 sm:grid-cols-4 sm:divide-x" dir="rtl">
@@ -525,7 +525,7 @@ export default function HomePage() {
       </AnimatedSection>
       )}
 
-      <section style={{ order: orderFor("hero", 1) + 0.05 }} className="bg-primary py-16 text-white md:py-20">
+      <section style={{ order: orderFor("hero", 1) }} className="bg-primary py-16 text-white md:py-20">
         <div className="mx-auto max-w-[1280px] px-5 md:px-8">
           <div className="mb-10 max-w-2xl">
             <p className="mb-3 text-sm font-bold text-secondary-fixed">مسیر ثبت نام در آکادمی</p>
