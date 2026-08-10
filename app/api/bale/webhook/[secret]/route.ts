@@ -1,10 +1,7 @@
 import prisma from "@/lib/prisma";
-import { answerPreCheckoutQuery, inquireTransaction, sendInvoice } from "@/lib/bale-payment";
+import { answerPreCheckoutQuery, sendInvoice } from "@/lib/bale-payment";
+import { processBalePreCheckout, processBaleSuccessfulPayment } from "@/lib/bale-payment-finalization";
 import { NextRequest, NextResponse } from "next/server";
-
-function validOrder(order: { method: string; status: string; balePayload: string | null; amountRials: number }, payload: unknown, amount: unknown) {
-  return order.method === "bale_wallet" && order.status === "pending" && order.balePayload === payload && order.amountRials === amount;
-}
 
 function payerDetails(from: unknown) {
   if (!from || typeof from !== "object") return {};
@@ -23,36 +20,35 @@ export async function POST(req: NextRequest, { params }: { params: { secret: str
     if (typeof startText === "string" && startText.startsWith("/start ")) {
       const payload = startText.slice(7).trim();
       const chatId = String(update?.message?.chat?.id || "");
-      const order = await prisma.paymentOrder.findUnique({ where: { balePayload: payload }, include: { course: true } });
-      if (order && chatId && order.method === "bale_wallet" && order.status === "pending") {
-        await prisma.paymentOrder.update({ where: { id: order.id }, data: { baleChatId: chatId } });
-        await sendInvoice(chatId, { title: order.course.title, description: `پرداخت دوره ${order.course.title}`, payload, amountRials: order.amountRials });
+      const attempt = await prisma.paymentAttempt.findUnique({ where: { balePayload: payload }, include: { order: { include: { course: true } } } });
+      if (attempt && chatId && attempt.method === "bale_wallet" && attempt.status === "pending" && attempt.order.status !== "paid" && attempt.order.activeAttemptId === attempt.id) {
+        await prisma.paymentOrder.update({ where: { id: attempt.order.id }, data: { baleChatId: chatId } });
+        await sendInvoice(chatId, { title: attempt.order.course.title, description: `پرداخت دوره ${attempt.order.course.title}`, payload, amountRials: attempt.amountRials });
+        await prisma.paymentAttempt.update({ where: { id: attempt.id }, data: { baleInvoiceSentAt: new Date() } });
       }
       return NextResponse.json({ ok: true });
     }
     const preCheckout = update?.pre_checkout_query;
     if (preCheckout) {
-      const order = await prisma.paymentOrder.findUnique({ where: { balePayload: preCheckout.invoice_payload } });
-      const valid = order && validOrder(order, preCheckout.invoice_payload, preCheckout.total_amount);
-      await answerPreCheckoutQuery(preCheckout.id, Boolean(valid), valid ? undefined : "اطلاعات پرداخت معتبر نیست.");
+      const valid = await processBalePreCheckout(prisma, {
+        id: String(preCheckout.id || ""),
+        invoicePayload: preCheckout.invoice_payload,
+        currency: preCheckout.currency,
+        totalAmount: preCheckout.total_amount,
+      });
+      await answerPreCheckoutQuery(preCheckout.id, valid, valid ? undefined : "اطلاعات پرداخت معتبر نیست.");
       return NextResponse.json({ ok: true });
     }
 
     const payment = update?.message?.successful_payment;
     if (!payment) return NextResponse.json({ ok: true });
-    const order = await prisma.paymentOrder.findUnique({ where: { balePayload: payment.invoice_payload } });
-    if (!order || !validOrder(order, payment.invoice_payload, payment.total_amount)) return NextResponse.json({ ok: true });
-    const reference = String(payment.provider_payment_charge_id || payment.telegram_payment_charge_id || "");
-    if (!reference) return NextResponse.json({ ok: true });
-    const inquiry = await inquireTransaction(reference);
-    if (!inquiry.verified) return NextResponse.json({ ok: true });
-
-    await prisma.$transaction(async (tx) => {
-      const current = await tx.paymentOrder.findUnique({ where: { id: order.id } });
-      if (!current || current.status === "paid" || !validOrder(current, payment.invoice_payload, payment.total_amount)) return;
-      await tx.paymentOrder.update({ where: { id: current.id }, data: { status: "paid", paidAt: new Date(), baleTransactionRef: reference, ...payerDetails(update?.message?.from) } });
-      if (current.applicationId) await tx.courseApplication.update({ where: { id: current.applicationId }, data: { status: "approved" } });
-      await tx.enrollment.upsert({ where: { userId_courseId: { userId: current.userId, courseId: current.courseId } }, update: {}, create: { userId: current.userId, courseId: current.courseId } });
+    await processBaleSuccessfulPayment(prisma, {
+      invoicePayload: payment.invoice_payload,
+      currency: payment.currency,
+      totalAmount: payment.total_amount,
+      balePaymentId: String(payment.telegram_payment_charge_id || ""),
+      baleTrackingNumber: String(payment.provider_payment_charge_id || ""),
+      ...payerDetails(update?.message?.from),
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

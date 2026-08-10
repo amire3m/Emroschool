@@ -1,4 +1,5 @@
 const BALE_API_BASE = process.env.BALE_API_BASE || "https://tapi.bale.ai/bot";
+const BALE_HTTP_TIMEOUT_MS = 8_000;
 
 function botToken() {
   const botToken = process.env.BALE_BOT_TOKEN;
@@ -14,14 +15,32 @@ function walletToken() {
 
 async function baleCall(method: string, body: Record<string, unknown>) {
   const token = botToken();
-  const response = await fetch(`${BALE_API_BASE}${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BALE_API_BASE}${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(BALE_HTTP_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? redactTokens(error.message) : "request failed";
+    throw new Error(`BALE_${method.toUpperCase()}_FAILED: ${detail}`);
+  }
   const result = await response.json().catch(() => null);
-  if (!response.ok || result?.ok === false) throw new Error(`BALE_${method.toUpperCase()}_FAILED`);
+  if (!response.ok || result?.ok === false) {
+    const providerCode = result?.error_code ? ` ${String(result.error_code)}` : "";
+    const providerDescription = result?.description ?? result?.error ?? result?.message ?? response.statusText;
+    const detail = redactTokens(String(providerDescription || "provider rejected request"));
+    throw new Error(`BALE_${method.toUpperCase()}_FAILED: HTTP ${response.status}${providerCode} ${detail}`);
+  }
   return result?.result ?? result;
+}
+
+function redactTokens(value: string) {
+  return [process.env.BALE_BOT_TOKEN, process.env.BALE_WALLET_TOKEN]
+    .filter((token): token is string => Boolean(token))
+    .reduce((safe, token) => safe.split(token).join("[REDACTED]"), value);
 }
 
 export async function createInvoiceLink(input: { title: string; description: string; payload: string; amountRials: number }) {
