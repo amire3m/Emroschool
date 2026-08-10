@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
@@ -16,6 +16,7 @@ import { getCookie } from "@/lib/cookie";
 import { getIranianCardInfo } from "@/lib/iranian-card";
 import {
   canApplyCheckoutMutation,
+  checkoutMutationCompletion,
   formatPersianCountdown,
   getRemainingSeconds,
   getStatusRequestDelay,
@@ -76,8 +77,16 @@ export default function CheckoutPage() {
   const lastStatusRequestAt = useRef<number | null>(null);
   const watcherAbort = useRef<AbortController | null>(null);
   const mutationAbort = useRef<AbortController | null>(null);
-  const currentApplicationId = useRef(applicationId);
-  currentApplicationId.current = applicationId;
+  const currentApplicationId = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    currentApplicationId.current = applicationId;
+    return () => {
+      if (currentApplicationId.current === applicationId) {
+        currentApplicationId.current = null;
+      }
+    };
+  }, [applicationId]);
 
   function terminateAuthentication() {
     watcherAbort.current?.abort();
@@ -145,9 +154,14 @@ export default function CheckoutPage() {
     requestApplicationId: string | null,
     controller: AbortController,
   ) {
-    if (mutationAbort.current !== controller) return;
-    mutationAbort.current = null;
-    if (mutationCanUpdate(requestApplicationId, controller)) setLoading(false);
+    const completion = checkoutMutationCompletion(
+      mutationAbort.current === controller,
+      requestApplicationId,
+      currentApplicationId.current,
+      controller.signal.aborted,
+    );
+    if (completion.releaseOwner) mutationAbort.current = null;
+    if (completion.clearLoading) setLoading(false);
   }
 
   async function waitForStatusRequestSlot() {

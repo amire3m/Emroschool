@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   canApplyCheckoutMutation,
+  checkoutMutationCompletion,
   formatPersianCountdown,
   getRemainingSeconds,
   getStatusRequestDelay,
@@ -94,4 +95,29 @@ test("suppresses stale or aborted checkout mutation responses", () => {
   assert.equal(canApplyCheckoutMutation("application-a", "application-b", false), false);
   assert.equal(canApplyCheckoutMutation("application-a", "application-a", true), false);
   assert.equal(canApplyCheckoutMutation(null, null, false), false);
+});
+
+test("current mutation owner releases ownership and clears loading on completion", () => {
+  assert.deepEqual(
+    checkoutMutationCompletion(true, "application-a", "application-a", false),
+    { releaseOwner: true, clearLoading: true },
+  );
+});
+
+test("stale mutation completion cannot release or clear a newer owner", () => {
+  assert.deepEqual(
+    checkoutMutationCompletion(false, "application-a", "application-a", false),
+    { releaseOwner: false, clearLoading: false },
+  );
+});
+
+test("application transition or abort releases only the current stale owner", () => {
+  assert.deepEqual(
+    checkoutMutationCompletion(true, "application-a", "application-b", false),
+    { releaseOwner: true, clearLoading: false },
+  );
+  assert.deepEqual(
+    checkoutMutationCompletion(true, "application-a", "application-a", true),
+    { releaseOwner: true, clearLoading: false },
+  );
 });

@@ -88,3 +88,22 @@ export function canApplyCheckoutMutation(
       !aborted,
   );
 }
+
+export function checkoutMutationCompletion(
+  isCurrentOwner: boolean,
+  requestApplicationId: string | null,
+  currentApplicationId: string | null,
+  aborted: boolean,
+) {
+  if (!isCurrentOwner) {
+    return { releaseOwner: false, clearLoading: false };
+  }
+  return {
+    releaseOwner: true,
+    clearLoading: canApplyCheckoutMutation(
+      requestApplicationId,
+      currentApplicationId,
+      aborted,
+    ),
+  };
+}
