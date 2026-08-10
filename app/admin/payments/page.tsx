@@ -11,6 +11,7 @@ import {
   Loader2,
   MessageCircle,
   Pencil,
+  RefreshCcw,
   Save,
   Settings2,
   Trash2,
@@ -25,8 +26,12 @@ type Order = {
   id: string;
   orderNumber: string;
   amountTomans: number;
+  amountRials: number;
   method: string;
   status: string;
+  activeAttemptId?: string | null;
+  balePayload?: string | null;
+  baleTransactionRef?: string | null;
   manualReference?: string | null;
   manualNote?: string | null;
   receiptUrl?: string | null;
@@ -42,6 +47,7 @@ type Order = {
   reviewedAt?: string | null;
   paidAt?: string | null;
   expiresAt?: string | null;
+  attempts: PaymentAttempt[];
   user: {
     name: string;
     email: string;
@@ -77,6 +83,28 @@ type Order = {
     discountDocumentUrl?: string | null;
   } | null;
 };
+type PaymentAttempt = {
+  id: string;
+  sequence: number;
+  method: string;
+  status: string;
+  amountTomans: number;
+  amountRials: number;
+  balePayload?: string | null;
+  balePaymentId?: string | null;
+  baleTrackingNumber?: string | null;
+  baleReceiptReference?: string | null;
+  baleVerificationStatus: string;
+  receiptUrl?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  expiresAt?: string | null;
+  baleInvoiceSentAt?: string | null;
+  balePreCheckoutAt?: string | null;
+  paidAt?: string | null;
+  submittedAt?: string | null;
+  invalidatedAt?: string | null;
+};
 type Settings = {
   cardNumber?: string | null;
   cardHolder?: string | null;
@@ -104,6 +132,14 @@ const labels: Record<string, string> = {
   paid: "موفق",
   rejected: "رد شده",
   expired: "منقضی",
+  invalidated: "باطل شده",
+  paid_duplicate: "پرداخت تکراری",
+};
+const verificationLabels: Record<string, string> = {
+  unverified: "تأیید نشده",
+  received: "شواهد دریافت شده",
+  successful_payment: "رویداد پرداخت موفق بله",
+  inquiry_paid: "تأییدشده با استعلام بله",
 };
 const emptyDiscount = {
   label: "",
@@ -115,7 +151,21 @@ const emptyDiscount = {
 const f = (value?: string | null) =>
   value ? new Date(value).toLocaleString("fa-IR") : "-";
 
-export default function PaymentsAdminPage() {
+function reconciliationAttempt(order: Order) {
+  const attempts = (order.attempts || []).filter((attempt) => attempt.method === "bale_wallet");
+  return attempts.find((attempt) => attempt.balePaymentId) ||
+    attempts.find((attempt) => attempt.id === order.activeAttemptId) ||
+    attempts[attempts.length - 1] || null;
+}
+
+function isBaleReconciliationEligible(order: Order) {
+  if (order.status === "paid") return false;
+  const attempt = reconciliationAttempt(order);
+  if (attempt && ["paid", "paid_duplicate"].includes(attempt.status)) return false;
+  return Boolean(attempt?.balePayload || (order.method === "bale_wallet" && order.balePayload));
+}
+
+function PaymentsAdminPage() {
   const [tab, setTab] = useState<"card" | "bale" | "manual" | "discounts">(
     "card",
   );
@@ -136,15 +186,23 @@ export default function PaymentsAdminPage() {
   });
   const auth = () => ({ Authorization: `Bearer ${getCookie("token")}` });
   async function load() {
-    const response = await fetch("/api/admin/payments", { headers: auth() });
-    const data = await response.json();
-    if (!response.ok) {
-      toast.error(data.error || "دریافت پرداخت‌ها ناموفق بود");
-      return;
+    try {
+      const response = await fetch("/api/admin/payments", { headers: auth() });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.error || "دریافت پرداخت‌ها ناموفق بود");
+        return null;
+      }
+      const nextOrders = data.orders || [];
+      setOrders(nextOrders);
+      setSettings(data.settings || {});
+      return nextOrders as Order[];
+    } catch {
+      toast.error("ارتباط برای دریافت پرداخت‌ها برقرار نشد");
+      return null;
+    } finally {
+      setLoading(false);
     }
-    setOrders(data.orders || []);
-    setSettings(data.settings || {});
-    setLoading(false);
   }
   async function loadDiscounts() {
     const response = await fetch("/api/admin/discount-codes", {
@@ -572,11 +630,19 @@ export default function PaymentsAdminPage() {
           order={detail}
           onClose={() => setDetail(null)}
           onReview={review}
+          onReconciled={async (id) => {
+            const refreshed = await load();
+            const updated = refreshed?.find((order) => order.id === id);
+            if (updated) setDetail(updated);
+          }}
         />
       )}
     </div>
   );
 }
+
+PaymentsAdminPage.isBaleReconciliationEligible = isBaleReconciliationEligible;
+export default PaymentsAdminPage;
 
 function DiscountManager({
   items,
@@ -704,12 +770,49 @@ function PaymentDetail({
   order,
   onClose,
   onReview,
+  onReconciled,
 }: {
   order: Order;
   onClose: () => void;
   onReview: (id: string, action: "approve" | "reject") => void;
+  onReconciled: (id: string) => Promise<void>;
 }) {
   const app = order.application;
+  const recoveryAttempt = reconciliationAttempt(order);
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [receiptReference, setReceiptReference] = useState("");
+  const [reconciling, setReconciling] = useState(false);
+  const [reconciliationError, setReconciliationError] = useState("");
+  useEffect(() => {
+    setTrackingNumber(recoveryAttempt?.baleTrackingNumber || order.baleTransactionRef || "");
+    setReceiptReference(recoveryAttempt?.baleReceiptReference || "");
+    setReconciliationError("");
+  }, [order]);
+  async function reconcileBalePayment() {
+    if (!trackingNumber.trim()) {
+      setReconciliationError("شماره پیگیری کیف پول بله را وارد کنید.");
+      return;
+    }
+    setReconciling(true);
+    setReconciliationError("");
+    try {
+      const response = await fetch(`/api/admin/payments/${order.id}/reconcile-bale`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCookie("token")}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ trackingNumber, receiptReference }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "استعلام و بازیابی پرداخت انجام نشد");
+      toast.success("پرداخت بله استعلام و بازیابی شد");
+      await onReconciled(order.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "ارتباط برای استعلام پرداخت برقرار نشد";
+      setReconciliationError(message);
+      toast.error(message);
+    } finally {
+      setReconciling(false);
+    }
+  }
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <p className="break-words text-sm text-outline">
       <b className="text-primary">{label}:</b> {value || "-"}
@@ -801,6 +904,61 @@ function PaymentDetail({
             />
           </div>
         </div>
+        <div className="border-t border-outline-variant/30 py-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="font-bold text-primary">سوابق تلاش‌های پرداخت</h3>
+              <p className="mt-1 text-sm text-outline">
+                {order.user.name} · {order.course.title} · <span dir="ltr">{order.orderNumber}</span>
+              </p>
+            </div>
+            <span className="text-xs text-outline">{order.attempts.length.toLocaleString("fa-IR")} تلاش</span>
+          </div>
+          {order.attempts.length > 0 ? (
+            <div className="mt-4 divide-y divide-outline-variant/30 border-y border-outline-variant/30">
+              {order.attempts.map((attempt) => (
+                <article key={attempt.id} className="py-5 first:pt-4 last:pb-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-bold text-primary">تلاش {attempt.sequence.toLocaleString("fa-IR")}</h4>
+                    <span className="rounded-full bg-surface-low px-2.5 py-1 text-xs font-bold text-outline">
+                      {attempt.method === "bale_wallet" ? "کیف پول بله" : attempt.method === "card_to_card" ? "کارت‌به‌کارت" : "پرداخت دستی"}
+                    </span>
+                    <span className="rounded-full bg-surface-low px-2.5 py-1 text-xs font-bold text-outline">
+                      {labels[attempt.status] || attempt.status}
+                    </span>
+                    {attempt.id === order.activeAttemptId && (
+                      <span className="rounded-full bg-secondary-fixed px-2.5 py-1 text-xs font-bold text-primary">تلاش فعال</span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
+                    <Row label="مبلغ تلاش" value={`${attempt.amountRials.toLocaleString("fa-IR")} ریال`} />
+                    <Row label="وضعیت راستی‌آزمایی" value={verificationLabels[attempt.baleVerificationStatus] || attempt.baleVerificationStatus} />
+                    {attempt.method === "bale_wallet" && (
+                      <>
+                        <Row label="شناسه یکتای پرداخت بله" value={<span dir="ltr" className="break-all">{attempt.balePaymentId || "-"}</span>} />
+                        <Row label="شماره پیگیری کیف پول بله" value={<span dir="ltr" className="break-all">{attempt.baleTrackingNumber || "-"}</span>} />
+                        <Row label="شماره مرجع رسید چاپی (ثبت دستی)" value={<span dir="ltr" className="break-all">{attempt.baleReceiptReference || "-"}</span>} />
+                        <Row label="شناسه داخلی تلاش" value={<span dir="ltr" className="break-all">{attempt.id}</span>} />
+                        <Row label="ارسال فاکتور بله" value={f(attempt.baleInvoiceSentAt)} />
+                        <Row label="تأیید پیش از پرداخت" value={f(attempt.balePreCheckoutAt)} />
+                      </>
+                    )}
+                    <Row label="ایجاد تلاش" value={f(attempt.createdAt)} />
+                    <Row label="مهلت پرداخت" value={f(attempt.expiresAt)} />
+                    <Row label="ثبت رسید" value={f(attempt.submittedAt)} />
+                    <Row label="پرداخت موفق" value={f(attempt.paidAt)} />
+                    <Row label="باطل‌شدن" value={f(attempt.invalidatedAt)} />
+                    {attempt.rejectionReason && <Row label="خطا یا دلیل رد" value={attempt.rejectionReason} />}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl bg-surface-low p-4 text-sm leading-7 text-outline">
+              برای این سفارش قدیمی سابقه تلاش ثبت نشده است. در صورت وجود شناسه پرداخت بله، بازیابی امن یک سابقه ایجاد می‌کند.
+            </p>
+          )}
+        </div>
         {app && (
           <div className="border-t border-outline-variant/30 py-5">
             <h3 className="mb-3 font-bold text-primary">دوره و فرم ثبت‌نام</h3>
@@ -842,6 +1000,57 @@ function PaymentDetail({
                   app.knowsInstructors ? app.familiarityDetails || "بله" : "خیر"
                 }
               />
+            </div>
+          </div>
+        )}
+        {isBaleReconciliationEligible(order) && (
+          <div className="border-t border-outline-variant/30 py-5">
+            <div className="rounded-2xl bg-[#fff8e9] p-4 sm:p-5">
+              <h3 className="font-bold text-primary">بازیابی پرداخت کیف پول بله</h3>
+              <p className="mt-2 text-sm leading-7 text-outline">
+                سامانه ابتدا شناسه یکتای پرداخت ذخیره‌شده را استعلام می‌کند و فقط در صورت ناموفق بودن آن، شماره پیگیری کیف پول را به‌عنوان مسیر جایگزین بررسی می‌کند. نهایی‌سازی فقط با وضعیت دقیق paid و مبلغ ریالی یکسان انجام می‌شود.
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-bold text-primary">
+                  شماره پیگیری کیف پول بله
+                  <input
+                    required
+                    value={trackingNumber}
+                    onChange={(event) => setTrackingNumber(event.target.value)}
+                    dir="ltr"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                    placeholder="شماره پیگیری تراکنش"
+                  />
+                </label>
+                <label className="text-sm font-bold text-primary">
+                  شماره مرجع رسید چاپی (اختیاری، ثبت دستی)
+                  <input
+                    value={receiptReference}
+                    onChange={(event) => setReceiptReference(event.target.value)}
+                    dir="ltr"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                    placeholder="شماره مرجع روی رسید"
+                  />
+                </label>
+              </div>
+              {reconciliationError && (
+                <p role="alert" className="mt-4 rounded-xl bg-error-container px-4 py-3 text-sm font-bold leading-7 text-error">
+                  {reconciliationError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={reconcileBalePayment}
+                disabled={reconciling || !trackingNumber.trim()}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {reconciling ? <Loader2 size={17} className="animate-spin" /> : <RefreshCcw size={17} />}
+                {reconciling ? "در حال استعلام از بله..." : "استعلام و بازیابی پرداخت بله"}
+              </button>
             </div>
           </div>
         )}
