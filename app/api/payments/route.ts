@@ -7,12 +7,13 @@ import { encryptPaymentCard } from "@/lib/payment-card-crypto";
 import { isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 
-type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void };
+type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void; botUsername: () => string };
 
 const defaultDependencies: PaymentRouteDependencies = {
   db: prisma,
   now: () => new Date(),
   onError: (error) => console.error("Payment creation error:", error),
+  botUsername: () => process.env.BALE_BOT_USERNAME || "imamruhollahschool_bot",
 };
 
 function userId(req: NextRequest) {
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
       return tx.paymentOrder.update({ where: { id: created.id }, data: { activeAttemptId: attempt.id } });
     });
     const settings = method === "card_to_card" ? await dependencies.db.paymentSettings.findUnique({ where: { id: 1 } }) : null;
-    const botUsername = process.env.BALE_BOT_USERNAME || "imamruhollahschool_bot";
+    const botUsername = dependencies.botUsername();
     return NextResponse.json({ order, baleBotUrl: method === "bale_wallet" ? `https://ble.ir/${botUsername}?start=${encodeURIComponent(payload!)}` : undefined, paymentInstructions: settings ? { cardNumber: settings.cardNumber, cardHolder: settings.cardHolder, instructions: settings.cardInstructions } : undefined }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "BALE_NOT_CONFIGURED") return NextResponse.json({ error: "پرداخت بله پیکربندی نشده است" }, { status: 503 });
@@ -96,5 +97,10 @@ export async function GET(req: NextRequest, _context: { params: Record<string, s
   }
   if (stale.length > 0) orders = await dependencies.db.paymentOrder.findMany(query);
   const instructions = orders[0]?.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined;
-  return NextResponse.json({ orders, paymentInstructions: instructions });
+  const currentOrder = orders[0];
+  const activeAttempt = currentOrder?.attempts?.find((attempt: any) => attempt.id === currentOrder.activeAttemptId);
+  const baleBotUrl = currentOrder?.method === "bale_wallet" && currentOrder.status === "pending" && activeAttempt?.method === "bale_wallet" && activeAttempt.status === "pending" && activeAttempt.balePayload
+    ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(activeAttempt.balePayload)}`
+    : undefined;
+  return NextResponse.json({ orders, baleBotUrl, paymentInstructions: instructions });
 }

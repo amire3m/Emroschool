@@ -397,6 +397,30 @@ test("GET retries stale normalization and returns paid when finalization wins", 
   assert.equal(fixture.state.attemptUpdates, 0);
 });
 
+test("GET returns a server-owned deep link for the active pending Bale attempt", async () => {
+  const active = { id: "attempt-1", orderId: "order-1", sequence: 1, status: "pending", method: "bale_wallet", expiresAt: new Date("2026-08-10T12:15:00.000Z"), balePayload: "payment:PAY-1:active" };
+  const newerInactive = { id: "attempt-2", orderId: "order-1", sequence: 2, status: "pending", method: "bale_wallet", expiresAt: new Date("2026-08-10T12:15:00.000Z"), balePayload: "payment:PAY-1:not-active" };
+  const fixture = transactionFixture({ attempts: [active, newerInactive] });
+  fixture.state.order.balePayload = "payment:PAY-1:stale-order";
+
+  const response = await getPayments(
+    request("http://localhost/api/payments?applicationId=application-1"),
+    { params: {} },
+    {
+      db: fixture.db,
+      now: () => new Date("2026-08-10T12:05:00.000Z"),
+      botUsername: () => "server_checkout_bot",
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    body.baleBotUrl,
+    "https://ble.ir/server_checkout_bot?start=payment%3APAY-1%3Aactive",
+  );
+});
+
 test("receipt submission never mutates an active attempt owned by another order", async () => {
   const order = { id: "order-1", orderNumber: "PAY-1", userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign" };
   const foreign = { id: "attempt-foreign", orderId: "order-foreign", status: "awaiting_receipt" };

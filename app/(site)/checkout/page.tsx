@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
@@ -17,9 +17,12 @@ import { getIranianCardInfo } from "@/lib/iranian-card";
 import {
   formatPersianCountdown,
   getRemainingSeconds,
+  getStatusRequestDelay,
   isPendingBalePayment,
-  paymentOutcome,
-  type PaymentOutcome,
+  newCheckoutApplicationState,
+  observePaymentStatus,
+  shouldTerminateCheckoutRequest,
+  type PaymentObservation,
 } from "@/lib/checkout-payment-state";
 
 type Order = {
@@ -40,6 +43,16 @@ type Application = {
   course: { title: string; slug: string };
 };
 
+type PaymentInstructions = {
+  cardNumber?: string | null;
+  cardHolder?: string | null;
+  instructions?: string | null;
+};
+
+function checkoutLoginUrl(applicationId: string | null) {
+  return `/login?redirect=${encodeURIComponent(`/checkout?application=${applicationId || ""}`)}`;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const applicationId = useSearchParams().get("application");
@@ -47,11 +60,7 @@ export default function CheckoutPage() {
     "bale_wallet",
   );
   const [order, setOrder] = useState<Order | null>(null);
-  const [instructions, setInstructions] = useState<{
-    cardNumber?: string | null;
-    cardHolder?: string | null;
-    instructions?: string | null;
-  } | null>(null);
+  const [instructions, setInstructions] = useState<PaymentInstructions | null>(null);
   const [botUrl, setBotUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [payerCardNumber, setPayerCardNumber] = useState("");
@@ -61,109 +70,303 @@ export default function CheckoutPage() {
   const [completionKind, setCompletionKind] = useState<"free" | "paid" | null>(null);
   const [expiredOrderId, setExpiredOrderId] = useState<string | null>(null);
   const [countdownNow, setCountdownNow] = useState(() => Date.now());
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [authTerminated, setAuthTerminated] = useState(false);
+  const lastStatusRequestAt = useRef<number | null>(null);
+  const watcherAbort = useRef<AbortController | null>(null);
+  const mutationAbort = useRef<AbortController | null>(null);
+
+  function terminateAuthentication() {
+    watcherAbort.current?.abort();
+    mutationAbort.current?.abort();
+    setAuthTerminated(true);
+    setLoading(false);
+    router.push(checkoutLoginUrl(applicationId));
+  }
+
+  function applyCurrentOrder(
+    nextOrder: Order,
+    data: {
+      baleBotUrl?: string;
+      paymentInstructions?: PaymentInstructions;
+    } = {},
+  ) {
+    if (nextOrder.status === "paid") {
+      setOrder(nextOrder);
+      setCompletionKind("paid");
+      setExpiredOrderId(null);
+      setBotUrl("");
+      return;
+    }
+
+    setCompletionKind(null);
+    if (nextOrder.status === "expired") {
+      setExpiredOrderId(nextOrder.id);
+      setOrder(null);
+      setMethod("bale_wallet");
+      setBotUrl("");
+      setInstructions(null);
+      return;
+    }
+
+    setOrder(nextOrder);
+    setExpiredOrderId(null);
+    setMethod(nextOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
+    setBotUrl(nextOrder.method === "bale_wallet" ? data.baleBotUrl || "" : "");
+    setInstructions(
+      nextOrder.method === "card_to_card"
+        ? data.paymentInstructions || null
+        : null,
+    );
+  }
+
+  async function waitForStatusRequestSlot() {
+    const delay = getStatusRequestDelay(lastStatusRequestAt.current, Date.now());
+    if (delay > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, delay));
+    }
+    lastStatusRequestAt.current = Date.now();
+  }
+
+  async function fetchCurrentPayment(token: string, signal?: AbortSignal) {
+    await waitForStatusRequestSlot();
+    if (signal?.aborted) return null;
+    const response = await fetch(
+      `/api/payments?applicationId=${encodeURIComponent(applicationId || "")}`,
+      { headers: { Authorization: `Bearer ${token}` }, signal },
+    );
+    const data = await response.json();
+    if (shouldTerminateCheckoutRequest(response.status)) {
+      terminateAuthentication();
+      return null;
+    }
+    if (!response.ok) throw new Error(data.error);
+    return data as {
+      orders?: Order[];
+      baleBotUrl?: string;
+      paymentInstructions?: PaymentInstructions;
+    };
+  }
 
   useEffect(() => {
+    const reset = newCheckoutApplicationState();
+    watcherAbort.current?.abort();
+    mutationAbort.current?.abort();
+    setApplication(reset.application);
+    setOrder(reset.order);
+    setCompletionKind(reset.completionKind);
+    setExpiredOrderId(reset.expiredOrderId);
+    setBotUrl(reset.botUrl);
+    setInstructions(reset.instructions);
+    setLoadError(reset.error);
+    setLoading(reset.loading);
+    setApplicationLoading(reset.applicationLoading);
+    setAuthTerminated(reset.authTerminated);
+    setMethod("bale_wallet");
+    setFile(null);
+    setPayerCardNumber("");
+    setCountdownNow(Date.now());
+
+    const controller = new AbortController();
+    let disposed = false;
     const token = getCookie("token");
     if (!token) {
-      router.push(
-        `/login?redirect=${encodeURIComponent(`/checkout?application=${applicationId || ""}`)}`,
-      );
-      return;
+      setAuthTerminated(true);
+      setApplicationLoading(false);
+      router.push(checkoutLoginUrl(applicationId));
+      return () => controller.abort();
     }
     if (!applicationId) {
       setApplicationLoading(false);
-      return;
+      return () => controller.abort();
     }
-    fetch("/api/course-applications", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (response) => {
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/course-applications", {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
         const data = await response.json();
+        if (disposed) return;
+        if (shouldTerminateCheckoutRequest(response.status)) {
+          setAuthTerminated(true);
+          router.push(checkoutLoginUrl(applicationId));
+          return;
+        }
         if (!response.ok) throw new Error(data.error);
         const found = data.applications?.find(
           (item: Application) => item.id === applicationId,
         );
         if (!found) throw new Error("درخواست ثبت‌نام پیدا نشد");
-          setApplication(found);
-          const orderResponse = await fetch(`/api/payments?applicationId=${encodeURIComponent(applicationId)}`, { headers: { Authorization: `Bearer ${token}` } });
-          const orderData = await orderResponse.json();
-          if (!orderResponse.ok) throw new Error(orderData.error);
-          const existingOrder = orderData.orders?.[0] as Order | undefined;
-          if (existingOrder?.status === "paid") {
-            setOrder(existingOrder);
-            setCompletionKind("paid");
-            setBotUrl("");
-          } else if (existingOrder?.status === "expired") {
-            setExpiredOrderId(existingOrder.id);
-            setOrder(null);
-            setMethod("bale_wallet");
-            setBotUrl("");
-          } else if (existingOrder) {
-            setOrder(existingOrder);
-            setMethod(existingOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
-            if (existingOrder.method === "card_to_card") setInstructions(orderData.paymentInstructions || null);
-            if (existingOrder.method === "bale_wallet" && existingOrder.balePayload) setBotUrl(`https://ble.ir/${process.env.NEXT_PUBLIC_BALE_BOT_USERNAME || "imamruhollahschool_bot"}?start=${encodeURIComponent(existingOrder.balePayload)}`);
-         }
-      })
-      .catch((error) => toast.error(error.message || "خطا در دریافت درخواست"))
-      .finally(() => setApplicationLoading(false));
+
+        await waitForStatusRequestSlot();
+        if (disposed) return;
+        const orderResponse = await fetch(
+          `/api/payments?applicationId=${encodeURIComponent(applicationId)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+        const orderData = await orderResponse.json();
+        if (disposed) return;
+        if (shouldTerminateCheckoutRequest(orderResponse.status)) {
+          setAuthTerminated(true);
+          router.push(checkoutLoginUrl(applicationId));
+          return;
+        }
+        if (!orderResponse.ok) throw new Error(orderData.error);
+
+        setApplication(found);
+        const existingOrder = orderData.orders?.[0] as Order | undefined;
+        if (existingOrder) applyCurrentOrder(existingOrder, orderData);
+      } catch (error) {
+        if (disposed || controller.signal.aborted) return;
+        const message =
+          error instanceof Error ? error.message : "خطا در دریافت درخواست";
+        setLoadError(message);
+        toast.error(message);
+      } finally {
+        if (!disposed) setApplicationLoading(false);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
   }, [applicationId, router]);
 
   useEffect(() => {
-    if (loading || !applicationId || !isPendingBalePayment(order)) {
+    const pendingBale = isPendingBalePayment(order);
+    const watchedOrderId = pendingBale ? order.id : expiredOrderId;
+    if (
+      loading ||
+      authTerminated ||
+      !applicationId ||
+      !watchedOrderId
+    ) {
       return;
     }
 
     const token = getCookie("token");
-    if (!token) return;
+    if (!token) {
+      terminateAuthentication();
+      return;
+    }
 
-    const watchedOrderId = order.id;
     const controller = new AbortController();
+    watcherAbort.current = controller;
     let disposed = false;
     let inFlight = false;
-    let expiryRetryAt = 0;
     let expiryErrorShown = false;
-    let outcome: PaymentOutcome = "pending";
+    let statusTimer: number | undefined;
+    let countdownTimer: number | undefined;
+    let observation: PaymentObservation = {
+      outcome: pendingBale ? "pending" : "expired",
+      keepWatching: true,
+    };
 
-    const acceptOrder = (nextOrder: Order) => {
+    const stopForAuthentication = () => {
+      disposed = true;
+      if (statusTimer !== undefined) window.clearTimeout(statusTimer);
+      if (countdownTimer !== undefined) window.clearTimeout(countdownTimer);
+      controller.abort();
+      setAuthTerminated(true);
+      setLoading(false);
+      router.push(checkoutLoginUrl(applicationId));
+    };
+
+    const acceptOrder = (
+      nextOrder: Order,
+      data: {
+        baleBotUrl?: string;
+        paymentInstructions?: PaymentInstructions;
+      } = {},
+    ) => {
       if (disposed || nextOrder.id !== watchedOrderId) return;
-      outcome = paymentOutcome(outcome, nextOrder.status);
+      observation = observePaymentStatus(observation, nextOrder.status);
 
-      if (outcome === "paid") {
-        setOrder(nextOrder.status === "paid" ? nextOrder : { ...nextOrder, status: "paid" });
+      if (observation.outcome === "paid") {
+        setOrder(nextOrder);
         setCompletionKind("paid");
         setExpiredOrderId(null);
         setBotUrl("");
         return;
       }
 
-      if (outcome === "expired") {
+      if (observation.outcome === "expired") {
         setExpiredOrderId(nextOrder.id);
         setOrder(null);
         setMethod("bale_wallet");
         setBotUrl("");
+        setInstructions(null);
         return;
       }
 
       setOrder(nextOrder);
+      setExpiredOrderId(null);
+      setMethod(nextOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
+      setBotUrl(nextOrder.method === "bale_wallet" ? data.baleBotUrl || "" : "");
+      setInstructions(
+        nextOrder.method === "card_to_card"
+          ? data.paymentInstructions || null
+          : null,
+      );
     };
 
-    const expirePayment = async () => {
-      if (inFlight || Date.now() < expiryRetryAt) return;
+    const scheduleStatus = () => {
+      if (disposed || !observation.keepWatching) return;
+      if (statusTimer !== undefined) window.clearTimeout(statusTimer);
+      const delay = getStatusRequestDelay(lastStatusRequestAt.current, Date.now());
+      statusTimer = window.setTimeout(() => void requestStatus(), delay);
+    };
+
+    const requestStatus = async () => {
+      if (disposed || inFlight || !observation.keepWatching) return;
+      const delay = getStatusRequestDelay(lastStatusRequestAt.current, Date.now());
+      if (delay > 0) {
+        scheduleStatus();
+        return;
+      }
+
       inFlight = true;
+      lastStatusRequestAt.current = Date.now();
       try {
-        const response = await fetch(`/api/payments/${watchedOrderId}/expire`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
+        const atDeadline =
+          pendingBale &&
+          getRemainingSeconds(order?.expiresAt, Date.now()) === 0;
+        const response = atDeadline
+          ? await fetch(`/api/payments/${watchedOrderId}/expire`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              signal: controller.signal,
+            })
+          : await fetch(
+              `/api/payments?applicationId=${encodeURIComponent(applicationId)}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              },
+            );
         const data = await response.json();
+        if (shouldTerminateCheckoutRequest(response.status)) {
+          stopForAuthentication();
+          return;
+        }
         if (!response.ok) throw new Error(data.error);
-        acceptOrder(data.order as Order);
+        if (atDeadline) {
+          acceptOrder(data.order as Order);
+        } else {
+          const refreshedOrder = (data.orders as Order[] | undefined)?.find(
+            (item) => item.id === watchedOrderId,
+          );
+          if (refreshedOrder) acceptOrder(refreshedOrder, data);
+        }
       } catch (error) {
         if (disposed || controller.signal.aborted) return;
-        expiryRetryAt = Date.now() + 4_000;
-        if (!expiryErrorShown) {
+        if (pendingBale && !expiryErrorShown) {
           expiryErrorShown = true;
           toast.error(
             error instanceof Error
@@ -173,67 +376,42 @@ export default function CheckoutPage() {
         }
       } finally {
         inFlight = false;
-      }
-    };
-
-    const refreshPayment = async () => {
-      if (inFlight) return;
-      if (getRemainingSeconds(order.expiresAt, Date.now()) === 0) {
-        await expirePayment();
-        return;
-      }
-
-      inFlight = true;
-      try {
-        const response = await fetch(
-          `/api/payments?applicationId=${encodeURIComponent(applicationId)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: controller.signal,
-          },
-        );
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-        const refreshedOrder = (data.orders as Order[] | undefined)?.find(
-          (item) => item.id === watchedOrderId,
-        );
-        if (refreshedOrder) acceptOrder(refreshedOrder);
-      } catch {
-        // A later poll or the idempotent expiration request can recover.
-      } finally {
-        inFlight = false;
+        scheduleStatus();
       }
     };
 
     const updateCountdown = () => {
+      if (countdownTimer !== undefined) window.clearTimeout(countdownTimer);
+      if (!pendingBale) return;
       const now = Date.now();
       setCountdownNow(now);
-      if (getRemainingSeconds(order.expiresAt, now) === 0) {
-        void expirePayment();
+      if (getRemainingSeconds(order?.expiresAt, now) === 0) {
+        scheduleStatus();
       }
+      countdownTimer = window.setTimeout(updateCountdown, 1_000);
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
       updateCountdown();
-      if (getRemainingSeconds(order.expiresAt, Date.now()) > 0) {
-        void refreshPayment();
+      if (getStatusRequestDelay(lastStatusRequestAt.current, Date.now()) === 0) {
+        scheduleStatus();
       }
     };
 
     updateCountdown();
-    const countdownTimer = window.setInterval(updateCountdown, 1_000);
-    const pollTimer = window.setInterval(() => void refreshPayment(), 4_000);
+    scheduleStatus();
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       disposed = true;
       controller.abort();
-      window.clearInterval(countdownTimer);
-      window.clearInterval(pollTimer);
+      if (watcherAbort.current === controller) watcherAbort.current = null;
+      if (countdownTimer !== undefined) window.clearTimeout(countdownTimer);
+      if (statusTimer !== undefined) window.clearTimeout(statusTimer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [applicationId, loading, order?.expiresAt, order?.id, order?.method, order?.status]);
+  }, [applicationId, authTerminated, expiredOrderId, loading, order?.expiresAt, order?.id, order?.method, order?.status, router]);
 
   async function createOrder() {
     const token = getCookie("token");
@@ -258,6 +436,10 @@ export default function CheckoutPage() {
         body: JSON.stringify({ applicationId: application.id, method, payerCardNumber: method === "card_to_card" ? payerCardNumber : undefined }),
       });
       const data = await response.json();
+      if (shouldTerminateCheckoutRequest(response.status)) {
+        terminateAuthentication();
+        return;
+      }
       if (!response.ok) throw new Error(data.error);
       if (data.complete) {
         setCompletionKind("free");
@@ -281,9 +463,29 @@ export default function CheckoutPage() {
   async function restartExpiredOrder() {
     if (!expiredOrderId) return;
     const token = getCookie("token");
-    if (!token) return;
+    if (!token) {
+      terminateAuthentication();
+      return;
+    }
     setLoading(true);
+    watcherAbort.current?.abort();
+    const controller = new AbortController();
+    mutationAbort.current = controller;
     try {
+      const currentData = await fetchCurrentPayment(token, controller.signal);
+      if (!currentData) return;
+      const currentOrder = currentData.orders?.find(
+        (item) => item.id === expiredOrderId,
+      );
+      if (!currentOrder) throw new Error("سفارش پیدا نشد");
+      if (currentOrder.status !== "expired") {
+        applyCurrentOrder(currentOrder, currentData);
+        if (currentOrder.status === "paid") {
+          toast.success("پرداخت شما تأیید شد");
+        }
+        return;
+      }
+
       const response = await fetch(`/api/payments/${expiredOrderId}/change-method`, {
         method: "POST",
         headers: {
@@ -294,21 +496,42 @@ export default function CheckoutPage() {
           method,
           payerCardNumber: method === "card_to_card" ? payerCardNumber : undefined,
         }),
+        signal: controller.signal,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setOrder(data.order);
-      setExpiredOrderId(null);
+      if (shouldTerminateCheckoutRequest(response.status)) {
+        terminateAuthentication();
+        return;
+      }
+      if (!response.ok) {
+        if (response.status === 409) {
+          const refreshedData = await fetchCurrentPayment(token, controller.signal);
+          const refreshedOrder = refreshedData?.orders?.find(
+            (item) => item.id === expiredOrderId,
+          );
+          if (refreshedOrder && refreshedOrder.status !== "expired") {
+            applyCurrentOrder(refreshedOrder, refreshedData || {});
+            if (refreshedOrder.status === "paid") {
+              toast.success("پرداخت شما تأیید شد");
+            }
+            return;
+          }
+        }
+        throw new Error(data.error);
+      }
+      applyCurrentOrder(data.order, data);
       setFile(null);
-      setInstructions(data.paymentInstructions || null);
-      setBotUrl(data.baleBotUrl || "");
       setCountdownNow(Date.now());
     } catch (error) {
+      if (controller.signal.aborted) return;
       toast.error(
         error instanceof Error ? error.message : "شروع دوباره پرداخت انجام نشد",
       );
     } finally {
-      setLoading(false);
+      if (mutationAbort.current === controller) {
+        mutationAbort.current = null;
+        setLoading(false);
+      }
     }
   }
 
@@ -371,7 +594,7 @@ export default function CheckoutPage() {
             <Loader2 className="animate-spin text-primary" />
           </div>
         ) : completionKind ? (
-          <section className="rounded-[2rem] border border-green-200 bg-white p-7 text-center shadow-sm">
+          <section role="status" aria-live="polite" className="rounded-[2rem] border border-green-200 bg-white p-7 text-center shadow-sm">
             <CircleCheck className="mx-auto mb-4 text-green-600" size={48} />
             <h2 className="text-xl font-black text-primary">
               {completionKind === "free"
@@ -394,7 +617,7 @@ export default function CheckoutPage() {
           </section>
         ) : !application ? (
           <section className="rounded-[2rem] border border-error/30 bg-white p-7 text-center text-outline">
-            درخواست پرداخت معتبری انتخاب نشده است.
+            {loadError || "درخواست پرداخت معتبری انتخاب نشده است."}
           </section>
         ) : !order ? (
           <section className="overflow-hidden rounded-[2rem] border border-outline-variant/40 bg-white shadow-sm">
@@ -415,7 +638,7 @@ export default function CheckoutPage() {
                 </p>
               </div>
               {expiredOrderId && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
+                <div role="status" aria-live="polite" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
                   فرصت پرداخت قبلی تمام شد. روش دلخواه را انتخاب کنید تا یک
                   پرداخت تازه برای همین سفارش آغاز شود.
                 </div>
@@ -478,10 +701,7 @@ export default function CheckoutPage() {
               برای دریافت فاکتور امن، ربات را باز کنید. پس از پرداخت موفق،
               ثبت‌نام شما خودکار انجام می‌شود.
             </p>
-            <div
-              aria-live="polite"
-              className="mt-5 rounded-2xl bg-surface-low px-4 py-3 text-sm text-outline"
-            >
+            <div className="mt-5 rounded-2xl bg-surface-low px-4 py-3 text-sm text-outline">
               زمان باقی‌مانده برای پرداخت: {" "}
               <strong dir="ltr" className="text-lg font-black text-primary">
                 {formatPersianCountdown(

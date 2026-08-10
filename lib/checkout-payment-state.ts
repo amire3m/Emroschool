@@ -1,4 +1,23 @@
 export type PaymentOutcome = "pending" | "expired" | "paid";
+export type PaymentObservation = {
+  outcome: PaymentOutcome;
+  keepWatching: boolean;
+};
+
+export function newCheckoutApplicationState() {
+  return {
+    application: null,
+    order: null,
+    completionKind: null,
+    expiredOrderId: null,
+    botUrl: "",
+    instructions: null,
+    error: null,
+    loading: false,
+    applicationLoading: true,
+    authTerminated: false,
+  } as const;
+}
 
 export function isPendingBalePayment(
   order: { method: string; status: string } | null,
@@ -33,6 +52,27 @@ export function paymentOutcome(
   incomingStatus: string,
 ): PaymentOutcome {
   if (current === "paid" || incomingStatus === "paid") return "paid";
-  if (current === "expired" || incomingStatus === "expired") return "expired";
+  if (incomingStatus === "expired") return "expired";
   return "pending";
+}
+
+export function observePaymentStatus(
+  current: PaymentObservation,
+  incomingStatus: string,
+): PaymentObservation {
+  const outcome = paymentOutcome(current.outcome, incomingStatus);
+  return { outcome, keepWatching: outcome !== "paid" };
+}
+
+export function getStatusRequestDelay(
+  lastRequestAt: number | null,
+  now: number,
+  minimumSpacing = 4_000,
+) {
+  if (lastRequestAt === null) return 0;
+  return Math.max(0, lastRequestAt + minimumSpacing - now);
+}
+
+export function shouldTerminateCheckoutRequest(status: number) {
+  return status === 401;
 }

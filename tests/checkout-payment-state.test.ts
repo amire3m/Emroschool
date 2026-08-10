@@ -4,8 +4,12 @@ import test from "node:test";
 import {
   formatPersianCountdown,
   getRemainingSeconds,
+  getStatusRequestDelay,
   isPendingBalePayment,
+  newCheckoutApplicationState,
+  observePaymentStatus,
   paymentOutcome,
+  shouldTerminateCheckoutRequest,
 } from "../lib/checkout-payment-state";
 
 test("derives remaining time from the absolute server deadline", () => {
@@ -32,6 +36,7 @@ test("paid status always wins over an expired response", () => {
   assert.equal(paymentOutcome("expired", "paid"), "paid");
   assert.equal(paymentOutcome("paid", "expired"), "paid");
   assert.equal(paymentOutcome("pending", "expired"), "expired");
+  assert.equal(paymentOutcome("expired", "pending"), "pending");
   assert.equal(paymentOutcome("pending", "pending"), "pending");
 });
 
@@ -41,4 +46,44 @@ test("polls only a pending Bale payment", () => {
   assert.equal(isPendingBalePayment({ method: "bale_wallet", status: "expired" }), false);
   assert.equal(isPendingBalePayment({ method: "card_to_card", status: "pending" }), false);
   assert.equal(isPendingBalePayment(null), false);
+});
+
+test("keeps observing an expired order and accepts a later paid status", () => {
+  const expired = observePaymentStatus(
+    { outcome: "pending", keepWatching: true },
+    "expired",
+  );
+  const paid = observePaymentStatus(expired, "paid");
+
+  assert.deepEqual(expired, { outcome: "expired", keepWatching: true });
+  assert.deepEqual(paid, { outcome: "paid", keepWatching: false });
+});
+
+test("spaces status requests by at least four seconds across resume events", () => {
+  assert.equal(getStatusRequestDelay(null, 10_000), 0);
+  assert.equal(getStatusRequestDelay(10_000, 10_000), 4_000);
+  assert.equal(getStatusRequestDelay(10_000, 12_500), 1_500);
+  assert.equal(getStatusRequestDelay(10_000, 14_000), 0);
+  assert.equal(getStatusRequestDelay(10_000, 15_000), 0);
+});
+
+test("resets all application-scoped checkout state before loading another application", () => {
+  assert.deepEqual(newCheckoutApplicationState(), {
+    application: null,
+    order: null,
+    completionKind: null,
+    expiredOrderId: null,
+    botUrl: "",
+    instructions: null,
+    error: null,
+    loading: false,
+    applicationLoading: true,
+    authTerminated: false,
+  });
+});
+
+test("terminates checkout request loops only on unauthorized responses", () => {
+  assert.equal(shouldTerminateCheckoutRequest(401), true);
+  assert.equal(shouldTerminateCheckoutRequest(409), false);
+  assert.equal(shouldTerminateCheckoutRequest(500), false);
 });
