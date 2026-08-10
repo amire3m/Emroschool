@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { effectiveBaleExpiry } from "../lib/bale-payment-domain";
 
 type BackfillDatabase = Pick<PrismaClient, "$transaction">;
@@ -67,7 +69,11 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+export function isDirectExecution(moduleUrl: string, entryPath = process.argv[1]) {
+  return Boolean(entryPath) && path.resolve(fileURLToPath(moduleUrl)) === path.resolve(entryPath);
+}
+
+if (isDirectExecution(import.meta.url)) {
   main().catch((error) => {
     console.error(error);
     process.exitCode = 1;

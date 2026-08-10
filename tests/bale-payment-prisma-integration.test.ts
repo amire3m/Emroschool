@@ -7,10 +7,16 @@ import { promisify } from "node:util";
 import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 
-import { backfillLegacyBalePayments } from "../scripts/backfill-bale-payment-attempts";
+import { backfillLegacyBalePayments, isDirectExecution } from "../scripts/backfill-bale-payment-attempts";
 import { finalizeBalePayment } from "../lib/bale-payment-finalization";
 
 const execFileAsync = promisify(execFile);
+
+test("backfill CLI recognizes the tsx entry module", () => {
+  const scriptPath = path.join(process.cwd(), "scripts", "backfill-bale-payment-attempts.ts");
+  assert.equal(isDirectExecution(new URL(`file:///${scriptPath.replace(/\\/g, "/")}`).href, scriptPath), true);
+  assert.equal(isDirectExecution(new URL(`file:///${scriptPath.replace(/\\/g, "/")}`).href, path.join(process.cwd(), "scripts", "other.ts")), false);
+});
 
 test("real SQLite backfill expires legacy pending attempts and paid finalization beats expiration", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "bale-payment-"));
