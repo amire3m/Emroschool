@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  canApplyCheckoutMutation,
   formatPersianCountdown,
   getRemainingSeconds,
   getStatusRequestDelay,
@@ -86,4 +87,11 @@ test("terminates checkout request loops only on unauthorized responses", () => {
   assert.equal(shouldTerminateCheckoutRequest(401), true);
   assert.equal(shouldTerminateCheckoutRequest(409), false);
   assert.equal(shouldTerminateCheckoutRequest(500), false);
+});
+
+test("suppresses stale or aborted checkout mutation responses", () => {
+  assert.equal(canApplyCheckoutMutation("application-a", "application-a", false), true);
+  assert.equal(canApplyCheckoutMutation("application-a", "application-b", false), false);
+  assert.equal(canApplyCheckoutMutation("application-a", "application-a", true), false);
+  assert.equal(canApplyCheckoutMutation(null, null, false), false);
 });

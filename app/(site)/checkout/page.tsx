@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import { getIranianCardInfo } from "@/lib/iranian-card";
 import {
+  canApplyCheckoutMutation,
   formatPersianCountdown,
   getRemainingSeconds,
   getStatusRequestDelay,
@@ -75,6 +76,8 @@ export default function CheckoutPage() {
   const lastStatusRequestAt = useRef<number | null>(null);
   const watcherAbort = useRef<AbortController | null>(null);
   const mutationAbort = useRef<AbortController | null>(null);
+  const currentApplicationId = useRef(applicationId);
+  currentApplicationId.current = applicationId;
 
   function terminateAuthentication() {
     watcherAbort.current?.abort();
@@ -120,6 +123,33 @@ export default function CheckoutPage() {
     );
   }
 
+  function ownCheckoutMutation() {
+    mutationAbort.current?.abort();
+    const controller = new AbortController();
+    mutationAbort.current = controller;
+    return controller;
+  }
+
+  function mutationCanUpdate(
+    requestApplicationId: string | null,
+    controller: AbortController,
+  ) {
+    return canApplyCheckoutMutation(
+      requestApplicationId,
+      currentApplicationId.current,
+      controller.signal.aborted,
+    );
+  }
+
+  function finishCheckoutMutation(
+    requestApplicationId: string | null,
+    controller: AbortController,
+  ) {
+    if (mutationAbort.current !== controller) return;
+    mutationAbort.current = null;
+    if (mutationCanUpdate(requestApplicationId, controller)) setLoading(false);
+  }
+
   async function waitForStatusRequestSlot() {
     const delay = getStatusRequestDelay(lastStatusRequestAt.current, Date.now());
     if (delay > 0) {
@@ -128,14 +158,22 @@ export default function CheckoutPage() {
     lastStatusRequestAt.current = Date.now();
   }
 
-  async function fetchCurrentPayment(token: string, signal?: AbortSignal) {
+  async function fetchCurrentPayment(
+    token: string,
+    requestApplicationId: string,
+    controller: AbortController,
+  ) {
     await waitForStatusRequestSlot();
-    if (signal?.aborted) return null;
+    if (!mutationCanUpdate(requestApplicationId, controller)) return null;
     const response = await fetch(
-      `/api/payments?applicationId=${encodeURIComponent(applicationId || "")}`,
-      { headers: { Authorization: `Bearer ${token}` }, signal },
+      `/api/payments?applicationId=${encodeURIComponent(requestApplicationId)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      },
     );
     const data = await response.json();
+    if (!mutationCanUpdate(requestApplicationId, controller)) return null;
     if (shouldTerminateCheckoutRequest(response.status)) {
       terminateAuthentication();
       return null;
@@ -152,6 +190,7 @@ export default function CheckoutPage() {
     const reset = newCheckoutApplicationState();
     watcherAbort.current?.abort();
     mutationAbort.current?.abort();
+    mutationAbort.current = null;
     setApplication(reset.application);
     setOrder(reset.order);
     setCompletionKind(reset.completionKind);
@@ -414,17 +453,22 @@ export default function CheckoutPage() {
   }, [applicationId, authTerminated, expiredOrderId, loading, order?.expiresAt, order?.id, order?.method, order?.status, router]);
 
   async function createOrder() {
+    const requestApplicationId = applicationId;
     const token = getCookie("token");
     if (!token) {
-      router.push(
-        `/login?redirect=${encodeURIComponent(`/checkout?application=${applicationId || ""}`)}`,
-      );
+      router.push(checkoutLoginUrl(requestApplicationId));
       return;
     }
-    if (!application || !["pending", "pending_payment"].includes(application.status)) {
+    if (
+      !requestApplicationId ||
+      !application ||
+      application.id !== requestApplicationId ||
+      !["pending", "pending_payment"].includes(application.status)
+    ) {
       toast.error("این درخواست قابل پرداخت نیست");
       return;
     }
+    const controller = ownCheckoutMutation();
     setLoading(true);
     try {
       const response = await fetch("/api/payments", {
@@ -434,8 +478,10 @@ export default function CheckoutPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ applicationId: application.id, method, payerCardNumber: method === "card_to_card" ? payerCardNumber : undefined }),
+        signal: controller.signal,
       });
       const data = await response.json();
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       if (shouldTerminateCheckoutRequest(response.status)) {
         terminateAuthentication();
         return;
@@ -452,31 +498,38 @@ export default function CheckoutPage() {
       setInstructions(data.paymentInstructions || null);
       setBotUrl(data.baleBotUrl || "");
     } catch (error) {
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       toast.error(
         error instanceof Error ? error.message : "ایجاد سفارش ناموفق بود",
       );
     } finally {
-      setLoading(false);
+      finishCheckoutMutation(requestApplicationId, controller);
     }
   }
 
   async function restartExpiredOrder() {
-    if (!expiredOrderId) return;
+    const requestApplicationId = applicationId;
+    const requestOrderId = expiredOrderId;
+    if (!requestApplicationId || !requestOrderId) return;
     const token = getCookie("token");
     if (!token) {
       terminateAuthentication();
       return;
     }
-    setLoading(true);
     watcherAbort.current?.abort();
-    const controller = new AbortController();
-    mutationAbort.current = controller;
+    const controller = ownCheckoutMutation();
+    setLoading(true);
     try {
-      const currentData = await fetchCurrentPayment(token, controller.signal);
+      const currentData = await fetchCurrentPayment(
+        token,
+        requestApplicationId,
+        controller,
+      );
       if (!currentData) return;
       const currentOrder = currentData.orders?.find(
-        (item) => item.id === expiredOrderId,
+        (item) => item.id === requestOrderId,
       );
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       if (!currentOrder) throw new Error("سفارش پیدا نشد");
       if (currentOrder.status !== "expired") {
         applyCurrentOrder(currentOrder, currentData);
@@ -486,7 +539,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      const response = await fetch(`/api/payments/${expiredOrderId}/change-method`, {
+      const response = await fetch(`/api/payments/${requestOrderId}/change-method`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -499,16 +552,22 @@ export default function CheckoutPage() {
         signal: controller.signal,
       });
       const data = await response.json();
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       if (shouldTerminateCheckoutRequest(response.status)) {
         terminateAuthentication();
         return;
       }
       if (!response.ok) {
         if (response.status === 409) {
-          const refreshedData = await fetchCurrentPayment(token, controller.signal);
-          const refreshedOrder = refreshedData?.orders?.find(
-            (item) => item.id === expiredOrderId,
+          const refreshedData = await fetchCurrentPayment(
+            token,
+            requestApplicationId,
+            controller,
           );
+          const refreshedOrder = refreshedData?.orders?.find(
+            (item) => item.id === requestOrderId,
+          );
+          if (!mutationCanUpdate(requestApplicationId, controller)) return;
           if (refreshedOrder && refreshedOrder.status !== "expired") {
             applyCurrentOrder(refreshedOrder, refreshedData || {});
             if (refreshedOrder.status === "paid") {
@@ -523,56 +582,86 @@ export default function CheckoutPage() {
       setFile(null);
       setCountdownNow(Date.now());
     } catch (error) {
-      if (controller.signal.aborted) return;
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       toast.error(
         error instanceof Error ? error.message : "شروع دوباره پرداخت انجام نشد",
       );
     } finally {
-      if (mutationAbort.current === controller) {
-        mutationAbort.current = null;
-        setLoading(false);
-      }
+      finishCheckoutMutation(requestApplicationId, controller);
     }
   }
 
   async function changeMethod() {
-    if (!order) return;
+    const requestApplicationId = applicationId;
+    const requestOrder = order;
+    if (!requestApplicationId || !requestOrder) return;
     const nextMethod = order.method === "card_to_card" ? "bale_wallet" : "card_to_card";
     if (!window.confirm("روش پرداخت فعلی غیرفعال می‌شود و باید پرداخت را با روش جدید ادامه دهید. ادامه می‌دهید؟")) return;
     const nextPayerCardNumber = nextMethod === "card_to_card" ? window.prompt("شماره کارت پرداخت‌کننده را وارد کنید:")?.trim() : undefined;
     if (nextMethod === "card_to_card" && !nextPayerCardNumber) return;
+    const token = getCookie("token");
+    if (!token) {
+      terminateAuthentication();
+      return;
+    }
+    const controller = ownCheckoutMutation();
     setLoading(true);
     try {
-      const response = await fetch(`/api/payments/${order.id}/change-method`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token") || ""}` }, body: JSON.stringify({ method: nextMethod, payerCardNumber: nextPayerCardNumber }) });
+      const response = await fetch(`/api/payments/${requestOrder.id}/change-method`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ method: nextMethod, payerCardNumber: nextPayerCardNumber }), signal: controller.signal });
       const data = await response.json();
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
+      if (shouldTerminateCheckoutRequest(response.status)) {
+        terminateAuthentication();
+        return;
+      }
       if (!response.ok) throw new Error(data.error);
-      setOrder(data.order); setMethod(nextMethod); setFile(null); setInstructions(data.paymentInstructions || null); setBotUrl(data.baleBotUrl || "");
+      applyCurrentOrder(data.order, data); setFile(null);
       toast.success("روش پرداخت تغییر کرد");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "تغییر روش پرداخت انجام نشد"); } finally { setLoading(false); }
+    } catch (error) {
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
+      toast.error(error instanceof Error ? error.message : "تغییر روش پرداخت انجام نشد");
+    } finally {
+      finishCheckoutMutation(requestApplicationId, controller);
+    }
   }
 
   async function uploadReceipt() {
+    const requestApplicationId = applicationId;
+    const requestOrder = order;
+    const requestFile = file;
     const token = getCookie("token");
-    if (!token || !order || !file) return;
+    if (!requestApplicationId || !requestOrder || !requestFile) return;
+    if (!token) {
+      terminateAuthentication();
+      return;
+    }
+    const controller = ownCheckoutMutation();
     setLoading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
-      const response = await fetch(`/api/payments/${order.id}/receipt`, {
+      form.append("file", requestFile);
+      const response = await fetch(`/api/payments/${requestOrder.id}/receipt`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
+        signal: controller.signal,
       });
       const data = await response.json();
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
+      if (shouldTerminateCheckoutRequest(response.status)) {
+        terminateAuthentication();
+        return;
+      }
       if (!response.ok) throw new Error(data.error);
-      setOrder({ ...order, status: "under_review" });
+      setOrder({ ...requestOrder, status: "under_review" });
       toast.success("رسید ارسال شد و به‌زودی بررسی می‌شود.");
     } catch (error) {
+      if (!mutationCanUpdate(requestApplicationId, controller)) return;
       toast.error(
         error instanceof Error ? error.message : "ارسال رسید ناموفق بود",
       );
     } finally {
-      setLoading(false);
+      finishCheckoutMutation(requestApplicationId, controller);
     }
   }
 

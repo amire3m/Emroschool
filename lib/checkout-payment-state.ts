@@ -76,3 +76,15 @@ export function getStatusRequestDelay(
 export function shouldTerminateCheckoutRequest(status: number) {
   return status === 401;
 }
+
+export function canApplyCheckoutMutation(
+  requestApplicationId: string | null,
+  currentApplicationId: string | null,
+  aborted: boolean,
+) {
+  return Boolean(
+    requestApplicationId &&
+      requestApplicationId === currentApplicationId &&
+      !aborted,
+  );
+}
