@@ -34,7 +34,6 @@ type Order = {
   method: string;
   status: string;
   rejectionReason?: string | null;
-  balePayload?: string | null;
   receiptUrl?: string | null;
   expiresAt?: string | null;
 };

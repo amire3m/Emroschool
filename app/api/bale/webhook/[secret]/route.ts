@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { answerPreCheckoutQuery, sendInvoice } from "@/lib/bale-payment";
+import { answerPreCheckoutQuery, isDefinitiveBaleApiRejection, sendInvoice } from "@/lib/bale-payment";
 import { processBalePreCheckout, processBaleSuccessfulPayment } from "@/lib/bale-payment-finalization";
 import { effectiveBaleExpiry, isExpired } from "@/lib/bale-payment-domain";
 import { NextRequest, NextResponse } from "next/server";
@@ -61,16 +61,22 @@ export async function POST(
            data: { baleInvoiceClaimId: claimId, baleInvoiceClaimedAt: now, expiresAt },
          });
          if (claimed.count !== 1) return NextResponse.json({ ok: true });
+         const releaseClaim = () => dependencies.db.paymentAttempt.updateMany({
+           where: { id: attempt.id, orderId: attempt.order.id, baleInvoiceClaimId: claimId },
+           data: { baleInvoiceClaimId: null, baleInvoiceClaimedAt: null },
+         });
          try {
            await dependencies.db.paymentOrder.update({ where: { id: attempt.order.id }, data: { baleChatId: chatId } });
+         } catch (error) {
+           await releaseClaim();
+           throw error;
+         }
+         try {
            await dependencies.sendInvoice(chatId, { title: attempt.order.course.title, description: `پرداخت دوره ${attempt.order.course.title}`, payload, amountRials: attempt.amountRials });
          } catch (error) {
-           await dependencies.db.paymentAttempt.updateMany({
-             where: { id: attempt.id, orderId: attempt.order.id, baleInvoiceClaimId: claimId },
-             data: { baleInvoiceClaimId: null, baleInvoiceClaimedAt: null },
-           });
+           if (isDefinitiveBaleApiRejection(error)) await releaseClaim();
            throw error;
-      }
+         }
          await dependencies.db.paymentAttempt.updateMany({
            where: { id: attempt.id, orderId: attempt.order.id, baleInvoiceClaimId: claimId },
            data: { baleInvoiceSentAt: now, baleInvoiceClaimId: null, baleInvoiceClaimedAt: null },

@@ -25,9 +25,70 @@ const checkoutAttemptSelect = {
   expiresAt: true,
 };
 
+const checkoutOrderSelect = {
+  id: true,
+  orderNumber: true,
+  amountTomans: true,
+  method: true,
+  status: true,
+  rejectionReason: true,
+  receiptUrl: true,
+  expiresAt: true,
+  activeAttemptId: true,
+  createdAt: true,
+  course: { select: { id: true, title: true, slug: true, thumbnail: true } },
+  application: { select: { id: true, status: true, finalAmountTomans: true } },
+  attempts: { orderBy: { sequence: "desc" as const }, select: checkoutAttemptSelect },
+};
+
 function safeCheckoutAttempt(attempt: any) {
   const { id, sequence, method, status, createdAt, expiresAt } = attempt;
   return { id, sequence, method, status, createdAt, expiresAt };
+}
+
+function safeCheckoutOrder(order: any) {
+  const {
+    id,
+    orderNumber,
+    amountTomans,
+    method,
+    status,
+    rejectionReason,
+    receiptUrl,
+    expiresAt,
+    createdAt,
+    course,
+    application,
+  } = order;
+  return {
+    id,
+    orderNumber,
+    amountTomans,
+    method,
+    status,
+    rejectionReason,
+    receiptUrl,
+    expiresAt,
+    createdAt,
+    course,
+    application,
+    attempts: (order.attempts || []).map(safeCheckoutAttempt),
+  };
+}
+
+async function checkoutOrderResponse(db: any, where: Record<string, unknown>, botUsername: string) {
+  const order = await db.paymentOrder.findFirst({ where, select: checkoutOrderSelect });
+  if (!order) return null;
+  const activeAttempt = order.attempts.find((attempt: any) => attempt.id === order.activeAttemptId);
+  const activePayload = order.method === "bale_wallet" && order.status === "pending" && activeAttempt?.method === "bale_wallet" && activeAttempt.status === "pending"
+    ? await db.paymentAttempt.findFirst({ where: { id: activeAttempt.id, orderId: order.id }, select: { balePayload: true } })
+    : null;
+  return {
+    order: safeCheckoutOrder(order),
+    baleBotUrl: activePayload?.balePayload
+      ? `https://ble.ir/${botUsername}?start=${encodeURIComponent(activePayload.balePayload)}`
+      : undefined,
+  };
 }
 
 function userId(req: NextRequest) {
@@ -55,8 +116,13 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     const discount = application.discountCode ? await dependencies.db.discountCode.findUnique({ where: { code: application.discountCode } }) : null;
     if (discount?.requiresDocument && !application.discountDocumentUrl) return NextResponse.json({ error: "بارگذاری مدرک تخفیف الزامی است" }, { status: 400 });
     if (application.paymentOrder) {
-      const order = await dependencies.db.paymentOrder.findUnique({ where: { id: application.paymentOrder.id }, include: { attempts: { orderBy: { sequence: "desc" } } } });
-      return NextResponse.json({ order, paymentInstructions: application.paymentOrder.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined, existing: true });
+      const existing = await checkoutOrderResponse(dependencies.db, { id: application.paymentOrder.id, userId: id }, dependencies.botUsername());
+      if (!existing) throw new Error("PAYMENT_ORDER_MISSING");
+      return NextResponse.json({
+        ...existing,
+        paymentInstructions: existing.order.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,
+        existing: true,
+      });
     }
     const course = application.course;
     if (application.finalAmountTomans === 0) {
@@ -80,25 +146,24 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
       if (!attempt) throw new Error("PAYMENT_ATTEMPT_MISSING");
       return tx.paymentOrder.update({ where: { id: created.id }, data: { activeAttemptId: attempt.id } });
     });
-    const settings = method === "card_to_card" ? await dependencies.db.paymentSettings.findUnique({ where: { id: 1 } }) : null;
-    const botUsername = dependencies.botUsername();
-    return NextResponse.json({ order, baleBotUrl: method === "bale_wallet" ? `https://ble.ir/${botUsername}?start=${encodeURIComponent(payload!)}` : undefined, paymentInstructions: settings ? { cardNumber: settings.cardNumber, cardHolder: settings.cardHolder, instructions: settings.cardInstructions } : undefined }, { status: 201 });
+    const createdResponse = await checkoutOrderResponse(dependencies.db, { id: order.id, userId: id }, dependencies.botUsername());
+    if (!createdResponse) throw new Error("PAYMENT_ORDER_MISSING");
+    return NextResponse.json({
+      ...createdResponse,
+      paymentInstructions: method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,
+    }, { status: 201 });
   } catch (error) {
     if ((error as { code?: unknown })?.code === "P2002" && requestedApplicationId) {
-      const winner = await dependencies.db.paymentOrder.findUnique({
-        where: { applicationId: requestedApplicationId },
-        include: { attempts: { orderBy: { sequence: "desc" } } },
-      });
-      if (winner?.userId === id) {
-        const active = winner.attempts?.find((attempt: any) => attempt.id === winner.activeAttemptId);
-        const baleBotUrl = winner.method === "bale_wallet" && winner.status === "pending" && active?.balePayload
-          ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(active.balePayload)}`
-          : undefined;
+      const winner = await checkoutOrderResponse(
+        dependencies.db,
+        { applicationId: requestedApplicationId, userId: id },
+        dependencies.botUsername(),
+      );
+      if (winner) {
         return NextResponse.json({
-          order: winner,
+          ...winner,
           existing: true,
-          baleBotUrl,
-          paymentInstructions: winner.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,
+          paymentInstructions: winner.order.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,
         });
       }
     }
@@ -116,21 +181,7 @@ export async function GET(req: NextRequest, _context: { params: Record<string, s
   const applicationId = new URL(req.url).searchParams.get("applicationId");
   const query = {
     where: { userId: id, ...(applicationId ? { applicationId } : {}) },
-    select: {
-      id: true,
-      orderNumber: true,
-      amountTomans: true,
-      method: true,
-      status: true,
-      rejectionReason: true,
-      receiptUrl: true,
-      expiresAt: true,
-      activeAttemptId: true,
-      createdAt: true,
-      course: { select: { id: true, title: true, slug: true, thumbnail: true } },
-      application: { select: { id: true, status: true, finalAmountTomans: true } },
-      attempts: { orderBy: { sequence: "desc" as const }, select: checkoutAttemptSelect },
-    },
+    select: checkoutOrderSelect,
     orderBy: { createdAt: "desc" as const },
   };
   let orders = await dependencies.db.paymentOrder.findMany(query);
@@ -158,11 +209,6 @@ export async function GET(req: NextRequest, _context: { params: Record<string, s
     });
   }
   if (legacyOrStale.length > 0) orders = await dependencies.db.paymentOrder.findMany(query);
-  orders = orders.map((order: any) => ({
-    ...order,
-    attempts: order.attempts.map(safeCheckoutAttempt),
-  }));
-  const instructions = orders[0]?.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined;
   const currentOrder = orders[0];
   const activeAttempt = currentOrder?.attempts?.find((attempt: any) => attempt.id === currentOrder.activeAttemptId);
   const activePayload = currentOrder?.method === "bale_wallet" && currentOrder.status === "pending" && activeAttempt?.method === "bale_wallet" && activeAttempt.status === "pending"
@@ -171,5 +217,6 @@ export async function GET(req: NextRequest, _context: { params: Record<string, s
   const baleBotUrl = activePayload?.balePayload
     ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(activePayload.balePayload)}`
     : undefined;
-  return NextResponse.json({ orders, baleBotUrl, paymentInstructions: instructions });
+  const instructions = currentOrder?.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined;
+  return NextResponse.json({ orders: orders.map(safeCheckoutOrder), baleBotUrl, paymentInstructions: instructions });
 }

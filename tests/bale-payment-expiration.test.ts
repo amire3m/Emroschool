@@ -35,13 +35,31 @@ function paymentApplication(paymentOrder: unknown = null) {
   };
 }
 
-function creationFixture(options: { failAttemptLookup?: boolean; createConflict?: boolean } = {}) {
+function creationFixture(options: { failAttemptLookup?: boolean; createConflict?: boolean; existingOrder?: boolean } = {}) {
   const state: { order: any; attempt: any; transactions: number } = { order: null, attempt: null, transactions: 0 };
+  if (options.existingOrder) {
+    state.order = { id: "order-existing", orderNumber: "PAY-EXISTING", userId: "user-1", method: "bale_wallet", status: "pending", activeAttemptId: "attempt-existing", amountTomans: 400_000, balePayload: "order-secret", expiresAt: new Date("2026-08-10T12:15:00.000Z"), createdAt: new Date("2026-08-10T12:00:00.000Z") };
+    state.attempt = { id: "attempt-existing", orderId: "order-existing", sequence: 1, method: "bale_wallet", status: "pending", balePayload: "attempt-secret", balePaymentId: "payment-secret", baleTrackingNumber: "tracking-secret", baleReceiptReference: "receipt-secret", baleVerificationStatus: "received", baleInvoiceClaimId: "claim-secret", futureSecret: "future-secret", createdAt: new Date("2026-08-10T12:00:00.000Z"), expiresAt: new Date("2026-08-10T12:15:00.000Z") };
+  }
+  const selectedOrder = () => state.order ? {
+    rejectionReason: null,
+    receiptUrl: null,
+    createdAt: new Date("2026-08-10T12:00:00.000Z"),
+    course: { id: "course-1", title: "Course", slug: "course", thumbnail: null },
+    application: { id: "application-1", status: "pending_payment", finalAmountTomans: 400_000 },
+    ...state.order,
+    attempts: state.attempt ? [{
+      createdAt: new Date("2026-08-10T12:00:00.000Z"),
+      expiresAt: null,
+      ...state.attempt,
+    }] : [],
+  } : null;
   const db = {
-    courseApplication: { findUnique: async () => paymentApplication() },
+    courseApplication: { findUnique: async () => paymentApplication(options.existingOrder ? { id: state.order.id, method: state.order.method } : null) },
     paymentSettings: { findUnique: async () => null },
     paymentOrder: {
-      findUnique: async () => state.order ? { ...state.order, attempts: state.attempt ? [{ ...state.attempt }] : [] } : null,
+      findUnique: async () => selectedOrder(),
+      findFirst: async () => selectedOrder(),
       create: async ({ data }: any) => {
         state.order = { id: "order-1", ...data };
         state.attempt = { id: "attempt-1", orderId: "order-1", ...data.attempts.create };
@@ -95,6 +113,17 @@ function creationFixture(options: { failAttemptLookup?: boolean; createConflict?
   return { state, db };
 }
 
+const safeOrderKeys = ["amountTomans", "application", "course", "createdAt", "expiresAt", "id", "method", "orderNumber", "receiptUrl", "rejectionReason", "status", "attempts"];
+const safeAttemptKeys = ["createdAt", "expiresAt", "id", "method", "sequence", "status"];
+
+function assertSafePaymentOrder(order: any) {
+  assert.deepEqual(Object.keys(order).sort(), [...safeOrderKeys].sort());
+  assert.deepEqual(Object.keys(order.attempts[0]).sort(), [...safeAttemptKeys].sort());
+  const serialized = JSON.stringify(order);
+  assert.doesNotMatch(serialized, /order-secret|attempt-secret|payment-secret|tracking-secret|receipt-secret|claim-secret|future-secret/);
+  assert.equal(order.balePayload, undefined);
+}
+
 async function createWithFixture(method: "bale_wallet" | "card_to_card", fixture = creationFixture()) {
   const now = new Date("2026-08-10T12:00:00.000Z");
   const response = await createPayment(
@@ -111,12 +140,26 @@ async function createWithFixture(method: "bale_wallet" | "card_to_card", fixture
 
 test("atomically creates a Bale order, attempt, active pointer, and exact deadline", async () => {
   const { state, response } = await createWithFixture("bale_wallet");
+  const body = await response.json();
 
   assert.equal(response.status, 201);
   assert.equal(state.transactions, 1);
   assert.equal(state.order.activeAttemptId, "attempt-1");
   assert.equal(state.order.expiresAt.toISOString(), "2026-08-10T12:15:00.000Z");
   assert.equal(state.attempt.expiresAt, state.order.expiresAt);
+  assertSafePaymentOrder(body.order);
+  assert.match(body.baleBotUrl, /^https:\/\/ble\.ir\//);
+});
+
+test("existing application POST returns only the safe order and attempt projection", async () => {
+  const fixture = creationFixture({ existingOrder: true });
+  const { response } = await createWithFixture("bale_wallet", fixture);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.existing, true);
+  assertSafePaymentOrder(body.order);
+  assert.equal(body.baleBotUrl, "https://ble.ir/imamruhollahschool_bot?start=attempt-secret");
 });
 
 test("rolls back the initial order when active-attempt setup fails", async () => {
@@ -136,6 +179,8 @@ test("returns the concurrently created order after an initial P2002", async () =
   assert.equal(response.status, 200);
   assert.equal(body.existing, true);
   assert.equal(body.order.id, "order-winner");
+  assertSafePaymentOrder(body.order);
+  assert.match(body.baleBotUrl, /^https:\/\/ble\.ir\//);
 });
 
 test("explicitly clears order and attempt deadlines for card-to-card creation", async () => {

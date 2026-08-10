@@ -7,7 +7,7 @@ import {
   processBalePreCheckout,
   processBaleSuccessfulPayment,
 } from "../lib/bale-payment-finalization";
-import { sendMessage } from "../lib/bale-payment";
+import { isDefinitiveBaleApiRejection, sendMessage } from "../lib/bale-payment";
 import { POST as handleBaleWebhook } from "../app/api/bale/webhook/[secret]/route";
 
 type Attempt = {
@@ -503,31 +503,119 @@ test("repeated and concurrent starts issue only one invoice", async () => {
   assert.equal(state.attempts[1].baleInvoiceClaimId, null);
 });
 
-test("a failed invoice send releases its claim for a later start", async () => {
-  const state = fixture();
-  let calls = 0;
-  const dependencies = {
-    db: state.db,
-    now: () => new Date("2026-08-10T12:01:00.000Z"),
-    webhookSecret: "secret",
-    sendInvoice: async () => {
-      calls += 1;
-      if (calls === 1) throw new Error("provider unavailable");
-    },
-    answerPreCheckoutQuery: async () => undefined,
-    onError: () => undefined,
-  };
+function classifiedInvoiceError(deliveryStatus: "definitive_rejection" | "delivery_uncertain") {
+  return Object.assign(new Error("invoice failed"), { baleDeliveryStatus: deliveryStatus });
+}
+
+async function runStartWithInvoice(
+  state: ReturnType<typeof fixture>,
+  sendInvoice: () => Promise<unknown>,
+  action: (start: () => Promise<Response>) => Promise<void>,
+) {
   const start = () => handleBaleWebhook(
     webhookRequest({ message: { text: "/start payload-active", chat: { id: 42 } } }),
     { params: { secret: "secret" } },
-    dependencies,
+    {
+      db: state.db,
+      now: () => new Date("2026-08-10T12:01:00.000Z"),
+      webhookSecret: "secret",
+      sendInvoice,
+      answerPreCheckoutQuery: async () => undefined,
+      onError: () => undefined,
+    },
   );
+  await action(start);
+}
 
-  assert.equal((await start()).status, 500);
-  assert.equal(state.attempts[1].baleInvoiceClaimId, null);
-  assert.equal((await start()).status, 200);
-  assert.equal(calls, 2);
-  assert.ok(state.attempts[1].baleInvoiceSentAt);
+test("explicit provider rejection releases the invoice claim and permits retry", async () => {
+  const state = fixture();
+  let calls = 0;
+  await runStartWithInvoice(state, async () => {
+    calls += 1;
+    if (calls === 1) throw classifiedInvoiceError("definitive_rejection");
+    return {};
+  }, async (start) => {
+    assert.equal((await start()).status, 500);
+    assert.equal(state.attempts[1].baleInvoiceClaimId, null);
+    assert.equal((await start()).status, 200);
+    assert.equal(calls, 2);
+    assert.ok(state.attempts[1].baleInvoiceSentAt);
+  });
+});
+
+test("network or timeout uncertainty retains the invoice claim and prevents resend", async () => {
+  const state = fixture();
+  let calls = 0;
+  await runStartWithInvoice(state, async () => {
+    calls += 1;
+    throw classifiedInvoiceError("delivery_uncertain");
+  }, async (start) => {
+    assert.equal((await start()).status, 500);
+    assert.ok(state.attempts[1].baleInvoiceClaimId);
+    assert.equal(state.attempts[1].baleInvoiceSentAt, null);
+    assert.equal((await start()).status, 200);
+    assert.equal(calls, 1);
+  });
+});
+
+test("malformed 2xx uncertainty retains the invoice claim and prevents resend", async () => {
+  const state = fixture();
+  let calls = 0;
+  await runStartWithInvoice(state, async () => {
+    calls += 1;
+    throw classifiedInvoiceError("delivery_uncertain");
+  }, async (start) => {
+    assert.equal((await start()).status, 500);
+    assert.ok(state.attempts[1].baleInvoiceClaimId);
+    assert.equal(state.attempts[1].baleInvoiceSentAt, null);
+    assert.equal((await start()).status, 200);
+    assert.equal(calls, 1);
+  });
+});
+
+test("successful provider send marks the invoice sent and clears its claim", async () => {
+  const state = fixture();
+  let calls = 0;
+  await runStartWithInvoice(state, async () => { calls += 1; return {}; }, async (start) => {
+    assert.equal((await start()).status, 200);
+    assert.equal(calls, 1);
+    assert.equal(state.attempts[1].baleInvoiceSentAt?.toISOString(), "2026-08-10T12:01:00.000Z");
+    assert.equal(state.attempts[1].baleInvoiceClaimId, null);
+  });
+});
+
+test("Bale HTTP errors classify explicit rejection as definitive and network failure as uncertain", async () => {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  process.env.BALE_BOT_TOKEN = "bot-token";
+  try {
+    global.fetch = (async () => new Response(JSON.stringify({ ok: false, description: "rejected" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })) as typeof fetch;
+    await assert.rejects(sendMessage("chat-1", "hello"), (error: unknown) => isDefinitiveBaleApiRejection(error));
+
+    global.fetch = (async () => { throw new DOMException("timed out", "TimeoutError"); }) as typeof fetch;
+    await assert.rejects(sendMessage("chat-1", "hello"), (error: unknown) => !isDefinitiveBaleApiRejection(error));
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalToken;
+  }
+});
+
+test("Bale HTTP errors classify malformed 2xx delivery as uncertain", async () => {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  process.env.BALE_BOT_TOKEN = "bot-token";
+  global.fetch = (async () => new Response("not-json", { status: 200 })) as typeof fetch;
+  try {
+    await assert.rejects(sendMessage("chat-1", "hello"), (error: unknown) => !isDefinitiveBaleApiRejection(error));
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalToken;
+  }
 });
 
 test("finalization does not invalidate an active attempt owned by another order", async () => {

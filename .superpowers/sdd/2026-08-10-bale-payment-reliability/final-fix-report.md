@@ -97,7 +97,7 @@ COMPLETE. All nine final-review findings were addressed and committed. No deploy
 - Confirmed all attempt mutations called out by the finalizer finding are scoped by attempt and order.
 - Confirmed late successful payment validation remains independent of expiry and inquiry.
 - Confirmed evidence-bearing expired attempts remain selectable and finalizable.
-- Confirmed only `sendInvoice`/pre-send failures release invoice ownership; post-send uncertainty cannot immediately create a repeat.
+- Confirmed pre-send database failures and explicit provider rejections release invoice ownership; timeout, network, malformed 2xx, and post-send persistence uncertainty retain ownership to prevent a repeat.
 - Confirmed API and UI share selector semantics and the UI does not claim lifecycle coverage absent from the repository.
 - Confirmed customer GET generates the deep link server-side without serializing payload or verification evidence.
 - Confirmed deployment never leaves PM2 intentionally stopped after the backup window and uploads remain included.
@@ -114,3 +114,28 @@ COMPLETE. All nine final-review findings were addressed and committed. No deploy
 - Tracking-number inquiry remains an empirically verified fallback, not a documented provider identifier contract; stored unique payment ID remains preferred.
 - The deployment test uses a real POSIX shell with stubbed PM2/npm/git/SQLite commands and temporary files. It does not replace post-deploy VPS health checks, which were explicitly out of scope because deployment was forbidden.
 - The repository still has no mounted React/browser lifecycle harness. The new admin controls are covered by shared selector/API tests, TypeScript, production build, detector, and static self-review.
+
+## Residual Blocker Remediation
+
+### Delivery-aware invoice claims
+
+- `lib/bale-payment.ts` now emits `BaleApiError` with `definitive_rejection` or `delivery_uncertain`, while preserving the existing token-redacted error messages.
+- Missing configuration, explicit non-2xx responses, and explicit `ok: false` envelopes are definitive because no accepted delivery is possible. Fetch/network/timeout failures and malformed 2xx protocol responses are uncertain because Bale may have accepted the request before the client lost a usable response.
+- `/start` releases its durable claim after pre-send database failure or a definitive Bale rejection. It retains the claim after uncertain delivery and therefore acknowledges later repeated starts without sending another invoice.
+- Focused RED proved uncertain failures cleared the claim and the Bale error classifier was absent. Focused GREEN covers explicit rejection retry, timeout/network claim retention, malformed 2xx claim retention, no resend, successful sent-state persistence, and safe HTTP-boundary classification.
+
+### Unified customer POST projection
+
+- `app/api/payments/route.ts` now defines one explicit checkout order/attempt select and one defensive serializer shared by GET and all order-returning POST branches.
+- New creation, existing application order, and concurrent P2002 winner all reload by user-scoped criteria through that projection.
+- The active payload is selected separately by active attempt and order ID only to build `baleBotUrl`. Neither order-level nor attempt-level payload is serialized.
+- Exact response-key tests cover all three POST branches and reject raw payload, payment ID, tracking number, receipt reference, verification status, claim ID, and an injected future field.
+- The unused `balePayload` property was removed from the checkout page's customer order type.
+
+### Residual verification
+
+- `npm test`: exit 0; 108 passed, 0 failed.
+- `npx prisma validate`: exit 0; schema valid.
+- `npx tsc --noEmit --incremental false`: exit 0; no diagnostics.
+- `npm run build`: exit 0; production build and 99-page generation completed with only the previously documented empty-worktree missing-table warnings.
+- No deployment, push, merge, production database change, or historical reconciliation was performed.

@@ -1,15 +1,32 @@
 const BALE_API_BASE = process.env.BALE_API_BASE || "https://tapi.bale.ai/bot";
 const BALE_HTTP_TIMEOUT_MS = 8_000;
 
+export type BaleDeliveryStatus = "definitive_rejection" | "delivery_uncertain";
+
+export class BaleApiError extends Error {
+  readonly baleDeliveryStatus: BaleDeliveryStatus;
+
+  constructor(message: string, baleDeliveryStatus: BaleDeliveryStatus) {
+    super(message);
+    this.name = "BaleApiError";
+    this.baleDeliveryStatus = baleDeliveryStatus;
+  }
+}
+
+export function isDefinitiveBaleApiRejection(error: unknown) {
+  return error instanceof Error &&
+    (error as Error & { baleDeliveryStatus?: unknown }).baleDeliveryStatus === "definitive_rejection";
+}
+
 function botToken() {
   const botToken = process.env.BALE_BOT_TOKEN;
-  if (!botToken) throw new Error("BALE_NOT_CONFIGURED");
+  if (!botToken) throw new BaleApiError("BALE_NOT_CONFIGURED", "definitive_rejection");
   return botToken;
 }
 
 function walletToken() {
   const token = process.env.BALE_WALLET_TOKEN;
-  if (!token) throw new Error("BALE_NOT_CONFIGURED");
+  if (!token) throw new BaleApiError("BALE_NOT_CONFIGURED", "definitive_rejection");
   return token;
 }
 
@@ -25,7 +42,7 @@ async function baleCall(method: string, body: Record<string, unknown>) {
     });
   } catch (error) {
     const detail = error instanceof Error ? redactTokens(error.message) : "request failed";
-    throw new Error(`BALE_${method.toUpperCase()}_FAILED: ${detail}`);
+    throw new BaleApiError(`BALE_${method.toUpperCase()}_FAILED: ${detail}`, "delivery_uncertain");
   }
   const result = await response.json().catch(() => null);
   const envelope = result && typeof result === "object" && !Array.isArray(result) ? result as Record<string, unknown> : null;
@@ -33,10 +50,13 @@ async function baleCall(method: string, body: Record<string, unknown>) {
     const providerCode = envelope?.error_code ? ` ${String(envelope.error_code)}` : "";
     const providerDescription = envelope?.description ?? envelope?.error ?? envelope?.message ?? response.statusText;
     const detail = redactTokens(String(providerDescription || "provider rejected request"));
-    throw new Error(`BALE_${method.toUpperCase()}_FAILED: HTTP ${response.status}${providerCode} ${detail}`);
+    throw new BaleApiError(
+      `BALE_${method.toUpperCase()}_FAILED: HTTP ${response.status}${providerCode} ${detail}`,
+      "definitive_rejection",
+    );
   }
   if (!envelope || envelope.ok !== true || !Object.prototype.hasOwnProperty.call(envelope, "result")) {
-    throw new Error(`BALE_${method.toUpperCase()}_PROTOCOL_ERROR`);
+    throw new BaleApiError(`BALE_${method.toUpperCase()}_PROTOCOL_ERROR`, "delivery_uncertain");
   }
   return envelope.result;
 }
