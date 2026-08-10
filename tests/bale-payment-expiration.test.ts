@@ -200,7 +200,18 @@ function transactionFixture(options: {
   const db = {
     paymentSettings: { findUnique: async () => null },
     paymentOrder: {
+      findFirst: async ({ where }: any) => state.order.id === where.id && state.order.userId === where.userId ? { ...state.order } : null,
       findMany: async () => [{ ...state.order, attempts: state.attempts.filter((attempt) => attempt.orderId === state.order.id).map((attempt) => ({ ...attempt })) }],
+    },
+    paymentAttempt: {
+      findFirst: async ({ where, orderBy }: any) => {
+        const matches = state.attempts.filter((attempt) =>
+          (where.id === undefined || attempt.id === where.id) &&
+          (where.orderId === undefined || attempt.orderId === where.orderId),
+        );
+        if (orderBy?.sequence === "desc") matches.sort((a, b) => b.sequence - a.sequence);
+        return matches[0] ? { ...matches[0] } : null;
+      },
     },
     $transaction: async (callback: (tx: any) => Promise<any>) => {
       state.transactions += 1;
@@ -308,6 +319,18 @@ test("restart recovers a malformed order without mutating a foreign active attem
   assert.equal(state.order.activeAttemptId, "attempt-4");
   assert.equal(state.attempts.find((attempt) => attempt.id === foreign.id)?.status, "pending");
   assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-4")?.sequence, 4);
+});
+
+test("a transient restart lock with unchanged state retries the requested method change", async () => {
+  const fixture = transactionFixture({ failures: [locked()] });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "card_to_card", payerCardNumber: "6037997512345670" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+
+  assert.equal(response.status, 200);
+  assert.equal(fixture.state.order.method, "card_to_card");
+  assert.equal(fixture.state.order.activeAttemptId, "attempt-2");
+  assert.equal(fixture.state.attempts.find((attempt) => attempt.id === "attempt-1")?.status, "invalidated");
+  assert.equal(fixture.state.attempts.find((attempt) => attempt.id === "attempt-2")?.sequence, 2);
 });
 
 test("a concurrent restart loser refreshes state and returns a meaningful conflict", async () => {

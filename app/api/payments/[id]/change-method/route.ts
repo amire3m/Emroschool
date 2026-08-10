@@ -21,14 +21,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!["card_to_card", "bale_wallet"].includes(method)) return NextResponse.json({ error: "روش پرداخت نامعتبر است" }, { status: 400 });
     const payerCard = method === "card_to_card" ? getIranianCardInfo(String(payerCardNumber || "")) : null;
     if (method === "card_to_card" && !payerCard) return NextResponse.json({ error: "شماره کارت پرداخت‌کننده معتبر نیست" }, { status: 400 });
-    const result = await runPaymentTransaction(dependencies.db, async (tx, transactionAttempt) => {
+    const originalOrder = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!originalOrder) throw new Error("NOT_FOUND");
+    const originalActive = originalOrder.activeAttemptId ? await dependencies.db.paymentAttempt.findFirst({ where: { id: originalOrder.activeAttemptId, orderId: originalOrder.id } }) : null;
+    const originalLatest = await dependencies.db.paymentAttempt.findFirst({ where: { orderId: originalOrder.id }, orderBy: { sequence: "desc" } });
+    const originalSnapshot = {
+      activeAttemptId: originalOrder.activeAttemptId,
+      orderStatus: originalOrder.status,
+      orderMethod: originalOrder.method,
+      activeStatus: originalActive?.status || null,
+      activeMethod: originalActive?.method || null,
+      latestSequence: originalLatest?.sequence || 0,
+    };
+    const result = await runPaymentTransaction(dependencies.db, async (tx) => {
       const order = await tx.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
       if (!order) throw new Error("NOT_FOUND");
       if (order.status === "paid") throw new Error("PAID");
       if (order.status === "under_review") throw new Error("UNDER_REVIEW");
       const active = order.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: order.activeAttemptId, orderId: order.id } }) : null;
       const latest = await tx.paymentAttempt.findFirst({ where: { orderId: order.id }, orderBy: { sequence: "desc" } });
-      if (transactionAttempt > 1 && active && active.status !== "expired") throw new Error("RESTART_CONFLICT");
+      const stateChanged = order.activeAttemptId !== originalSnapshot.activeAttemptId ||
+        order.status !== originalSnapshot.orderStatus ||
+        order.method !== originalSnapshot.orderMethod ||
+        (active?.status || null) !== originalSnapshot.activeStatus ||
+        (active?.method || null) !== originalSnapshot.activeMethod ||
+        (latest?.sequence || 0) !== originalSnapshot.latestSequence;
+      if (stateChanged) throw new Error("RESTART_CONFLICT");
       if (order.method === method && order.status !== "rejected" && active && active.status !== "expired") throw new Error("SAME_METHOD");
       const now = dependencies.now();
       if (active && active.status !== "expired") {
