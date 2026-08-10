@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "tsx --test tests/*.test.ts",
     "db:push": "npx prisma db push",
     "db:seed": "npx tsx lib/seed.ts",
     "db:sync-categories": "npx tsx lib/sync-categories.ts",

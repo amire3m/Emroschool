@@ -324,18 +324,26 @@ model PaymentOrder {
 }
 
 model PaymentAttempt {
-  id            String   @id @default(cuid())
-  sequence      Int
-  method        String
-  status        String
-  amountTomans  Int
-  amountRials   Int
-  balePayload   String?  @unique
-  receiptUrl    String?
-  rejectionReason String?
-  createdAt     DateTime @default(now())
-  submittedAt   DateTime?
-  invalidatedAt DateTime?
+  id                     String   @id @default(cuid())
+  sequence               Int
+  method                 String
+  status                 String
+  amountTomans           Int
+  amountRials            Int
+  balePayload            String?  @unique
+  balePaymentId          String?  @unique
+  baleTrackingNumber     String?  @unique
+  baleReceiptReference   String?
+  baleVerificationStatus String   @default("unverified")
+  receiptUrl             String?
+  rejectionReason        String?
+  createdAt              DateTime @default(now())
+  expiresAt              DateTime?
+  baleInvoiceSentAt      DateTime?
+  balePreCheckoutAt      DateTime?
+  paidAt                 DateTime?
+  submittedAt            DateTime?
+  invalidatedAt          DateTime?
 
   orderId       String
   order         PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
