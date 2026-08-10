@@ -604,6 +604,77 @@ test("Bale HTTP errors classify explicit rejection as definitive and network fai
   }
 });
 
+for (const status of [502, 503]) {
+  test(`Bale HTTP ${status} retains the invoice claim and prevents resend`, async () => {
+    const state = fixture();
+    const originalFetch = global.fetch;
+    const originalBotToken = process.env.BALE_BOT_TOKEN;
+    const originalWalletToken = process.env.BALE_WALLET_TOKEN;
+    let calls = 0;
+    process.env.BALE_BOT_TOKEN = "bot-token";
+    process.env.BALE_WALLET_TOKEN = "wallet-token";
+    global.fetch = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ ok: false, description: "gateway failure" }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    try {
+      await runStartWithInvoice(state, async () => sendMessage("chat-1", "invoice"), async (start) => {
+        assert.equal((await start()).status, 500);
+        assert.ok(state.attempts[1].baleInvoiceClaimId);
+        assert.equal(state.attempts[1].baleInvoiceSentAt, null);
+        assert.equal((await start()).status, 200);
+        assert.equal(calls, 1);
+      });
+    } finally {
+      global.fetch = originalFetch;
+      if (originalBotToken === undefined) delete process.env.BALE_BOT_TOKEN;
+      else process.env.BALE_BOT_TOKEN = originalBotToken;
+      if (originalWalletToken === undefined) delete process.env.BALE_WALLET_TOKEN;
+      else process.env.BALE_WALLET_TOKEN = originalWalletToken;
+    }
+  });
+}
+
+test("Bale HTTP 400 releases the invoice claim and permits retry", async () => {
+  const state = fixture();
+  const originalFetch = global.fetch;
+  const originalBotToken = process.env.BALE_BOT_TOKEN;
+  const originalWalletToken = process.env.BALE_WALLET_TOKEN;
+  let calls = 0;
+  process.env.BALE_BOT_TOKEN = "bot-token";
+  process.env.BALE_WALLET_TOKEN = "wallet-token";
+  global.fetch = (async () => {
+    calls += 1;
+    return calls === 1
+      ? new Response(JSON.stringify({ ok: false, description: "bad request" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+      : new Response(JSON.stringify({ ok: true, result: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+  }) as typeof fetch;
+  try {
+    await runStartWithInvoice(state, async () => sendMessage("chat-1", "invoice"), async (start) => {
+      assert.equal((await start()).status, 500);
+      assert.equal(state.attempts[1].baleInvoiceClaimId, null);
+      assert.equal((await start()).status, 200);
+      assert.equal(calls, 2);
+      assert.ok(state.attempts[1].baleInvoiceSentAt);
+    });
+  } finally {
+    global.fetch = originalFetch;
+    if (originalBotToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalBotToken;
+    if (originalWalletToken === undefined) delete process.env.BALE_WALLET_TOKEN;
+    else process.env.BALE_WALLET_TOKEN = originalWalletToken;
+  }
+});
+
 test("Bale HTTP errors classify malformed 2xx delivery as uncertain", async () => {
   const originalFetch = global.fetch;
   const originalToken = process.env.BALE_BOT_TOKEN;

@@ -50,9 +50,13 @@ async function baleCall(method: string, body: Record<string, unknown>) {
     const providerCode = envelope?.error_code ? ` ${String(envelope.error_code)}` : "";
     const providerDescription = envelope?.description ?? envelope?.error ?? envelope?.message ?? response.statusText;
     const detail = redactTokens(String(providerDescription || "provider rejected request"));
+    const deliveryStatus: BaleDeliveryStatus =
+      (response.status >= 400 && response.status < 500) || (response.ok && envelope?.ok === false)
+        ? "definitive_rejection"
+        : "delivery_uncertain";
     throw new BaleApiError(
       `BALE_${method.toUpperCase()}_FAILED: HTTP ${response.status}${providerCode} ${detail}`,
-      "definitive_rejection",
+      deliveryStatus,
     );
   }
   if (!envelope || envelope.ok !== true || !Object.prototype.hasOwnProperty.call(envelope, "result")) {

@@ -120,7 +120,7 @@ COMPLETE. All nine final-review findings were addressed and committed. No deploy
 ### Delivery-aware invoice claims
 
 - `lib/bale-payment.ts` now emits `BaleApiError` with `definitive_rejection` or `delivery_uncertain`, while preserving the existing token-redacted error messages.
-- Missing configuration, explicit non-2xx responses, and explicit `ok: false` envelopes are definitive because no accepted delivery is possible. Fetch/network/timeout failures and malformed 2xx protocol responses are uncertain because Bale may have accepted the request before the client lost a usable response.
+- Missing configuration, explicit HTTP 4xx responses, and explicit `ok: false` envelopes on otherwise successful HTTP responses are definitive because they communicate rejection. HTTP 5xx responses, fetch/network/timeout failures, and malformed 2xx protocol responses are uncertain because Bale may have accepted the request before the client lost a usable response.
 - `/start` releases its durable claim after pre-send database failure or a definitive Bale rejection. It retains the claim after uncertain delivery and therefore acknowledges later repeated starts without sending another invoice.
 - Focused RED proved uncertain failures cleared the claim and the Bale error classifier was absent. Focused GREEN covers explicit rejection retry, timeout/network claim retention, malformed 2xx claim retention, no resend, successful sent-state persistence, and safe HTTP-boundary classification.
 
@@ -139,3 +139,25 @@ COMPLETE. All nine final-review findings were addressed and committed. No deploy
 - `npx tsc --noEmit --incremental false`: exit 0; no diagnostics.
 - `npm run build`: exit 0; production build and 99-page generation completed with only the previously documented empty-worktree missing-table warnings.
 - No deployment, push, merge, production database change, or historical reconciliation was performed.
+
+## HTTP Status Classification Follow-Up
+
+### Corrected behavior
+
+- `lib/bale-payment.ts` now classifies HTTP 4xx as `definitive_rejection`, so `/start` releases the matching invoice claim and permits a later retry.
+- HTTP 5xx and other unusable non-4xx HTTP responses are `delivery_uncertain`, so `/start` retains the durable claim and cannot repeat an invoice whose provider outcome is unknown.
+- A well-formed `ok: false` envelope on an otherwise successful HTTP response remains a definitive application rejection. Network/timeout and malformed 2xx responses remain uncertain. Existing token-redacted diagnostics are unchanged.
+- No webhook code change was necessary; its existing release/retain branch already consumes `BaleDeliveryStatus` correctly.
+
+### Exact TDD evidence
+
+- RED boundary command: `node --import tsx --input-type=module -e "import assert from 'node:assert/strict'; process.env.BALE_BOT_TOKEN='bot-token'; globalThis.fetch=async()=>new Response(JSON.stringify({ok:false,description:'gateway failure'}),{status:502,headers:{'Content-Type':'application/json'}}); const {sendMessage,isDefinitiveBaleApiRejection}=(await import('./lib/bale-payment.ts')).default; await assert.rejects(sendMessage('chat-1','invoice'),(error)=>!isDefinitiveBaleApiRejection(error));"` exited 1 with `AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false`; the caught `BaleApiError` had `baleDeliveryStatus: 'definitive_rejection'` for HTTP 502. Initial focused test-runner attempts containing the new route-level tests were terminated by the Windows command wrapper without usable TAP output, so they are not claimed as RED evidence.
+- GREEN focused command: `& ".\\node_modules\\.bin\\tsx.cmd" --test "tests\\bale-payment-webhook.test.ts"` exited 0 with 42 passed, 0 failed. This includes HTTP 502 and 503 claim retention with no repeat fetch, and HTTP 400 claim release followed by a successful retry.
+
+### Follow-up verification
+
+- `npm test`: exit 0; 111 passed, 0 failed.
+- `npx prisma validate`: exit 0; `prisma/schema.prisma` is valid.
+- `npx tsc --noEmit --incremental false`: exit 0; no diagnostics.
+- `npm run build`: exit 0; compilation, type validation, 99-page generation, and trace collection completed. Output contained only the previously documented empty-worktree `P2021` warnings for missing local `DiscountCode` and `Category` tables.
+- No deployment, push, merge, production database mutation, or historical reconciliation was performed.
