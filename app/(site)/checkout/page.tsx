@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
+  CircleCheck,
   Loader2,
   MessageCircle,
   ShieldCheck,
@@ -13,6 +14,13 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import { getIranianCardInfo } from "@/lib/iranian-card";
+import {
+  formatPersianCountdown,
+  getRemainingSeconds,
+  isPendingBalePayment,
+  paymentOutcome,
+  type PaymentOutcome,
+} from "@/lib/checkout-payment-state";
 
 type Order = {
   id: string;
@@ -23,6 +31,7 @@ type Order = {
   rejectionReason?: string | null;
   balePayload?: string | null;
   receiptUrl?: string | null;
+  expiresAt?: string | null;
 };
 type Application = {
   id: string;
@@ -49,7 +58,9 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [application, setApplication] = useState<Application | null>(null);
   const [applicationLoading, setApplicationLoading] = useState(true);
-  const [complete, setComplete] = useState(false);
+  const [completionKind, setCompletionKind] = useState<"free" | "paid" | null>(null);
+  const [expiredOrderId, setExpiredOrderId] = useState<string | null>(null);
+  const [countdownNow, setCountdownNow] = useState(() => Date.now());
 
   useEffect(() => {
     const token = getCookie("token");
@@ -73,20 +84,156 @@ export default function CheckoutPage() {
           (item: Application) => item.id === applicationId,
         );
         if (!found) throw new Error("درخواست ثبت‌نام پیدا نشد");
-         setApplication(found);
-         const orderResponse = await fetch(`/api/payments?applicationId=${encodeURIComponent(applicationId)}`, { headers: { Authorization: `Bearer ${token}` } });
-         const orderData = await orderResponse.json();
-         const existingOrder = orderData.orders?.[0] as Order | undefined;
-         if (existingOrder) {
-           setOrder(existingOrder);
-           setMethod(existingOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
-           if (existingOrder.method === "card_to_card") setInstructions(orderData.paymentInstructions || null);
-           if (existingOrder.method === "bale_wallet" && existingOrder.balePayload) setBotUrl(`https://ble.ir/${process.env.NEXT_PUBLIC_BALE_BOT_USERNAME || "imamruhollahschool_bot"}?start=${encodeURIComponent(existingOrder.balePayload)}`);
+          setApplication(found);
+          const orderResponse = await fetch(`/api/payments?applicationId=${encodeURIComponent(applicationId)}`, { headers: { Authorization: `Bearer ${token}` } });
+          const orderData = await orderResponse.json();
+          if (!orderResponse.ok) throw new Error(orderData.error);
+          const existingOrder = orderData.orders?.[0] as Order | undefined;
+          if (existingOrder?.status === "paid") {
+            setOrder(existingOrder);
+            setCompletionKind("paid");
+            setBotUrl("");
+          } else if (existingOrder?.status === "expired") {
+            setExpiredOrderId(existingOrder.id);
+            setOrder(null);
+            setMethod("bale_wallet");
+            setBotUrl("");
+          } else if (existingOrder) {
+            setOrder(existingOrder);
+            setMethod(existingOrder.method === "card_to_card" ? "card_to_card" : "bale_wallet");
+            if (existingOrder.method === "card_to_card") setInstructions(orderData.paymentInstructions || null);
+            if (existingOrder.method === "bale_wallet" && existingOrder.balePayload) setBotUrl(`https://ble.ir/${process.env.NEXT_PUBLIC_BALE_BOT_USERNAME || "imamruhollahschool_bot"}?start=${encodeURIComponent(existingOrder.balePayload)}`);
          }
       })
       .catch((error) => toast.error(error.message || "خطا در دریافت درخواست"))
       .finally(() => setApplicationLoading(false));
   }, [applicationId, router]);
+
+  useEffect(() => {
+    if (loading || !applicationId || !isPendingBalePayment(order)) {
+      return;
+    }
+
+    const token = getCookie("token");
+    if (!token) return;
+
+    const watchedOrderId = order.id;
+    const controller = new AbortController();
+    let disposed = false;
+    let inFlight = false;
+    let expiryRetryAt = 0;
+    let expiryErrorShown = false;
+    let outcome: PaymentOutcome = "pending";
+
+    const acceptOrder = (nextOrder: Order) => {
+      if (disposed || nextOrder.id !== watchedOrderId) return;
+      outcome = paymentOutcome(outcome, nextOrder.status);
+
+      if (outcome === "paid") {
+        setOrder(nextOrder.status === "paid" ? nextOrder : { ...nextOrder, status: "paid" });
+        setCompletionKind("paid");
+        setExpiredOrderId(null);
+        setBotUrl("");
+        return;
+      }
+
+      if (outcome === "expired") {
+        setExpiredOrderId(nextOrder.id);
+        setOrder(null);
+        setMethod("bale_wallet");
+        setBotUrl("");
+        return;
+      }
+
+      setOrder(nextOrder);
+    };
+
+    const expirePayment = async () => {
+      if (inFlight || Date.now() < expiryRetryAt) return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/payments/${watchedOrderId}/expire`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        acceptOrder(data.order as Order);
+      } catch (error) {
+        if (disposed || controller.signal.aborted) return;
+        expiryRetryAt = Date.now() + 4_000;
+        if (!expiryErrorShown) {
+          expiryErrorShown = true;
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "بررسی انقضای پرداخت انجام نشد؛ دوباره تلاش می‌کنیم.",
+          );
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const refreshPayment = async () => {
+      if (inFlight) return;
+      if (getRemainingSeconds(order.expiresAt, Date.now()) === 0) {
+        await expirePayment();
+        return;
+      }
+
+      inFlight = true;
+      try {
+        const response = await fetch(
+          `/api/payments?applicationId=${encodeURIComponent(applicationId)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        const refreshedOrder = (data.orders as Order[] | undefined)?.find(
+          (item) => item.id === watchedOrderId,
+        );
+        if (refreshedOrder) acceptOrder(refreshedOrder);
+      } catch {
+        // A later poll or the idempotent expiration request can recover.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      setCountdownNow(now);
+      if (getRemainingSeconds(order.expiresAt, now) === 0) {
+        void expirePayment();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      updateCountdown();
+      if (getRemainingSeconds(order.expiresAt, Date.now()) > 0) {
+        void refreshPayment();
+      }
+    };
+
+    updateCountdown();
+    const countdownTimer = window.setInterval(updateCountdown, 1_000);
+    const pollTimer = window.setInterval(() => void refreshPayment(), 4_000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(countdownTimer);
+      window.clearInterval(pollTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [applicationId, loading, order?.expiresAt, order?.id, order?.method, order?.status]);
 
   async function createOrder() {
     const token = getCookie("token");
@@ -113,16 +260,52 @@ export default function CheckoutPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       if (data.complete) {
-        setComplete(true);
+        setCompletionKind("free");
         toast.success("ثبت‌نام شما با موفقیت انجام شد");
         return;
       }
       setOrder(data.order);
+      setExpiredOrderId(null);
+      setCountdownNow(Date.now());
       setInstructions(data.paymentInstructions || null);
       setBotUrl(data.baleBotUrl || "");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "ایجاد سفارش ناموفق بود",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function restartExpiredOrder() {
+    if (!expiredOrderId) return;
+    const token = getCookie("token");
+    if (!token) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/payments/${expiredOrderId}/change-method`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          method,
+          payerCardNumber: method === "card_to_card" ? payerCardNumber : undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setOrder(data.order);
+      setExpiredOrderId(null);
+      setFile(null);
+      setInstructions(data.paymentInstructions || null);
+      setBotUrl(data.baleBotUrl || "");
+      setCountdownNow(Date.now());
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "شروع دوباره پرداخت انجام نشد",
       );
     } finally {
       setLoading(false);
@@ -187,13 +370,18 @@ export default function CheckoutPage() {
           <div className="flex justify-center py-20">
             <Loader2 className="animate-spin text-primary" />
           </div>
-        ) : complete ? (
+        ) : completionKind ? (
           <section className="rounded-[2rem] border border-green-200 bg-white p-7 text-center shadow-sm">
+            <CircleCheck className="mx-auto mb-4 text-green-600" size={48} />
             <h2 className="text-xl font-black text-primary">
-              ثبت‌نام تکمیل شد
+              {completionKind === "free"
+                ? "ثبت‌نام تکمیل شد"
+                : "پرداخت موفق و ثبت‌نام تکمیل شد"}
             </h2>
             <p className="mt-3 text-sm text-outline">
-              مبلغ این درخواست پس از اعمال شرایط گروه شما صفر شده است.
+              {completionKind === "free"
+                ? "مبلغ این درخواست پس از اعمال شرایط گروه شما صفر شده است."
+                : "پرداخت شما تأیید شد و دسترسی دوره برایتان فعال است."}
             </p>
             <button
               onClick={() =>
@@ -226,6 +414,12 @@ export default function CheckoutPage() {
                   {application.finalAmountTomans.toLocaleString("fa-IR")} تومان
                 </p>
               </div>
+              {expiredOrderId && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
+                  فرصت پرداخت قبلی تمام شد. روش دلخواه را انتخاب کنید تا یک
+                  پرداخت تازه برای همین سفارش آغاز شود.
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setMethod("bale_wallet")}
@@ -264,11 +458,11 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 disabled={loading || (method === "card_to_card" && !getIranianCardInfo(payerCardNumber))}
-                onClick={createOrder}
+                onClick={expiredOrderId ? restartExpiredOrder : createOrder}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-white transition hover:bg-primary-container disabled:opacity-60"
               >
-                {loading && <Loader2 className="animate-spin" size={18} />}ادامه
-                پرداخت
+                {loading && <Loader2 className="animate-spin" size={18} />}
+                {expiredOrderId ? "شروع دوباره پرداخت" : "ادامه پرداخت"}
               </button>
             </div>
           </section>
@@ -284,13 +478,35 @@ export default function CheckoutPage() {
               برای دریافت فاکتور امن، ربات را باز کنید. پس از پرداخت موفق،
               ثبت‌نام شما خودکار انجام می‌شود.
             </p>
-            <a
-              href={botUrl}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#f7c64b] py-3.5 font-black text-primary transition hover:brightness-105"
+            <div
+              aria-live="polite"
+              className="mt-5 rounded-2xl bg-surface-low px-4 py-3 text-sm text-outline"
             >
-              <MessageCircle size={19} />
-              باز کردن بله و پرداخت
-            </a>
+              زمان باقی‌مانده برای پرداخت: {" "}
+              <strong dir="ltr" className="text-lg font-black text-primary">
+                {formatPersianCountdown(
+                  getRemainingSeconds(order.expiresAt, countdownNow),
+                )}
+              </strong>
+            </div>
+            {getRemainingSeconds(order.expiresAt, countdownNow) > 0 && botUrl ? (
+              <a
+                href={botUrl}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#f7c64b] py-3.5 font-black text-primary transition hover:brightness-105"
+              >
+                <MessageCircle size={19} />
+                باز کردن بله و پرداخت
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-outline-variant/40 py-3.5 font-black text-outline"
+              >
+                <MessageCircle size={19} />
+                فرصت این پرداخت تمام شده است
+              </button>
+            )}
              <p className="mt-4 text-xs text-outline">
                شماره سفارش: <span dir="ltr">{order.orderNumber}</span>
              </p>
