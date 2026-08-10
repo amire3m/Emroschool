@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getIranianCardInfo } from "@/lib/iranian-card";
 import { encryptPaymentCard } from "@/lib/payment-card-crypto";
-import { isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
+import { effectiveBaleExpiry, isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void; botUsername: () => string };
@@ -15,6 +15,20 @@ const defaultDependencies: PaymentRouteDependencies = {
   onError: (error) => console.error("Payment creation error:", error),
   botUsername: () => process.env.BALE_BOT_USERNAME || "imamruhollahschool_bot",
 };
+
+const checkoutAttemptSelect = {
+  id: true,
+  sequence: true,
+  method: true,
+  status: true,
+  createdAt: true,
+  expiresAt: true,
+};
+
+function safeCheckoutAttempt(attempt: any) {
+  const { id, sequence, method, status, createdAt, expiresAt } = attempt;
+  return { id, sequence, method, status, createdAt, expiresAt };
+}
 
 function userId(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -30,8 +44,10 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
   const dependencies = { ...defaultDependencies, ...overrides };
   const id = userId(req);
   if (!id) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
+  let requestedApplicationId = "";
   try {
     const { applicationId, method, payerCardNumber } = await req.json();
+    requestedApplicationId = typeof applicationId === "string" ? applicationId : "";
     if (!applicationId) return NextResponse.json({ error: "اطلاعات پرداخت نامعتبر است" }, { status: 400 });
     const application = await dependencies.db.courseApplication.findUnique({ where: { id: applicationId }, include: { course: true, paymentOrder: true } });
     if (!application || application.userId !== id) return NextResponse.json({ error: "درخواست ثبت‌نام پیدا نشد" }, { status: 404 });
@@ -68,6 +84,24 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     const botUsername = dependencies.botUsername();
     return NextResponse.json({ order, baleBotUrl: method === "bale_wallet" ? `https://ble.ir/${botUsername}?start=${encodeURIComponent(payload!)}` : undefined, paymentInstructions: settings ? { cardNumber: settings.cardNumber, cardHolder: settings.cardHolder, instructions: settings.cardInstructions } : undefined }, { status: 201 });
   } catch (error) {
+    if ((error as { code?: unknown })?.code === "P2002" && requestedApplicationId) {
+      const winner = await dependencies.db.paymentOrder.findUnique({
+        where: { applicationId: requestedApplicationId },
+        include: { attempts: { orderBy: { sequence: "desc" } } },
+      });
+      if (winner?.userId === id) {
+        const active = winner.attempts?.find((attempt: any) => attempt.id === winner.activeAttemptId);
+        const baleBotUrl = winner.method === "bale_wallet" && winner.status === "pending" && active?.balePayload
+          ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(active.balePayload)}`
+          : undefined;
+        return NextResponse.json({
+          order: winner,
+          existing: true,
+          baleBotUrl,
+          paymentInstructions: winner.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,
+        });
+      }
+    }
     if (error instanceof Error && error.message === "BALE_NOT_CONFIGURED") return NextResponse.json({ error: "پرداخت بله پیکربندی نشده است" }, { status: 503 });
     if (error instanceof Error && error.message === "PAYMENT_CARD_KEY_MISSING") return NextResponse.json({ error: "ثبت امن کارت پرداخت‌کننده هنوز پیکربندی نشده است" }, { status: 503 });
     dependencies.onError(error);
@@ -80,27 +114,62 @@ export async function GET(req: NextRequest, _context: { params: Record<string, s
   const id = userId(req);
   if (!id) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
   const applicationId = new URL(req.url).searchParams.get("applicationId");
-  const query = { where: { userId: id, ...(applicationId ? { applicationId } : {}) }, include: { course: { select: { id: true, title: true, slug: true, thumbnail: true } }, application: { select: { id: true, status: true, finalAmountTomans: true } }, attempts: { orderBy: { sequence: "desc" as const } } }, orderBy: { createdAt: "desc" as const } };
+  const query = {
+    where: { userId: id, ...(applicationId ? { applicationId } : {}) },
+    select: {
+      id: true,
+      orderNumber: true,
+      amountTomans: true,
+      method: true,
+      status: true,
+      rejectionReason: true,
+      receiptUrl: true,
+      expiresAt: true,
+      activeAttemptId: true,
+      createdAt: true,
+      course: { select: { id: true, title: true, slug: true, thumbnail: true } },
+      application: { select: { id: true, status: true, finalAmountTomans: true } },
+      attempts: { orderBy: { sequence: "desc" as const }, select: checkoutAttemptSelect },
+    },
+    orderBy: { createdAt: "desc" as const },
+  };
   let orders = await dependencies.db.paymentOrder.findMany(query);
   const now = dependencies.now();
-  const stale = orders.filter((order: any) => order.method === "bale_wallet" && order.status === "pending" && order.expiresAt instanceof Date && isExpired(order.expiresAt, now));
-  for (const order of stale) {
+  const legacyOrStale = orders.filter((order: any) => {
+    if (order.method !== "bale_wallet" || order.status !== "pending") return false;
+    const attempt = order.attempts.find((item: any) => item.id === order.activeAttemptId);
+    return attempt?.createdAt instanceof Date &&
+      (!(order.expiresAt instanceof Date) || !(attempt.expiresAt instanceof Date) || isExpired(effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt), now));
+  });
+  for (const order of legacyOrStale) {
     await runPaymentTransaction(dependencies.db, async (tx) => {
       const current = await tx.paymentOrder.findFirst({ where: { id: order.id, userId: id } });
-      if (!current || current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending" || !(current.expiresAt instanceof Date) || !isExpired(current.expiresAt, now)) return;
+      if (!current || current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending") return;
       const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
-      if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.expiresAt instanceof Date) || !isExpired(attempt.expiresAt, now)) return;
-      const updated = await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { status: "expired", invalidatedAt: now } });
+      if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.createdAt instanceof Date)) return;
+      const expiresAt = effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt);
+      const expired = isExpired(expiresAt, now);
+      const updated = await tx.paymentAttempt.updateMany({
+        where: { id: attempt.id, orderId: current.id },
+        data: { expiresAt, ...(expired ? { status: "expired", invalidatedAt: now } : {}) },
+      });
       if (updated.count !== 1) throw Object.assign(new Error("Active attempt changed"), { code: "P2034" });
-      await tx.paymentOrder.update({ where: { id: current.id }, data: { status: "expired" } });
+      await tx.paymentOrder.update({ where: { id: current.id }, data: { expiresAt, ...(expired ? { status: "expired" } : {}) } });
     });
   }
-  if (stale.length > 0) orders = await dependencies.db.paymentOrder.findMany(query);
+  if (legacyOrStale.length > 0) orders = await dependencies.db.paymentOrder.findMany(query);
+  orders = orders.map((order: any) => ({
+    ...order,
+    attempts: order.attempts.map(safeCheckoutAttempt),
+  }));
   const instructions = orders[0]?.method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined;
   const currentOrder = orders[0];
   const activeAttempt = currentOrder?.attempts?.find((attempt: any) => attempt.id === currentOrder.activeAttemptId);
-  const baleBotUrl = currentOrder?.method === "bale_wallet" && currentOrder.status === "pending" && activeAttempt?.method === "bale_wallet" && activeAttempt.status === "pending" && activeAttempt.balePayload
-    ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(activeAttempt.balePayload)}`
+  const activePayload = currentOrder?.method === "bale_wallet" && currentOrder.status === "pending" && activeAttempt?.method === "bale_wallet" && activeAttempt.status === "pending"
+    ? await dependencies.db.paymentAttempt.findFirst({ where: { id: activeAttempt.id, orderId: currentOrder.id }, select: { balePayload: true } })
+    : null;
+  const baleBotUrl = activePayload?.balePayload
+    ? `https://ble.ir/${dependencies.botUsername()}?start=${encodeURIComponent(activePayload.balePayload)}`
     : undefined;
   return NextResponse.json({ orders, baleBotUrl, paymentInstructions: instructions });
 }

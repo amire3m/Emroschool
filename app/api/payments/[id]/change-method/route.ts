@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getIranianCardInfo } from "@/lib/iranian-card";
 import { encryptPaymentCard } from "@/lib/payment-card-crypto";
-import { newBaleExpiry } from "@/lib/bale-payment-domain";
+import { effectiveBaleExpiry, isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 type ChangeMethodDependencies = { db: any; now: () => Date };
@@ -47,8 +47,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         (active?.method || null) !== originalSnapshot.activeMethod ||
         (latest?.sequence || 0) !== originalSnapshot.latestSequence;
       if (stateChanged) throw new Error("RESTART_CONFLICT");
-      if (order.method === method && order.status !== "rejected" && active && active.status !== "expired") throw new Error("SAME_METHOD");
       const now = dependencies.now();
+      if (active?.method === "bale_wallet" && active.status === "pending" && active.createdAt instanceof Date) {
+        const legacyExpiry = effectiveBaleExpiry(active.expiresAt, active.createdAt);
+        if (isExpired(legacyExpiry, now)) {
+          const expired = await tx.paymentAttempt.updateMany({
+            where: { id: active.id, orderId: order.id },
+            data: { status: "expired", expiresAt: legacyExpiry, invalidatedAt: now },
+          });
+          if (expired.count !== 1) throw Object.assign(new Error("Active attempt changed"), { code: "P2034" });
+          active.status = "expired";
+        }
+      }
+      if (order.method === method && order.status !== "rejected" && active && active.status !== "expired") throw new Error("SAME_METHOD");
       if (active && active.status !== "expired") {
         const invalidated = await tx.paymentAttempt.updateMany({ where: { id: active.id, orderId: order.id }, data: { status: "invalidated", invalidatedAt: now } });
         if (invalidated.count !== 1) throw Object.assign(new Error("Active attempt changed"), { code: "P2034" });

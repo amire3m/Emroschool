@@ -49,6 +49,8 @@ function errorResponse(error: unknown) {
   if (message === "NOT_RECOVERABLE") return NextResponse.json({ error: "این سفارش برای بازیابی پرداخت بله مناسب نیست" }, { status: 409 });
   if (message === "TRANSACTION_NOT_PAID") return NextResponse.json({ error: "وضعیت تراکنش در بله paid نیست" }, { status: 422 });
   if (message === "AMOUNT_MISMATCH") return NextResponse.json({ error: "مبلغ ریالی تراکنش با سفارش یکسان نیست" }, { status: 422 });
+  if (message === "PAYER_MISMATCH") return NextResponse.json({ error: "شناسه پرداخت‌کننده تراکنش با شواهد بله این سفارش یکسان نیست" }, { status: 422 });
+  if (message === "PAYER_CONFIRMATION_REQUIRED") return NextResponse.json({ error: "بدون شواهد هویت پرداخت‌کننده، مرجع رسید و تأیید صریح مالکیت الزامی است" }, { status: 422 });
   if (message === "TRANSACTION_ID_MISMATCH") return NextResponse.json({ error: "شناسه تراکنش با شناسه پرداخت ذخیره‌شده یکسان نیست" }, { status: 409 });
   if (message === "TRANSACTION_ALREADY_USED" || message === "BALE_PAYMENT_IDENTIFIER_CONFLICT" || (error as { code?: unknown })?.code === "P2002") {
     return NextResponse.json({ error: "این تراکنش قبلا برای پرداخت دیگری استفاده شده است" }, { status: 409 });
@@ -64,18 +66,22 @@ export async function POST(
   overrides: Partial<ReconciliationDependencies> = {},
 ) {
   const dependencies = { ...defaultDependencies, ...overrides };
-  if (!await dependencies.authorize(request)) {
+  const reviewer = await dependencies.authorize(request);
+  if (!reviewer) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
   try {
     const body = await request.json();
     if (!body || typeof body !== "object" ||
       (body.trackingNumber !== undefined && typeof body.trackingNumber !== "string") ||
-      (body.receiptReference !== undefined && typeof body.receiptReference !== "string")) {
+      (body.receiptReference !== undefined && typeof body.receiptReference !== "string") ||
+      (body.attemptId !== undefined && typeof body.attemptId !== "string") ||
+      (body.confirmUnmatchedPayer !== undefined && typeof body.confirmUnmatchedPayer !== "boolean")) {
       throw new Error("INVALID_INPUT");
     }
     const trackingNumber = body.trackingNumber?.trim() || "";
     const receiptReference = body.receiptReference?.trim() || "";
+    const requestedAttemptId = body.attemptId?.trim() || "";
     const order = await dependencies.db.paymentOrder.findUnique({
       where: { id: params.id },
       include: { attempts: { orderBy: { sequence: "desc" } } },
@@ -83,7 +89,8 @@ export async function POST(
     if (!order) throw new Error("ORDER_NOT_FOUND");
     if (order.status === "paid") throw new Error("NOT_RECOVERABLE");
 
-    const targetAttempt = selectBaleReconciliationAttempt(order);
+    const targetAttempt = selectBaleReconciliationAttempt(order, requestedAttemptId);
+    if (requestedAttemptId && !targetAttempt) throw new Error("NOT_RECOVERABLE");
     if (targetAttempt && ["paid", "paid_duplicate"].includes(targetAttempt.status)) {
       throw new Error("NOT_RECOVERABLE");
     }
@@ -130,6 +137,17 @@ export async function POST(
     if (!returnedPaymentId || (storedPaymentId && returnedPaymentId !== storedPaymentId)) {
       throw new Error("TRANSACTION_ID_MISMATCH");
     }
+    const inquiryPayerId = typeof inquiryResult.userID === "string" || typeof inquiryResult.userID === "number"
+      ? String(inquiryResult.userID).trim()
+      : "";
+    const storedPayerIds = [order.payerBaleId, order.baleChatId]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .map((value) => value.trim());
+    if (storedPayerIds.length > 0) {
+      if (!inquiryPayerId || !storedPayerIds.includes(inquiryPayerId)) throw new Error("PAYER_MISMATCH");
+    } else if (!receiptReference || body.confirmUnmatchedPayer !== true) {
+      throw new Error("PAYER_CONFIRMATION_REQUIRED");
+    }
     const verifiedTracking = storedTracking ||
       (successfulReference === fallbackTracking ? fallbackTracking : undefined);
 
@@ -141,8 +159,9 @@ export async function POST(
       });
       if (!currentOrder) throw new Error("ORDER_NOT_FOUND");
       if (currentOrder.status === "paid") throw new Error("NOT_RECOVERABLE");
-      let attempt = targetAttempt
-        ? currentOrder.attempts.find((item: any) => item.id === targetAttempt.id)
+      const currentTarget = selectBaleReconciliationAttempt(currentOrder, targetAttempt?.id || requestedAttemptId);
+      let attempt = currentTarget
+        ? currentOrder.attempts.find((item: any) => item.id === currentTarget.id)
         : null;
       if (targetAttempt && (!attempt || attempt.method !== "bale_wallet")) throw new Error("NOT_RECOVERABLE");
       if (!attempt) {
@@ -179,6 +198,10 @@ export async function POST(
           baleVerificationStatus: "inquiry_paid",
           ...(receiptReference ? { baleReceiptReference: receiptReference } : {}),
         },
+      });
+      await tx.paymentOrder.update({
+        where: { id: currentOrder.id },
+        data: { reviewerId: reviewer.id, reviewedAt: paidAt },
       });
       return finalized;
     });

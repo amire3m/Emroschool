@@ -339,6 +339,8 @@ model PaymentAttempt {
   rejectionReason        String?
   createdAt              DateTime @default(now())
   expiresAt              DateTime?
+  baleInvoiceClaimId     String?
+  baleInvoiceClaimedAt   DateTime?
   baleInvoiceSentAt      DateTime?
   balePreCheckoutAt      DateTime?
   paidAt                 DateTime?

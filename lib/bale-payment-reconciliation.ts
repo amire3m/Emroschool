@@ -20,16 +20,23 @@ export function isUnresolvedBaleAttempt(attempt: BaleReconciliationAttempt) {
 
 export function selectBaleReconciliationAttempt<T extends BaleReconciliationAttempt>(
   order: BaleReconciliationOrder<T>,
+  requestedAttemptId?: string | null,
 ) {
   const attempts = (order.attempts || [])
     .filter((attempt) => attempt.method === "bale_wallet")
     .slice()
     .sort((left, right) => right.sequence - left.sequence || right.id.localeCompare(left.id));
   const active = attempts.find((attempt) => attempt.id === order.activeAttemptId);
-  if (active && isUnresolvedBaleAttempt(active)) return active;
-  return attempts.find((attempt) =>
+  if (requestedAttemptId) {
+    const requested = attempts.find((attempt) => attempt.id === requestedAttemptId);
+    return requested && isUnresolvedBaleAttempt(requested) ? requested : null;
+  }
+  const evidence = attempts.find((attempt) =>
     isUnresolvedBaleAttempt(attempt) && Boolean(attempt.balePaymentId || attempt.baleTrackingNumber),
-  ) || attempts[0] || null;
+  );
+  if (evidence) return evidence;
+  if (active && isUnresolvedBaleAttempt(active)) return active;
+  return attempts[0] || null;
 }
 
 export function isBaleReconciliationEligible(order: BaleReconciliationOrder<BaleReconciliationAttempt> & {

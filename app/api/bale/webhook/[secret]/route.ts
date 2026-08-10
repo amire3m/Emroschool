@@ -1,8 +1,9 @@
 import prisma from "@/lib/prisma";
 import { answerPreCheckoutQuery, sendInvoice } from "@/lib/bale-payment";
 import { processBalePreCheckout, processBaleSuccessfulPayment } from "@/lib/bale-payment-finalization";
-import { isExpired } from "@/lib/bale-payment-domain";
+import { effectiveBaleExpiry, isExpired } from "@/lib/bale-payment-domain";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 function payerDetails(from: unknown) {
   if (!from || typeof from !== "object") return {};
@@ -46,11 +47,35 @@ export async function POST(
       const chatId = String(update?.message?.chat?.id || "");
       const attempt = await dependencies.db.paymentAttempt.findUnique({ where: { balePayload: payload }, include: { order: { include: { course: true } } } });
       const now = dependencies.now();
-      if (attempt && chatId && attempt.method === "bale_wallet" && attempt.status === "pending" && attempt.order.status !== "paid" && attempt.order.activeAttemptId === attempt.id && attempt.expiresAt instanceof Date && !isExpired(attempt.expiresAt, now)) {
-        await dependencies.db.paymentOrder.update({ where: { id: attempt.order.id }, data: { baleChatId: chatId } });
-        await dependencies.sendInvoice(chatId, { title: attempt.order.course.title, description: `پرداخت دوره ${attempt.order.course.title}`, payload, amountRials: attempt.amountRials });
-        await dependencies.db.paymentAttempt.update({ where: { id: attempt.id }, data: { baleInvoiceSentAt: now } });
+      const expiresAt = attempt?.createdAt instanceof Date ? effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt) : null;
+      if (attempt && chatId && attempt.method === "bale_wallet" && attempt.status === "pending" && attempt.order.status !== "paid" && attempt.order.activeAttemptId === attempt.id && expiresAt && !isExpired(expiresAt, now)) {
+         const claimId = crypto.randomUUID();
+         const claimed = await dependencies.db.paymentAttempt.updateMany({
+           where: {
+             id: attempt.id,
+             orderId: attempt.order.id,
+             status: "pending",
+             baleInvoiceSentAt: null,
+             baleInvoiceClaimId: null,
+           },
+           data: { baleInvoiceClaimId: claimId, baleInvoiceClaimedAt: now, expiresAt },
+         });
+         if (claimed.count !== 1) return NextResponse.json({ ok: true });
+         try {
+           await dependencies.db.paymentOrder.update({ where: { id: attempt.order.id }, data: { baleChatId: chatId } });
+           await dependencies.sendInvoice(chatId, { title: attempt.order.course.title, description: `پرداخت دوره ${attempt.order.course.title}`, payload, amountRials: attempt.amountRials });
+         } catch (error) {
+           await dependencies.db.paymentAttempt.updateMany({
+             where: { id: attempt.id, orderId: attempt.order.id, baleInvoiceClaimId: claimId },
+             data: { baleInvoiceClaimId: null, baleInvoiceClaimedAt: null },
+           });
+           throw error;
       }
+         await dependencies.db.paymentAttempt.updateMany({
+           where: { id: attempt.id, orderId: attempt.order.id, baleInvoiceClaimId: claimId },
+           data: { baleInvoiceSentAt: now, baleInvoiceClaimId: null, baleInvoiceClaimedAt: null },
+         });
+       }
       return NextResponse.json({ ok: true });
     }
     const preCheckout = update?.pre_checkout_query;

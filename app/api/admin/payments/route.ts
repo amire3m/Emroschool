@@ -57,8 +57,9 @@ export async function GET(
     }),
     dependencies.db.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
-  const safeOrders = orders.map(({ payerCardEncrypted, balePayload: _balePayload, ...order }) => ({
+  const safeOrders = orders.map(({ payerCardEncrypted, balePayload: _balePayload, baleChatId, ...order }) => ({
     ...order,
+    hasBalePayerEvidence: Boolean(order.payerBaleId || baleChatId),
     attempts: order.attempts.map(({ balePayload: _attemptPayload, ...attempt }: any) => attempt),
     payerCardNumber: payerCardEncrypted ? (() => { try { return decryptPaymentCard(payerCardEncrypted); } catch { return null; } })() : null,
   }));

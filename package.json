@@ -11,6 +11,7 @@
     "db:seed": "npx tsx lib/seed.ts",
     "db:sync-categories": "npx tsx lib/sync-categories.ts",
     "db:ensure-categories": "npx tsx lib/ensure-course-categories.ts",
+    "db:backfill-bale-payments": "npx tsx scripts/backfill-bale-payment-attempts.ts",
     "db:studio": "npx prisma studio"
   },
   "dependencies": {

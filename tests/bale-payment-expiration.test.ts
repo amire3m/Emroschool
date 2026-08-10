@@ -35,12 +35,13 @@ function paymentApplication(paymentOrder: unknown = null) {
   };
 }
 
-function creationFixture(options: { failAttemptLookup?: boolean } = {}) {
+function creationFixture(options: { failAttemptLookup?: boolean; createConflict?: boolean } = {}) {
   const state: { order: any; attempt: any; transactions: number } = { order: null, attempt: null, transactions: 0 };
   const db = {
     courseApplication: { findUnique: async () => paymentApplication() },
     paymentSettings: { findUnique: async () => null },
     paymentOrder: {
+      findUnique: async () => state.order ? { ...state.order, attempts: state.attempt ? [{ ...state.attempt }] : [] } : null,
       create: async ({ data }: any) => {
         state.order = { id: "order-1", ...data };
         state.attempt = { id: "attempt-1", orderId: "order-1", ...data.attempts.create };
@@ -63,6 +64,11 @@ function creationFixture(options: { failAttemptLookup?: boolean } = {}) {
       const tx = {
         paymentOrder: {
           create: async ({ data }: any) => {
+            if (options.createConflict) {
+              state.order = { id: "order-winner", activeAttemptId: "attempt-winner", ...data };
+              state.attempt = { id: "attempt-winner", orderId: "order-winner", ...data.attempts.create };
+              throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+            }
             draft.order = { id: "order-1", ...data };
             draft.attempt = { id: "attempt-1", orderId: "order-1", ...data.attempts.create };
             return { ...draft.order };
@@ -122,6 +128,16 @@ test("rolls back the initial order when active-attempt setup fails", async () =>
   assert.equal(state.attempt, null);
 });
 
+test("returns the concurrently created order after an initial P2002", async () => {
+  const fixture = creationFixture({ createConflict: true });
+  const { response } = await createWithFixture("bale_wallet", fixture);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.existing, true);
+  assert.equal(body.order.id, "order-winner");
+});
+
 test("explicitly clears order and attempt deadlines for card-to-card creation", async () => {
   const { state, response } = await createWithFixture("card_to_card");
 
@@ -146,9 +162,9 @@ function transactionFixture(options: {
   failures?: Error[];
   afterFailure?: (state: PaymentState) => void;
 } = {}) {
-  const defaultAttempt = { id: "attempt-1", orderId: "order-1", sequence: 1, status: options.attemptStatus || "pending", method: "bale_wallet", expiresAt: new Date("2026-08-10T12:15:00.000Z"), paidAt: null, balePayload: "payment:PAY-1:old" };
+  const defaultAttempt = { id: "attempt-1", orderId: "order-1", sequence: 1, status: options.attemptStatus || "pending", method: "bale_wallet", createdAt: new Date("2026-08-10T12:00:00.000Z"), expiresAt: new Date("2026-08-10T12:15:00.000Z"), paidAt: null, balePayload: "payment:PAY-1:old" };
   const state: PaymentState = {
-    order: { id: "order-1", orderNumber: "PAY-1", userId: "user-1", status: options.status || "pending", method: "bale_wallet", amountTomans: 400_000, amountRials: 4_000_000, activeAttemptId: options.activeAttemptId === undefined ? "attempt-1" : options.activeAttemptId, expiresAt: new Date("2026-08-10T12:15:00.000Z") },
+    order: { id: "order-1", orderNumber: "PAY-1", userId: "user-1", status: options.status || "pending", method: "bale_wallet", amountTomans: 400_000, amountRials: 4_000_000, activeAttemptId: options.activeAttemptId === undefined ? "attempt-1" : options.activeAttemptId, createdAt: new Date("2026-08-10T12:00:00.000Z"), expiresAt: new Date("2026-08-10T12:15:00.000Z") },
     attempts: (options.attempts || [defaultAttempt]).map((attempt) => ({ ...attempt })),
     attemptUpdates: 0,
     orderUpdates: 0,
@@ -255,6 +271,24 @@ test("expiration retries contention and remains idempotent", async () => {
   assert.equal(state.orderUpdates, 1);
 });
 
+test("expire endpoint commits a legacy deadline and expires the old pending attempt", async () => {
+  const fixture = transactionFixture();
+  fixture.state.order.expiresAt = null;
+  fixture.state.attempts[0].expiresAt = null;
+
+  const response = await expirePayment(
+    request("http://localhost/api/payments/order-1/expire", "POST"),
+    { params: { id: "order-1" } },
+    { db: fixture.db, now: () => new Date("2026-08-10T12:15:00.000Z") },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.order.status, "expired");
+  assert.equal(fixture.state.order.expiresAt.toISOString(), "2026-08-10T12:15:00.000Z");
+  assert.equal(fixture.state.attempts[0].expiresAt.toISOString(), "2026-08-10T12:15:00.000Z");
+});
+
 test("a payment finalized during expiration contention wins at the deadline", async () => {
   const { state, db } = transactionFixture({
     failures: [locked()],
@@ -324,7 +358,7 @@ test("restart recovers a malformed order without mutating a foreign active attem
 test("a transient restart lock with unchanged state retries the requested method change", async () => {
   const fixture = transactionFixture({ failures: [locked()] });
 
-  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "card_to_card", payerCardNumber: "6037997512345670" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "card_to_card", payerCardNumber: "6037997512345670" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T12:01:00.000Z") });
 
   assert.equal(response.status, 200);
   assert.equal(fixture.state.order.method, "card_to_card");
@@ -419,6 +453,54 @@ test("GET returns a server-owned deep link for the active pending Bale attempt",
     body.baleBotUrl,
     "https://ble.ir/server_checkout_bot?start=payment%3APAY-1%3Aactive",
   );
+});
+
+test("GET expires an old null-deadline legacy attempt and returns its effective deadline", async () => {
+  const fixture = transactionFixture();
+  fixture.state.order.createdAt = new Date("2026-08-10T12:00:00.000Z");
+  fixture.state.order.expiresAt = null;
+  fixture.state.attempts[0].createdAt = new Date("2026-08-10T12:00:00.000Z");
+  fixture.state.attempts[0].expiresAt = null;
+
+  const response = await getPayments(
+    request("http://localhost/api/payments?applicationId=application-1"),
+    { params: {} },
+    { db: fixture.db, now: () => new Date("2026-08-10T12:16:00.000Z") },
+  );
+  const body = await response.json();
+
+  assert.equal(body.orders[0].status, "expired");
+  assert.equal(body.orders[0].attempts[0].status, "expired");
+  assert.equal(body.orders[0].expiresAt, "2026-08-10T12:15:00.000Z");
+  assert.equal(body.orders[0].attempts[0].expiresAt, "2026-08-10T12:15:00.000Z");
+});
+
+test("customer GET selects and returns only checkout-safe attempt fields", async () => {
+  const fixture = transactionFixture();
+  let query: any;
+  const originalFindMany = fixture.db.paymentOrder.findMany;
+  (fixture.db.paymentOrder as any).findMany = async (args: any) => {
+    query = args;
+    const orders = await originalFindMany();
+    orders[0].attempts[0] = {
+      ...orders[0].attempts[0],
+      balePaymentId: "payment-secret",
+      baleTrackingNumber: "tracking-secret",
+      baleReceiptReference: "receipt-secret",
+      baleVerificationStatus: "received",
+    };
+    return orders;
+  };
+
+  const response = await getPayments(
+    request("http://localhost/api/payments?applicationId=application-1"),
+    { params: {} },
+    { db: fixture.db, now: () => new Date("2026-08-10T12:01:00.000Z") },
+  );
+  const body = await response.json();
+
+  assert.deepEqual(Object.keys(query.select.attempts.select).sort(), ["createdAt", "expiresAt", "id", "method", "sequence", "status"]);
+  assert.deepEqual(Object.keys(body.orders[0].attempts[0]).sort(), ["createdAt", "expiresAt", "id", "method", "sequence", "status"]);
 });
 
 test("receipt submission never mutates an active attempt owned by another order", async () => {

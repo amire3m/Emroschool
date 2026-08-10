@@ -4,6 +4,10 @@ export function newBaleExpiry(now: Date) {
   return new Date(now.getTime() + BALE_PAYMENT_WINDOW_MS);
 }
 
+export function effectiveBaleExpiry(expiresAt: Date | null | undefined, createdAt: Date) {
+  return expiresAt instanceof Date ? expiresAt : newBaleExpiry(createdAt);
+}
+
 export function isExpired(expiresAt: Date, now: Date) {
   return now.getTime() >= expiresAt.getTime();
 }

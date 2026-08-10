@@ -40,6 +40,10 @@ type Order = {
   applicationId: string;
   userId: string;
   courseId: string;
+  payerBaleId?: string | null;
+  baleChatId?: string | null;
+  reviewerId?: string | null;
+  reviewedAt?: Date | null;
 };
 
 function createState(input: {
@@ -148,6 +152,15 @@ function createState(input: {
           Object.assign(found, data);
           return found;
         },
+        updateMany: async ({ where, data }: any) => {
+          const found = target.attempts.find((item) =>
+            (where.id === undefined || item.id === where.id) &&
+            (where.orderId === undefined || item.orderId === where.orderId),
+          );
+          if (!found) return { count: 0 };
+          Object.assign(found, data);
+          return { count: 1 };
+        },
       },
       courseApplication: {
         update: async () => { target.applicationStatus = "approved"; },
@@ -177,7 +190,7 @@ function reconciliationRequest(body: Record<string, unknown> = { trackingNumber:
   return new NextRequest("http://localhost/api/admin/payments/order-1/reconcile-bale", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ receiptReference: "receipt-default", confirmUnmatchedPayer: true, ...body }),
   });
 }
 
@@ -190,9 +203,19 @@ test("selects the same recovery attempt regardless of attempt ordering", () => {
     { id: "newer", sequence: 3, method: "bale_wallet", status: "expired", baleTrackingNumber: "tracking-newer" },
   ];
 
-  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts })?.id, "active");
-  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts: [...attempts].reverse() })?.id, "active");
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts })?.id, "newer");
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts: [...attempts].reverse() })?.id, "newer");
   assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "paid-old", attempts })?.id, "newer");
+});
+
+test("prefers unresolved received evidence over a newer empty active attempt", () => {
+  const attempts = [
+    { id: "received-old", sequence: 1, method: "bale_wallet", status: "pending", balePaymentId: "payment-1", baleTrackingNumber: "tracking-1" },
+    { id: "active-empty", sequence: 2, method: "bale_wallet", status: "pending", balePaymentId: null, baleTrackingNumber: null },
+  ];
+
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active-empty", attempts })?.id, "received-old");
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active-empty", attempts }, "active-empty")?.id, "active-empty");
 });
 
 test("rejects reconciliation without payment-admin authorization", async () => {
@@ -427,6 +450,45 @@ test("API reconciliation uses the shared selector instead of older paid identifi
   assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-paid-old")?.balePaymentId, "payment-old");
 });
 
+test("API safely honors an explicit unresolved attempt selection", async () => {
+  const olderEvidence: Attempt = {
+    id: "attempt-evidence-old",
+    orderId: "order-1",
+    sequence: 1,
+    method: "bale_wallet",
+    status: "expired",
+    amountTomans: 400_000,
+    amountRials: 4_000_000,
+    balePayload: "payload-evidence-old",
+    balePaymentId: "payment-evidence-old",
+    baleTrackingNumber: "tracking-evidence-old",
+    baleReceiptReference: null,
+    baleVerificationStatus: "received",
+    paidAt: null,
+    expiresAt: new Date("2026-08-10T09:15:00.000Z"),
+    createdAt: new Date("2026-08-10T09:00:00.000Z"),
+  };
+  const { state, db } = createState({ attempt: { sequence: 2 }, otherAttempts: [olderEvidence] });
+  const references: string[] = [];
+  const response = await POST(
+    reconciliationRequest({ attemptId: "attempt-1", trackingNumber: "tracking-active" }),
+    { params: { id: "order-1" } },
+    {
+      db,
+      authorize,
+      inquire: async (reference: string) => {
+        references.push(reference);
+        return { result: { id: "payment-active", userID: "99", status: "paid", amount: 4_000_000 } };
+      },
+    } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(references, ["tracking-active"]);
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-1")?.status, "paid");
+  assert.equal(state.attempts.find((attempt) => attempt.id === olderEvidence.id)?.status, "expired");
+});
+
 test("recovers a matching paid transaction by tracking and stores its returned unique payment ID", async () => {
   const { state, db } = createState();
   const response = await POST(
@@ -444,6 +506,53 @@ test("recovers a matching paid transaction by tracking and stores its returned u
   assert.equal(state.attempts[0].balePaymentId, "payment-123");
   assert.equal(state.attempts[0].baleTrackingNumber, "tracking-123");
   assert.equal(state.orders[0].baleTransactionRef, "tracking-123");
+});
+
+test("accepts inquiry payer userID matching stored Bale payer evidence", async () => {
+  const { state, db } = createState({ order: { payerBaleId: "42" } });
+  const response = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-123", receiptReference: "", confirmUnmatchedPayer: false }),
+    { params: { id: "order-1" } },
+    { db, authorize, inquire: async () => ({ result: { id: "payment-123", userID: 42, status: "paid", amount: 4_000_000 } }) } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(state.orders[0].status, "paid");
+});
+
+test("rejects inquiry payer userID mismatching stored Bale payer evidence", async () => {
+  const { state, db } = createState({ order: { baleChatId: "42" } });
+  const response = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-123" }),
+    { params: { id: "order-1" } },
+    { db, authorize, inquire: async () => ({ result: { id: "payment-123", userID: "99", status: "paid", amount: 4_000_000 } }) } as any,
+  );
+
+  assert.equal(response.status, 422);
+  assert.equal(state.orders[0].status, "pending");
+});
+
+test("requires receipt and explicit ownership confirmation without payer evidence", async () => {
+  const first = createState();
+  const inquiry = async () => ({ result: { id: "payment-123", userID: "99", status: "paid", amount: 4_000_000 } });
+  const rejected = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-123", receiptReference: "", confirmUnmatchedPayer: false }),
+    { params: { id: "order-1" } },
+    { db: first.db, authorize, inquire: inquiry } as any,
+  );
+  assert.equal(rejected.status, 422);
+
+  const second = createState();
+  const reviewedAt = new Date("2026-08-11T11:00:00.000Z");
+  const accepted = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-123", receiptReference: "receipt-1", confirmUnmatchedPayer: true }),
+    { params: { id: "order-1" } },
+    { db: second.db, authorize, inquire: inquiry, now: () => reviewedAt } as any,
+  );
+
+  assert.equal(accepted.status, 200);
+  assert.equal(second.state.orders[0].reviewerId, "admin-1");
+  assert.equal(second.state.orders[0].reviewedAt?.toISOString(), reviewedAt.toISOString());
 });
 
 test("rejects reuse of a transaction already paid on another attempt", async () => {

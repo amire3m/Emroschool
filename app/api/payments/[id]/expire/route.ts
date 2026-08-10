@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-import { isExpired } from "@/lib/bale-payment-domain";
+import { effectiveBaleExpiry, isExpired } from "@/lib/bale-payment-domain";
 import { NextRequest, NextResponse } from "next/server";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 
@@ -22,12 +22,17 @@ export async function POST(
     const order = await runPaymentTransaction(dependencies.db, async (tx) => {
       const current = await tx.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
       if (!current) throw new Error("NOT_FOUND");
-      if (current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending" || !(current.expiresAt instanceof Date) || !isExpired(current.expiresAt, now)) return current;
+      if (current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending") return current;
       const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
-      if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.expiresAt instanceof Date) || !isExpired(attempt.expiresAt, now)) return current;
-      const updated = await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { status: "expired", invalidatedAt: now } });
+      if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.createdAt instanceof Date)) return current;
+      const expiresAt = effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt);
+      if (!isExpired(expiresAt, now)) {
+        await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { expiresAt } });
+        return tx.paymentOrder.update({ where: { id: current.id }, data: { expiresAt } });
+      }
+      const updated = await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { expiresAt, status: "expired", invalidatedAt: now } });
       if (updated.count !== 1) throw Object.assign(new Error("Active attempt changed"), { code: "P2034" });
-      return tx.paymentOrder.update({ where: { id: current.id }, data: { status: "expired" } });
+      return tx.paymentOrder.update({ where: { id: current.id }, data: { status: "expired", expiresAt } });
     });
     return NextResponse.json({ order });
   } catch (error) {

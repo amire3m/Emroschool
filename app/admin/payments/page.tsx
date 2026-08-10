@@ -41,6 +41,7 @@ type Order = {
   baleInvoiceUrl?: string | null;
   payerBaleId?: string | null;
   payerBaleName?: string | null;
+  hasBalePayerEvidence?: boolean;
   payerCardNumber?: string | null;
   payerCardMasked?: string | null;
   payerBankName?: string | null;
@@ -763,19 +764,29 @@ function PaymentDetail({
   onReconciled: (id: string) => Promise<void>;
 }) {
   const app = order.application;
-  const recoveryAttempt = selectBaleReconciliationAttempt(order);
+  const defaultRecoveryAttempt = selectBaleReconciliationAttempt(order);
+  const [recoveryAttemptId, setRecoveryAttemptId] = useState(defaultRecoveryAttempt?.id || "");
+  const recoveryAttempt = selectBaleReconciliationAttempt(order, recoveryAttemptId) || defaultRecoveryAttempt;
   const [trackingNumber, setTrackingNumber] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
+  const [confirmUnmatchedPayer, setConfirmUnmatchedPayer] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [reconciliationError, setReconciliationError] = useState("");
   useEffect(() => {
-    setTrackingNumber(recoveryAttempt?.baleTrackingNumber || order.baleTransactionRef || "");
-    setReceiptReference(recoveryAttempt?.baleReceiptReference || "");
+    const selected = selectBaleReconciliationAttempt(order);
+    setRecoveryAttemptId(selected?.id || "");
+    setTrackingNumber(selected?.baleTrackingNumber || order.baleTransactionRef || "");
+    setReceiptReference(selected?.baleReceiptReference || "");
+    setConfirmUnmatchedPayer(false);
     setReconciliationError("");
   }, [order]);
   async function reconcileBalePayment() {
-    if (!trackingNumber.trim()) {
+    if (!trackingNumber.trim() && !recoveryAttempt?.balePaymentId) {
       setReconciliationError("شماره پیگیری کیف پول بله را وارد کنید.");
+      return;
+    }
+    if (!order.hasBalePayerEvidence && (!receiptReference.trim() || !confirmUnmatchedPayer)) {
+      setReconciliationError("برای سفارش بدون شواهد هویت بله، مرجع رسید و تأیید صریح مالکیت الزامی است.");
       return;
     }
     setReconciling(true);
@@ -784,7 +795,12 @@ function PaymentDetail({
       const response = await fetch(`/api/admin/payments/${order.id}/reconcile-bale`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getCookie("token")}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingNumber, receiptReference }),
+        body: JSON.stringify({
+          attemptId: recoveryAttempt?.id,
+          trackingNumber,
+          receiptReference,
+          confirmUnmatchedPayer,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "استعلام و بازیابی پرداخت انجام نشد");
@@ -995,6 +1011,31 @@ function PaymentDetail({
               <p className="mt-2 text-sm leading-7 text-outline">
                 سامانه ابتدا شناسه یکتای پرداخت ذخیره‌شده را استعلام می‌کند و فقط در صورت ناموفق بودن آن، شماره پیگیری کیف پول را به‌عنوان مسیر جایگزین بررسی می‌کند. نهایی‌سازی فقط با وضعیت دقیق paid و مبلغ ریالی یکسان انجام می‌شود.
               </p>
+              {order.attempts.filter((attempt) => attempt.method === "bale_wallet" && !["paid", "paid_duplicate"].includes(attempt.status)).length > 1 && (
+                <label className="mt-4 block text-sm font-bold text-primary">
+                  تلاش پرداخت مورد بررسی
+                  <select
+                    value={recoveryAttemptId}
+                    onChange={(event) => {
+                      const selected = selectBaleReconciliationAttempt(order, event.target.value);
+                      setRecoveryAttemptId(event.target.value);
+                      setTrackingNumber(selected?.baleTrackingNumber || "");
+                      setReceiptReference(selected?.baleReceiptReference || "");
+                      setReconciliationError("");
+                    }}
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                  >
+                    {order.attempts
+                      .filter((attempt) => attempt.method === "bale_wallet" && !["paid", "paid_duplicate"].includes(attempt.status))
+                      .map((attempt) => (
+                        <option key={attempt.id} value={attempt.id}>
+                          تلاش {attempt.sequence.toLocaleString("fa-IR")} · {labels[attempt.status] || attempt.status}
+                          {attempt.balePaymentId || attempt.baleTrackingNumber ? " · دارای شواهد" : " · بدون شناسه"}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-bold text-primary">
                   شماره پیگیری کیف پول بله
@@ -1022,6 +1063,22 @@ function PaymentDetail({
                   />
                 </label>
               </div>
+              {!order.hasBalePayerEvidence && (
+                <div className="mt-4 rounded-xl border border-[#d9b96e] bg-white p-4 text-sm leading-7 text-outline">
+                  <p>
+                    این سفارش شناسه پرداخت‌کننده یا گفت‌وگوی خصوصی بله ندارد. مرجع رسید را وارد کنید و فقط پس از تطبیق مستقل مالک تراکنش، تأیید زیر را فعال کنید. نام و زمان بازبین ثبت می‌شود.
+                  </p>
+                  <label className="mt-3 flex cursor-pointer items-start gap-3 font-bold text-primary">
+                    <input
+                      type="checkbox"
+                      checked={confirmUnmatchedPayer}
+                      onChange={(event) => setConfirmUnmatchedPayer(event.target.checked)}
+                      className="mt-1 h-4 w-4 accent-primary"
+                    />
+                    مالکیت این تراکنش برای همین ثبت‌نام را مستقلاً تأیید می‌کنم.
+                  </label>
+                </div>
+              )}
               {reconciliationError && (
                 <p role="alert" className="mt-4 rounded-xl bg-error-container px-4 py-3 text-sm font-bold leading-7 text-error">
                   {reconciliationError}
@@ -1030,7 +1087,7 @@ function PaymentDetail({
               <button
                 type="button"
                 onClick={reconcileBalePayment}
-                disabled={reconciling || !trackingNumber.trim()}
+                disabled={reconciling || (!trackingNumber.trim() && !recoveryAttempt?.balePaymentId) || (!order.hasBalePayerEvidence && (!receiptReference.trim() || !confirmUnmatchedPayer))}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {reconciling ? <Loader2 size={17} className="animate-spin" /> : <RefreshCcw size={17} />}

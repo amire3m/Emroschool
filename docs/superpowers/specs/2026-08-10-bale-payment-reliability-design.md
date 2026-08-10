@@ -15,6 +15,7 @@ Each payment-method selection creates a distinct `PaymentAttempt`. Bale attempts
 ## Bale Flow
 
 1. Creating or restarting a Bale attempt sets a unique payload and `expiresAt` 15 minutes in the future.
+   Legacy attempts with a null deadline use the committed deterministic deadline `createdAt + 15 minutes`; the deploy backfill persists that deadline and expires old pending state without deleting payment evidence.
 2. `/start` and pre-checkout resolve the attempt by payload, not only the order's current payload.
 3. Pre-checkout validates active status, deadline, currency, payload, and amount, then stores its unique ID and approval time.
 4. Successful payment validates currency, payload, and amount, stores both Bale identifiers, and finalizes atomically without requiring synchronous inquiry.
@@ -30,6 +31,10 @@ An old successful-payment webhook is resolved through attempt history. If the or
 ## Admin And Recovery
 
 The payment detail view displays the customer, course, order, attempt history, unique Bale payment ID, Bale tracking number, optional manually entered receipt reference, deadline, paid time, and verification state. Pending Bale attempts expose an admin reconciliation action that validates a transaction's paid status and amount before using the same atomic finalization path.
+
+Reconciliation prefers unresolved attempts that already carry payment evidence over a newer empty attempt, while allowing an admin to explicitly choose another unresolved attempt. Inquiry `userID` must match stored payer/chat evidence. If no payer evidence exists, recovery requires both a manually entered receipt reference and an explicit admin ownership confirmation; reviewer identity and review time are committed with finalization.
+
+`deploy-safe.sh` copies uploads while the app remains online, then stops the PM2 writer only for SQLite checkpoint and database/journal backup. An exit trap restarts PM2 if any backup command fails. After `prisma db push`, deployment runs `npm run db:backfill-bale-payments` before building and restarting the app.
 
 The Ali Jalali order will be reconciled after deployment using the already verified tracking number and supplied receipt reference.
 

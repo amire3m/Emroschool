@@ -2,6 +2,7 @@ import {
   isBaleAmountValid,
   isBaleCurrencyValid,
   isBalePayloadValid,
+  effectiveBaleExpiry,
   isExpired,
 } from "./bale-payment-domain";
 import { runPaymentTransaction } from "./payment-transaction";
@@ -11,6 +12,7 @@ type BaleTransaction = {
     findUnique: (...args: any[]) => Promise<any>;
     findMany: (...args: any[]) => Promise<any[]>;
     update: (...args: any[]) => Promise<any>;
+    updateMany: (...args: any[]) => Promise<{ count: number }>;
   };
   paymentOrder: { update: (...args: any[]) => Promise<any> };
   courseApplication: { update: (...args: any[]) => Promise<any> };
@@ -96,8 +98,8 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
   if (attempt.order.status === "paid" && samePayment && ["paid", "paid_duplicate"].includes(attempt.status)) return "already_paid";
 
   if (attempt.order.status === "paid") {
-    await tx.paymentAttempt.update({
-      where: { id: attempt.id },
+    const duplicate = await tx.paymentAttempt.updateMany({
+      where: { id: attempt.id, orderId: attempt.order.id },
       data: {
         balePaymentId: input.balePaymentId,
         ...(input.baleTrackingNumber ? { baleTrackingNumber: input.baleTrackingNumber } : {}),
@@ -106,11 +108,12 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
         paidAt,
       },
     });
+    if (duplicate.count !== 1) throw new Error("INVALID_BALE_PAYMENT");
     return "paid_duplicate";
   }
 
-  await tx.paymentAttempt.update({
-    where: { id: attempt.id },
+  const paid = await tx.paymentAttempt.updateMany({
+    where: { id: attempt.id, orderId: attempt.order.id },
     data: {
       balePaymentId: input.balePaymentId,
       ...(input.baleTrackingNumber ? { baleTrackingNumber: input.baleTrackingNumber } : {}),
@@ -120,10 +123,11 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
       invalidatedAt: null,
     },
   });
+  if (paid.count !== 1) throw new Error("INVALID_BALE_PAYMENT");
 
   if (attempt.order.activeAttemptId && attempt.order.activeAttemptId !== attempt.id) {
-    await tx.paymentAttempt.update({
-      where: { id: attempt.order.activeAttemptId },
+    await tx.paymentAttempt.updateMany({
+      where: { id: attempt.order.activeAttemptId, orderId: attempt.order.id },
       data: { status: "invalidated", invalidatedAt: paidAt },
     });
   }
@@ -164,14 +168,15 @@ export async function processBaleSuccessfulPayment(db: BaleDatabase, input: Bale
     validateSuccessfulPayment(current, input);
     const ownership = await resolveIdentifierOwnership(tx, current, input);
     if (ownership === "already_paid") return ownership;
-    await tx.paymentAttempt.update({
-      where: { id: current.id },
+    const stored = await tx.paymentAttempt.updateMany({
+      where: { id: current.id, orderId: current.order.id },
       data: {
         balePaymentId: input.balePaymentId,
         baleTrackingNumber: input.baleTrackingNumber,
         baleVerificationStatus: current.baleVerificationStatus === "successful_payment" ? "successful_payment" : "received",
       },
     });
+    if (stored.count !== 1) throw new Error("INVALID_BALE_PAYMENT");
     return "stored" as const;
   });
 
@@ -211,18 +216,20 @@ export async function processBalePreCheckout(
         isBalePayloadValid(input.invoicePayload, attempt.balePayload) &&
         isBaleCurrencyValid(input.currency) &&
         isBaleAmountValid(input.totalAmount, attempt.amountRials) &&
-        attempt.expiresAt instanceof Date &&
-        !isExpired(attempt.expiresAt, checkedAt) &&
+        attempt.createdAt instanceof Date &&
+        !isExpired(effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt), checkedAt) &&
+        (!attempt.balePaymentId || attempt.balePaymentId === input.id) &&
         input.id.trim()
       );
       if (!valid) return false;
       const owners = await tx.paymentAttempt.findMany({ where: { OR: [{ balePaymentId: input.id }] }, select: { id: true } });
       if (owners.some((owner: { id: string }) => owner.id !== attempt.id)) return false;
-      await tx.paymentAttempt.update({
-        where: { id: attempt.id },
-        data: { balePaymentId: input.id, balePreCheckoutAt: checkedAt },
+      const expiresAt = effectiveBaleExpiry(attempt.expiresAt, attempt.createdAt);
+      const updated = await tx.paymentAttempt.updateMany({
+        where: { id: attempt.id, orderId: attempt.order.id, OR: [{ balePaymentId: null }, { balePaymentId: input.id }] },
+        data: { balePaymentId: input.id, balePreCheckoutAt: attempt.balePreCheckoutAt || checkedAt, expiresAt },
       });
-      return true;
+      return updated.count === 1;
     });
   } catch (error) {
     if ((error as { code?: unknown })?.code === "P2002") return false;

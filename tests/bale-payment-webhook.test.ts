@@ -21,6 +21,10 @@ type Attempt = {
   baleTrackingNumber: string | null;
   baleVerificationStatus: string;
   balePreCheckoutAt: Date | null;
+  baleInvoiceClaimedAt: Date | null;
+  baleInvoiceClaimId: string | null;
+  baleInvoiceSentAt: Date | null;
+  createdAt: Date;
   expiresAt: Date | null;
   paidAt: Date | null;
   invalidatedAt: Date | null;
@@ -55,6 +59,10 @@ function fixture() {
       baleTrackingNumber: null,
       baleVerificationStatus: "unverified",
       balePreCheckoutAt: null,
+      baleInvoiceClaimedAt: null,
+      baleInvoiceClaimId: null,
+      baleInvoiceSentAt: null,
+      createdAt: new Date("2026-08-10T11:00:00.000Z"),
       expiresAt: new Date("2026-08-10T12:15:00.000Z"),
       paidAt: null,
       invalidatedAt: new Date("2026-08-10T11:55:00.000Z"),
@@ -70,6 +78,10 @@ function fixture() {
       baleTrackingNumber: null,
       baleVerificationStatus: "unverified",
       balePreCheckoutAt: null,
+      baleInvoiceClaimedAt: null,
+      baleInvoiceClaimId: null,
+      baleInvoiceSentAt: null,
+      createdAt: new Date("2026-08-10T12:00:00.000Z"),
       expiresAt: new Date("2026-08-10T12:15:00.000Z"),
       paidAt: null,
       invalidatedAt: null,
@@ -97,7 +109,7 @@ function fixture() {
     paymentAttempt: {
       findUnique: async ({ where }: { where: { id?: string; balePayload?: string } }) => {
         const attempt = attemptState.find((item) => item.id === where.id || item.balePayload === where.balePayload);
-        return attempt ? { ...attempt, order: { ...orderState } } : null;
+        return attempt ? { ...attempt, order: { ...orderState, course: { title: "Course" } } } : null;
       },
       findMany: async ({ where }: { where: { OR: Array<{ balePaymentId?: string; baleTrackingNumber?: string }> } }) => {
         return attemptState.filter((attempt) => where.OR.some((condition) =>
@@ -116,6 +128,30 @@ function fixture() {
         }
         Object.assign(attempt, data);
         return { ...attempt };
+      },
+      updateMany: async ({ where, data }: any) => {
+        const matched = attemptState.filter((attempt) =>
+          (where.id === undefined || attempt.id === where.id) &&
+          (where.orderId === undefined || attempt.orderId === where.orderId) &&
+          (where.baleInvoiceSentAt === undefined || attempt.baleInvoiceSentAt === where.baleInvoiceSentAt) &&
+          (where.baleInvoiceClaimId === undefined || attempt.baleInvoiceClaimId === where.baleInvoiceClaimId) &&
+          (where.OR === undefined || where.OR.some((condition: any) =>
+            (condition.baleInvoiceClaimId === null && attempt.baleInvoiceClaimId === null) ||
+            (condition.baleInvoiceClaimedAt?.lt && attempt.baleInvoiceClaimedAt && attempt.baleInvoiceClaimedAt < condition.baleInvoiceClaimedAt.lt) ||
+            (condition.balePaymentId === null && attempt.balePaymentId === null) ||
+            (condition.balePaymentId !== undefined && attempt.balePaymentId === condition.balePaymentId),
+          )),
+        );
+        if ((data.balePaymentId || data.baleTrackingNumber) && identifierWriteFailures.length > 0) throw identifierWriteFailures.shift();
+        for (const attempt of matched) {
+          for (const key of ["balePaymentId", "baleTrackingNumber"] as const) {
+            if (data[key] && attemptState.some((item) => item.id !== attempt.id && item[key] === data[key])) {
+              throw Object.assign(new Error(`Unique constraint failed on ${key}`), { code: "P2002" });
+            }
+          }
+        }
+        matched.forEach((attempt) => Object.assign(attempt, data));
+        return { count: matched.length };
       },
     },
     paymentOrder: {
@@ -293,6 +329,23 @@ test("stores the pre-checkout payment ID before accepting an active attempt", as
   assert.equal(state.attempts[1].balePreCheckoutAt, checkedAt);
 });
 
+test("keeps the first approved pre-checkout ID and rejects a different one", async () => {
+  const state = fixture();
+  const input = {
+    invoicePayload: "payload-active",
+    currency: "IRR",
+    totalAmount: 4_000_000,
+    checkedAt: new Date("2026-08-10T12:01:00.000Z"),
+  };
+
+  assert.equal(await processBalePreCheckout(state.db, { ...input, id: "payment-first" }), true);
+  const firstApprovedAt = state.attempts[1].balePreCheckoutAt;
+  assert.equal(await processBalePreCheckout(state.db, { ...input, id: "payment-second", checkedAt: new Date("2026-08-10T12:02:00.000Z") }), false);
+  assert.equal(await processBalePreCheckout(state.db, { ...input, id: "payment-first", checkedAt: new Date("2026-08-10T12:03:00.000Z") }), true);
+  assert.equal(state.attempts[1].balePaymentId, "payment-first");
+  assert.equal(state.attempts[1].balePreCheckoutAt, firstApprovedAt);
+});
+
 test("finalizes wallet payment when successful-payment ID equals the pre-checkout ID", async () => {
   const state = fixture();
 
@@ -330,7 +383,7 @@ test("rejects a successful-payment ID that differs from the pre-checkout ID", as
   assert.equal(state.order.status, "pending");
 });
 
-test("rejects pre-checkout when the attempt has no server deadline", async () => {
+test("accepts a fresh legacy pre-checkout using createdAt plus 15 minutes", async () => {
   const state = fixture();
   state.attempts[1].expiresAt = null;
 
@@ -342,8 +395,8 @@ test("rejects pre-checkout when the attempt has no server deadline", async () =>
     checkedAt: new Date("2026-08-10T12:00:00.000Z"),
   });
 
-  assert.equal(accepted, false);
-  assert.equal(state.attempts[1].balePaymentId, null);
+  assert.equal(accepted, true);
+  assert.equal(state.attempts[1].balePaymentId, "payment-123");
 });
 
 test("rejects pre-checkout after the server deadline", async () => {
@@ -385,7 +438,7 @@ function webhookRequest(update: unknown) {
   });
 }
 
-test("does not send an invoice when the attempt has no server deadline", async () => {
+test("sends an invoice for a fresh legacy attempt using its effective deadline", async () => {
   const state = fixture();
   state.attempts[1].expiresAt = null;
   let invoicesSent = 0;
@@ -403,7 +456,89 @@ test("does not send an invoice when the attempt has no server deadline", async (
   );
 
   assert.equal(response.status, 200);
+  assert.equal(invoicesSent, 1);
+});
+
+test("treats an expired null-deadline legacy attempt as createdAt plus 15 minutes", async () => {
+  const state = fixture();
+  state.attempts[1].expiresAt = null;
+  let invoicesSent = 0;
+
+  await handleBaleWebhook(
+    webhookRequest({ message: { text: "/start payload-active", chat: { id: 42 } } }),
+    { params: { secret: "secret" } },
+    {
+      db: state.db,
+      now: () => new Date("2026-08-10T12:15:00.000Z"),
+      webhookSecret: "secret",
+      sendInvoice: async () => { invoicesSent += 1; },
+      answerPreCheckoutQuery: async () => undefined,
+    },
+  );
+
   assert.equal(invoicesSent, 0);
+});
+
+test("repeated and concurrent starts issue only one invoice", async () => {
+  const state = fixture();
+  let invoicesSent = 0;
+  const dependencies = {
+    db: state.db,
+    now: () => new Date("2026-08-10T12:01:00.000Z"),
+    webhookSecret: "secret",
+    sendInvoice: async () => { invoicesSent += 1; },
+    answerPreCheckoutQuery: async () => undefined,
+  };
+  const start = () => handleBaleWebhook(
+    webhookRequest({ message: { text: "/start payload-active", chat: { id: 42 } } }),
+    { params: { secret: "secret" } },
+    dependencies,
+  );
+
+  await Promise.all([start(), start()]);
+  await start();
+
+  assert.equal(invoicesSent, 1);
+  assert.equal(state.attempts[1].baleInvoiceSentAt?.toISOString(), "2026-08-10T12:01:00.000Z");
+  assert.equal(state.attempts[1].baleInvoiceClaimId, null);
+});
+
+test("a failed invoice send releases its claim for a later start", async () => {
+  const state = fixture();
+  let calls = 0;
+  const dependencies = {
+    db: state.db,
+    now: () => new Date("2026-08-10T12:01:00.000Z"),
+    webhookSecret: "secret",
+    sendInvoice: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("provider unavailable");
+    },
+    answerPreCheckoutQuery: async () => undefined,
+    onError: () => undefined,
+  };
+  const start = () => handleBaleWebhook(
+    webhookRequest({ message: { text: "/start payload-active", chat: { id: 42 } } }),
+    { params: { secret: "secret" } },
+    dependencies,
+  );
+
+  assert.equal((await start()).status, 500);
+  assert.equal(state.attempts[1].baleInvoiceClaimId, null);
+  assert.equal((await start()).status, 200);
+  assert.equal(calls, 2);
+  assert.ok(state.attempts[1].baleInvoiceSentAt);
+});
+
+test("finalization does not invalidate an active attempt owned by another order", async () => {
+  const state = fixture();
+  const foreign = { ...state.attempts[0], id: "attempt-foreign", orderId: "order-foreign", status: "pending" };
+  state.attempts.push(foreign);
+  state.order.activeAttemptId = foreign.id;
+
+  assert.equal(await processBaleSuccessfulPayment(state.db, successfulPayment), "paid");
+  assert.equal(state.attempts.find((attempt) => attempt.id === foreign.id)?.status, "pending");
+  assert.equal(state.order.activeAttemptId, "attempt-active");
 });
 
 test("does not send an invoice after the server deadline", async () => {
