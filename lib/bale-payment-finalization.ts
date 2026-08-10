@@ -8,6 +8,7 @@ import {
 type BaleTransaction = {
   paymentAttempt: {
     findUnique: (...args: any[]) => Promise<any>;
+    findMany: (...args: any[]) => Promise<any[]>;
     update: (...args: any[]) => Promise<any>;
   };
   paymentOrder: { update: (...args: any[]) => Promise<any> };
@@ -35,12 +36,31 @@ export type BaleSuccessfulPaymentInput = {
 
 export type FinalizeBalePaymentInput = BaleSuccessfulPaymentInput & { attemptId: string };
 
+const MAX_TRANSACTION_ATTEMPTS = 3;
+
 function validIdentifiers(input: BaleSuccessfulPaymentInput) {
   return Boolean(input.balePaymentId.trim() && input.baleTrackingNumber.trim());
 }
 
-export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBalePaymentInput): Promise<BaleFinalizationResult> {
-  const attempt = await tx.paymentAttempt.findUnique({ where: { id: input.attemptId }, include: { order: true } });
+function isRetryableTransactionError(error: unknown) {
+  const code = String((error as { code?: unknown })?.code || "");
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return ["P1008", "P2024", "P2034", "SQLITE_BUSY", "SQLITE_LOCKED"].includes(code) || /database (?:table )?is locked/.test(message);
+}
+
+async function runTransaction<T>(db: BaleDatabase, callback: (tx: BaleTransaction) => Promise<T>) {
+  for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await db.$transaction(callback);
+    } catch (error) {
+      if (!isRetryableTransactionError(error) || attempt === MAX_TRANSACTION_ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 10));
+    }
+  }
+  throw new Error("BALE_TRANSACTION_RETRY_EXHAUSTED");
+}
+
+function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInput) {
   if (
     !attempt ||
     attempt.method !== "bale_wallet" ||
@@ -51,6 +71,38 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
   ) {
     throw new Error("INVALID_BALE_PAYMENT");
   }
+}
+
+async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, input: BaleSuccessfulPaymentInput) {
+  if (
+    (attempt.balePaymentId && attempt.balePaymentId !== input.balePaymentId) ||
+    (attempt.baleTrackingNumber && attempt.baleTrackingNumber !== input.baleTrackingNumber)
+  ) {
+    throw new Error("BALE_PAYMENT_IDENTIFIER_CONFLICT");
+  }
+
+  const owners = await tx.paymentAttempt.findMany({
+    where: {
+      OR: [
+        { balePaymentId: input.balePaymentId },
+        { baleTrackingNumber: input.baleTrackingNumber },
+      ],
+    },
+    select: { id: true, status: true, balePaymentId: true, baleTrackingNumber: true },
+  });
+  const otherOwners = owners.filter((owner) => owner.id !== attempt.id);
+  if (otherOwners.length === 0) return "owned" as const;
+  const exactOwner = otherOwners.find((owner) =>
+    owner.balePaymentId === input.balePaymentId && owner.baleTrackingNumber === input.baleTrackingNumber,
+  );
+  if (exactOwner && ["paid", "paid_duplicate"].includes(exactOwner.status) && otherOwners.length === 1) return "already_paid" as const;
+  throw new Error("BALE_PAYMENT_IDENTIFIER_CONFLICT");
+}
+
+export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBalePaymentInput): Promise<BaleFinalizationResult> {
+  const attempt = await tx.paymentAttempt.findUnique({ where: { id: input.attemptId }, include: { order: true } });
+  validateSuccessfulPayment(attempt, input);
+  if (await resolveIdentifierOwnership(tx, attempt, input) === "already_paid") return "already_paid";
 
   const paidAt = input.paidAt || new Date();
   const samePayment =
@@ -122,36 +174,74 @@ export async function processBaleSuccessfulPayment(db: BaleDatabase, input: Bale
     select: { id: true },
   });
   if (!attempt) return null;
-  return db.$transaction((tx) => finalizeBalePayment(tx, { ...input, attemptId: attempt.id }));
+
+  const storeEvidence = () => runTransaction(db, async (tx) => {
+    const current = await tx.paymentAttempt.findUnique({ where: { id: attempt.id }, include: { order: true } });
+    validateSuccessfulPayment(current, input);
+    const ownership = await resolveIdentifierOwnership(tx, current, input);
+    if (ownership === "already_paid") return ownership;
+    await tx.paymentAttempt.update({
+      where: { id: current.id },
+      data: {
+        balePaymentId: input.balePaymentId,
+        baleTrackingNumber: input.baleTrackingNumber,
+        baleVerificationStatus: current.baleVerificationStatus === "successful_payment" ? "successful_payment" : "received",
+      },
+    });
+    return "stored" as const;
+  });
+
+  let evidence: "stored" | "already_paid";
+  try {
+    evidence = await storeEvidence();
+  } catch (error) {
+    if ((error as { code?: unknown })?.code !== "P2002") throw error;
+    try {
+      evidence = await storeEvidence();
+    } catch (retryError) {
+      if ((retryError as { code?: unknown })?.code === "P2002") throw new Error("BALE_PAYMENT_IDENTIFIER_CONFLICT");
+      throw retryError;
+    }
+  }
+  if (evidence === "already_paid") return evidence;
+  return runTransaction(db, (tx) => finalizeBalePayment(tx, { ...input, attemptId: attempt.id }));
 }
 
 export async function processBalePreCheckout(
   db: BaleDatabase,
   input: { id: string; invoicePayload: string; currency: unknown; totalAmount: unknown; checkedAt?: Date },
 ) {
-  return db.$transaction(async (tx) => {
-    const attempt = await tx.paymentAttempt.findUnique({
-      where: { balePayload: input.invoicePayload },
-      include: { order: true },
+  try {
+    return await runTransaction(db, async (tx) => {
+      const attempt = await tx.paymentAttempt.findUnique({
+        where: { balePayload: input.invoicePayload },
+        include: { order: true },
+      });
+      const checkedAt = input.checkedAt || new Date();
+      const valid = Boolean(
+        attempt &&
+        attempt.method === "bale_wallet" &&
+        attempt.status === "pending" &&
+        attempt.order.status !== "paid" &&
+        attempt.order.activeAttemptId === attempt.id &&
+        isBalePayloadValid(input.invoicePayload, attempt.balePayload) &&
+        isBaleCurrencyValid(input.currency) &&
+        isBaleAmountValid(input.totalAmount, attempt.amountRials) &&
+        attempt.expiresAt instanceof Date &&
+        !isExpired(attempt.expiresAt, checkedAt) &&
+        input.id.trim()
+      );
+      if (!valid) return false;
+      const owners = await tx.paymentAttempt.findMany({ where: { OR: [{ balePaymentId: input.id }] }, select: { id: true } });
+      if (owners.some((owner) => owner.id !== attempt.id)) return false;
+      await tx.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: { balePaymentId: input.id, balePreCheckoutAt: checkedAt },
+      });
+      return true;
     });
-    const checkedAt = input.checkedAt || new Date();
-    const valid = Boolean(
-      attempt &&
-      attempt.method === "bale_wallet" &&
-      attempt.status === "pending" &&
-      attempt.order.status !== "paid" &&
-      attempt.order.activeAttemptId === attempt.id &&
-      isBalePayloadValid(input.invoicePayload, attempt.balePayload) &&
-      isBaleCurrencyValid(input.currency) &&
-      isBaleAmountValid(input.totalAmount, attempt.amountRials) &&
-      (!attempt.expiresAt || !isExpired(attempt.expiresAt, checkedAt)) &&
-      input.id.trim()
-    );
-    if (!valid) return false;
-    await tx.paymentAttempt.update({
-      where: { id: attempt.id },
-      data: { balePaymentId: input.id, balePreCheckoutAt: checkedAt },
-    });
-    return true;
-  });
+  } catch (error) {
+    if ((error as { code?: unknown })?.code === "P2002") return false;
+    throw error;
+  }
 }

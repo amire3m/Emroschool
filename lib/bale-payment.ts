@@ -28,6 +28,7 @@ async function baleCall(method: string, body: Record<string, unknown>) {
     throw new Error(`BALE_${method.toUpperCase()}_FAILED: ${detail}`);
   }
   const result = await response.json().catch(() => null);
+  if (response.ok && (!result || typeof result !== "object")) throw new Error(`BALE_${method.toUpperCase()}_PROTOCOL_ERROR`);
   if (!response.ok || result?.ok === false) {
     const providerCode = result?.error_code ? ` ${String(result.error_code)}` : "";
     const providerDescription = result?.description ?? result?.error ?? result?.message ?? response.statusText;
