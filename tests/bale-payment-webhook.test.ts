@@ -293,6 +293,43 @@ test("stores the pre-checkout payment ID before accepting an active attempt", as
   assert.equal(state.attempts[1].balePreCheckoutAt, checkedAt);
 });
 
+test("finalizes wallet payment when successful-payment ID equals the pre-checkout ID", async () => {
+  const state = fixture();
+
+  assert.equal(await processBalePreCheckout(state.db, {
+    id: "payment-123",
+    invoicePayload: "payload-active",
+    currency: "IRR",
+    totalAmount: 4_000_000,
+    checkedAt: new Date("2026-08-10T11:59:00.000Z"),
+  }), true);
+
+  assert.equal(await processBaleSuccessfulPayment(state.db, successfulPayment), "paid");
+  assert.equal(state.attempts[1].balePaymentId, "payment-123");
+  assert.equal(state.attempts[1].baleTrackingNumber, "tracking-456");
+  assert.equal(state.attempts[1].status, "paid");
+  assert.equal(state.order.status, "paid");
+});
+
+test("rejects a successful-payment ID that differs from the pre-checkout ID", async () => {
+  const state = fixture();
+  assert.equal(await processBalePreCheckout(state.db, {
+    id: "payment-123",
+    invoicePayload: "payload-active",
+    currency: "IRR",
+    totalAmount: 4_000_000,
+    checkedAt: new Date("2026-08-10T11:59:00.000Z"),
+  }), true);
+
+  await assert.rejects(processBaleSuccessfulPayment(state.db, {
+    ...successfulPayment,
+    balePaymentId: "payment-mismatched",
+  }), /BALE_PAYMENT_IDENTIFIER_CONFLICT/);
+
+  assert.equal(state.attempts[1].balePaymentId, "payment-123");
+  assert.equal(state.order.status, "pending");
+});
+
 test("rejects pre-checkout when the attempt has no server deadline", async () => {
   const state = fixture();
   state.attempts[1].expiresAt = null;
@@ -584,4 +621,44 @@ test("rejects a successful Bale response with malformed non-JSON content", async
     if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
     else process.env.BALE_BOT_TOKEN = originalToken;
   }
+});
+
+async function withBaleResponse<T>(payload: unknown, action: () => Promise<T>) {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  process.env.BALE_BOT_TOKEN = "bot-token";
+  global.fetch = (async () => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })) as typeof fetch;
+  try {
+    return await action();
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalToken;
+  }
+}
+
+test("rejects an empty Bale response envelope", async () => {
+  await withBaleResponse({}, () => assert.rejects(sendMessage("chat-1", "hello"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/));
+});
+
+test("rejects an array Bale response envelope", async () => {
+  await withBaleResponse([], () => assert.rejects(sendMessage("chat-1", "hello"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/));
+});
+
+test("rejects a successful Bale envelope without a result property", async () => {
+  await withBaleResponse({ ok: true }, () => assert.rejects(sendMessage("chat-1", "hello"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/));
+});
+
+test("rejects a Bale envelope with result but no explicit success flag", async () => {
+  await withBaleResponse({ result: true }, () => assert.rejects(sendMessage("chat-1", "hello"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/));
+});
+
+test("preserves valid Bale boolean, string, and object result values", async () => {
+  assert.equal(await withBaleResponse({ ok: true, result: false }, () => sendMessage("chat-1", "hello")), false);
+  assert.equal(await withBaleResponse({ ok: true, result: true }, () => sendMessage("chat-1", "hello")), true);
+  assert.equal(await withBaleResponse({ ok: true, result: "invoice-link" }, () => sendMessage("chat-1", "hello")), "invoice-link");
+  assert.deepEqual(await withBaleResponse({ ok: true, result: { message_id: 42 } }, () => sendMessage("chat-1", "hello")), { message_id: 42 });
 });

@@ -28,14 +28,17 @@ async function baleCall(method: string, body: Record<string, unknown>) {
     throw new Error(`BALE_${method.toUpperCase()}_FAILED: ${detail}`);
   }
   const result = await response.json().catch(() => null);
-  if (response.ok && (!result || typeof result !== "object")) throw new Error(`BALE_${method.toUpperCase()}_PROTOCOL_ERROR`);
-  if (!response.ok || result?.ok === false) {
-    const providerCode = result?.error_code ? ` ${String(result.error_code)}` : "";
-    const providerDescription = result?.description ?? result?.error ?? result?.message ?? response.statusText;
+  const envelope = result && typeof result === "object" && !Array.isArray(result) ? result as Record<string, unknown> : null;
+  if (!response.ok || envelope?.ok === false) {
+    const providerCode = envelope?.error_code ? ` ${String(envelope.error_code)}` : "";
+    const providerDescription = envelope?.description ?? envelope?.error ?? envelope?.message ?? response.statusText;
     const detail = redactTokens(String(providerDescription || "provider rejected request"));
     throw new Error(`BALE_${method.toUpperCase()}_FAILED: HTTP ${response.status}${providerCode} ${detail}`);
   }
-  return result?.result ?? result;
+  if (!envelope || envelope.ok !== true || !Object.prototype.hasOwnProperty.call(envelope, "result")) {
+    throw new Error(`BALE_${method.toUpperCase()}_PROTOCOL_ERROR`);
+  }
+  return envelope.result;
 }
 
 function redactTokens(value: string) {
@@ -77,7 +80,12 @@ export async function answerPreCheckoutQuery(id: string, ok: boolean, errorMessa
 }
 
 export async function inquireTransaction(transactionReference: string) {
-  const result = await baleCall("inquireTransaction", { transaction_id: transactionReference });
+  const result = await baleCall("inquireTransaction", { transaction_id: transactionReference }) as {
+    status?: unknown;
+    state?: unknown;
+    success?: unknown;
+    paid?: unknown;
+  };
   const state = String(result?.status ?? result?.state ?? "").toLowerCase();
   return { result, verified: result?.success === true || result?.paid === true || ["paid", "success", "successful", "completed"].includes(state) };
 }
