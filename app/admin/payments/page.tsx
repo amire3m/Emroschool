@@ -21,6 +21,10 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ExportActions from "@/components/admin/export-actions";
+import {
+  isBaleReconciliationEligible,
+  selectBaleReconciliationAttempt,
+} from "@/lib/bale-payment-reconciliation";
 
 type Order = {
   id: string;
@@ -30,7 +34,6 @@ type Order = {
   method: string;
   status: string;
   activeAttemptId?: string | null;
-  balePayload?: string | null;
   baleTransactionRef?: string | null;
   manualReference?: string | null;
   manualNote?: string | null;
@@ -88,14 +91,11 @@ type PaymentAttempt = {
   sequence: number;
   method: string;
   status: string;
-  amountTomans: number;
   amountRials: number;
-  balePayload?: string | null;
   balePaymentId?: string | null;
   baleTrackingNumber?: string | null;
   baleReceiptReference?: string | null;
   baleVerificationStatus: string;
-  receiptUrl?: string | null;
   rejectionReason?: string | null;
   createdAt: string;
   expiresAt?: string | null;
@@ -150,20 +150,6 @@ const emptyDiscount = {
 };
 const f = (value?: string | null) =>
   value ? new Date(value).toLocaleString("fa-IR") : "-";
-
-function reconciliationAttempt(order: Order) {
-  const attempts = (order.attempts || []).filter((attempt) => attempt.method === "bale_wallet");
-  return attempts.find((attempt) => attempt.balePaymentId) ||
-    attempts.find((attempt) => attempt.id === order.activeAttemptId) ||
-    attempts[attempts.length - 1] || null;
-}
-
-function isBaleReconciliationEligible(order: Order) {
-  if (order.status === "paid") return false;
-  const attempt = reconciliationAttempt(order);
-  if (attempt && ["paid", "paid_duplicate"].includes(attempt.status)) return false;
-  return Boolean(attempt?.balePayload || (order.method === "bale_wallet" && order.balePayload));
-}
 
 function PaymentsAdminPage() {
   const [tab, setTab] = useState<"card" | "bale" | "manual" | "discounts">(
@@ -641,7 +627,6 @@ function PaymentsAdminPage() {
   );
 }
 
-PaymentsAdminPage.isBaleReconciliationEligible = isBaleReconciliationEligible;
 export default PaymentsAdminPage;
 
 function DiscountManager({
@@ -778,7 +763,7 @@ function PaymentDetail({
   onReconciled: (id: string) => Promise<void>;
 }) {
   const app = order.application;
-  const recoveryAttempt = reconciliationAttempt(order);
+  const recoveryAttempt = selectBaleReconciliationAttempt(order);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
   const [reconciling, setReconciling] = useState(false);

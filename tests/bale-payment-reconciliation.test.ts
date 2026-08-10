@@ -3,7 +3,10 @@ import test from "node:test";
 import { NextRequest } from "next/server";
 import { GET as getAdminPayments } from "../app/api/admin/payments/route";
 import { POST } from "../app/api/admin/payments/[id]/reconcile-bale/route";
-import PaymentsAdminPage from "../app/admin/payments/page";
+import {
+  isBaleReconciliationEligible,
+  selectBaleReconciliationAttempt,
+} from "../lib/bale-payment-reconciliation";
 
 type Attempt = {
   id: string;
@@ -180,6 +183,18 @@ function reconciliationRequest(body: Record<string, unknown> = { trackingNumber:
 
 const authorize = async () => ({ id: "admin-1" });
 
+test("selects the same recovery attempt regardless of attempt ordering", () => {
+  const attempts = [
+    { id: "paid-old", sequence: 1, method: "bale_wallet", status: "paid", balePaymentId: "payment-old" },
+    { id: "active", sequence: 2, method: "bale_wallet", status: "pending", balePaymentId: null, baleTrackingNumber: null },
+    { id: "newer", sequence: 3, method: "bale_wallet", status: "expired", baleTrackingNumber: "tracking-newer" },
+  ];
+
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts })?.id, "active");
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "active", attempts: [...attempts].reverse() })?.id, "active");
+  assert.equal(selectBaleReconciliationAttempt({ activeAttemptId: "paid-old", attempts })?.id, "newer");
+});
+
 test("rejects reconciliation without payment-admin authorization", async () => {
   const request = new NextRequest("http://localhost/api/admin/payments/order-1/reconcile-bale", {
     method: "POST",
@@ -297,6 +312,119 @@ test("queries the stored unique payment ID before falling back to tracking", asy
   assert.equal(state.attempts[0].paidAt?.toISOString(), "2026-08-11T10:00:00.000Z");
   assert.equal(state.applicationStatus, "approved");
   assert.equal(state.enrollments, 1);
+});
+
+test("continues to tracking fallback when payment ID inquiry has no transaction result", async () => {
+  const { state, db } = createState({
+    attempt: { balePaymentId: "payment-stored", baleTrackingNumber: "tracking-stored" },
+  });
+  const references: string[] = [];
+  const response = await POST(
+    reconciliationRequest({}),
+    { params: { id: "order-1" } },
+    {
+      db,
+      authorize,
+      inquire: async (reference: string) => {
+        references.push(reference);
+        return reference === "payment-stored"
+          ? { result: null }
+          : { result: { id: "payment-stored", status: "paid", amount: 4_000_000 } };
+      },
+    } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(references, ["payment-stored", "tracking-stored"]);
+  assert.equal(state.attempts[0].baleTrackingNumber, "tracking-stored");
+});
+
+test("ignores arbitrary supplied tracking when stored payment ID inquiry succeeds", async () => {
+  const { state, db } = createState({ attempt: { balePaymentId: "payment-stored" } });
+  const references: string[] = [];
+  const response = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-unverified", receiptReference: "receipt-manual" }),
+    { params: { id: "order-1" } },
+    {
+      db,
+      authorize,
+      inquire: async (reference: string) => {
+        references.push(reference);
+        return { result: { id: "payment-stored", status: "paid", amount: 4_000_000 } };
+      },
+    } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(references, ["payment-stored"]);
+  assert.equal(state.attempts[0].baleTrackingNumber, null);
+  assert.equal(state.orders[0].baleTransactionRef, null);
+  assert.equal(state.attempts[0].baleReceiptReference, "receipt-manual");
+});
+
+test("persists supplied tracking only after that exact reference verifies the transaction", async () => {
+  const { state, db } = createState();
+  const references: string[] = [];
+  const response = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-verified" }),
+    { params: { id: "order-1" } },
+    {
+      db,
+      authorize,
+      inquire: async (reference: string) => {
+        references.push(reference);
+        return { result: { id: "payment-returned", status: "paid", amount: 4_000_000 } };
+      },
+    } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(references, ["tracking-verified"]);
+  assert.equal(state.attempts[0].baleTrackingNumber, "tracking-verified");
+  assert.equal(state.orders[0].baleTransactionRef, "tracking-verified");
+});
+
+test("API reconciliation uses the shared selector instead of older paid identifiers", async () => {
+  const olderPaid: Attempt = {
+    id: "attempt-paid-old",
+    orderId: "order-1",
+    sequence: 1,
+    method: "bale_wallet",
+    status: "paid",
+    amountTomans: 400_000,
+    amountRials: 4_000_000,
+    balePayload: "payload-old",
+    balePaymentId: "payment-old",
+    baleTrackingNumber: "tracking-old",
+    baleReceiptReference: null,
+    baleVerificationStatus: "successful_payment",
+    paidAt: new Date("2026-08-10T09:00:00.000Z"),
+    expiresAt: null,
+    createdAt: new Date("2026-08-10T08:00:00.000Z"),
+  };
+  const { state, db } = createState({
+    order: { baleTransactionRef: "tracking-old" },
+    attempt: { sequence: 2 },
+    otherAttempts: [olderPaid],
+  });
+  const references: string[] = [];
+  const response = await POST(
+    reconciliationRequest({ trackingNumber: "tracking-active" }),
+    { params: { id: "order-1" } },
+    {
+      db,
+      authorize,
+      inquire: async (reference: string) => {
+        references.push(reference);
+        return { result: { id: "payment-active", status: "paid", amount: 4_000_000 } };
+      },
+    } as any,
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(references, ["tracking-active"]);
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-1")?.status, "paid");
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-paid-old")?.balePaymentId, "payment-old");
 });
 
 test("recovers a matching paid transaction by tracking and stores its returned unique payment ID", async () => {
@@ -421,10 +549,11 @@ test("admin payments API returns attempt history in ascending sequence order", a
         findManyArgs = args;
         return [{
           id: "order-1",
+          balePayload: "order-secret-payload",
           payerCardEncrypted: null,
           attempts: [
-            { id: "attempt-1", sequence: 1 },
-            { id: "attempt-2", sequence: 2 },
+            { id: "attempt-1", sequence: 1, balePayload: "attempt-secret-1" },
+            { id: "attempt-2", sequence: 2, balePayload: "attempt-secret-2" },
           ],
         }];
       },
@@ -437,8 +566,11 @@ test("admin payments API returns attempt history in ascending sequence order", a
   const payload = await response.json();
 
   assert.equal(response.status, 200);
-  assert.deepEqual(findManyArgs.include.attempts, { orderBy: { sequence: "asc" } });
+  assert.equal(findManyArgs.include.attempts.orderBy.sequence, "asc");
+  assert.equal(findManyArgs.include.attempts.select.balePayload, undefined);
   assert.deepEqual(payload.orders[0].attempts.map((attempt: any) => attempt.sequence), [1, 2]);
+  assert.equal(payload.orders[0].balePayload, undefined);
+  assert.equal(payload.orders[0].attempts[0].balePayload, undefined);
 });
 
 test("offers admin recovery only for unpaid orders with Bale evidence", () => {
@@ -448,10 +580,9 @@ test("offers admin recovery only for unpaid orders with Bale evidence", () => {
     balePayload: null,
     attempts: [{ method: "bale_wallet", balePayload: "payload-old" }],
   };
-  const eligible = PaymentsAdminPage.isBaleReconciliationEligible;
-  assert.equal(eligible(recoverable as any), true);
-  assert.equal(eligible({ ...recoverable, status: "paid" } as any), false);
-  assert.equal(eligible({ ...recoverable, attempts: [] } as any), false);
-  assert.equal(eligible({ ...recoverable, method: "bale_wallet", balePayload: "payload-legacy", attempts: [] } as any), true);
-  assert.equal(eligible({ ...recoverable, attempts: [{ ...recoverable.attempts[0], status: "paid" }] } as any), false);
+  assert.equal(isBaleReconciliationEligible(recoverable as any), true);
+  assert.equal(isBaleReconciliationEligible({ ...recoverable, status: "paid" } as any), false);
+  assert.equal(isBaleReconciliationEligible({ ...recoverable, attempts: [] } as any), false);
+  assert.equal(isBaleReconciliationEligible({ ...recoverable, method: "bale_wallet", attempts: [] } as any), true);
+  assert.equal(isBaleReconciliationEligible({ ...recoverable, attempts: [{ ...recoverable.attempts[0], status: "paid" }] } as any), false);
 });

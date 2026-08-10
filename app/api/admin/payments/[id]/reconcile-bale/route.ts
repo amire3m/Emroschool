@@ -2,6 +2,7 @@ import { getUserFromToken, isAdminRole } from "@/lib/auth";
 import { inquireTransaction } from "@/lib/bale-payment";
 import { isBaleAmountValid, isBalePaidStatus } from "@/lib/bale-payment-domain";
 import { finalizeBalePayment } from "@/lib/bale-payment-finalization";
+import { selectBaleReconciliationAttempt } from "@/lib/bale-payment-reconciliation";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
@@ -82,27 +83,22 @@ export async function POST(
     if (!order) throw new Error("ORDER_NOT_FOUND");
     if (order.status === "paid") throw new Error("NOT_RECOVERABLE");
 
-    const baleAttempts = order.attempts.filter((attempt: any) => attempt.method === "bale_wallet");
-    const targetAttempt = baleAttempts.find((attempt: any) => attempt.balePaymentId) ||
-      baleAttempts.find((attempt: any) => attempt.id === order.activeAttemptId) ||
-      baleAttempts[0] || null;
+    const targetAttempt = selectBaleReconciliationAttempt(order);
     if (targetAttempt && ["paid", "paid_duplicate"].includes(targetAttempt.status)) {
       throw new Error("NOT_RECOVERABLE");
     }
     const storedPaymentId = targetAttempt?.balePaymentId?.trim() || "";
     const storedTracking = targetAttempt?.baleTrackingNumber?.trim() ||
-      (order.method === "bale_wallet" ? order.baleTransactionRef?.trim() : "") || "";
-    if (trackingNumber && storedTracking && trackingNumber !== storedTracking) {
-      throw new Error("TRANSACTION_ID_MISMATCH");
-    }
-    const effectiveTracking = trackingNumber || storedTracking;
-    if (!effectiveTracking) throw new Error("TRACKING_REQUIRED");
+      (!targetAttempt && order.method === "bale_wallet" ? order.baleTransactionRef?.trim() : "") || "";
+    const fallbackTracking = storedTracking || trackingNumber;
+    if (!storedPaymentId && !fallbackTracking) throw new Error("TRACKING_REQUIRED");
     const payload = targetAttempt?.balePayload || order.balePayload;
     if (!payload) throw new Error("NOT_RECOVERABLE");
 
-    const references = [...new Set([storedPaymentId, effectiveTracking].filter(Boolean))];
+    const references = [...new Set([storedPaymentId, fallbackTracking].filter(Boolean))];
     let inquiryResult: Record<string, unknown> | null = null;
     let inquiryError: unknown = null;
+    let successfulReference = "";
     for (const [index, reference] of references.entries()) {
       try {
         const inquiry = await dependencies.inquire(reference);
@@ -110,7 +106,10 @@ export async function POST(
           ? inquiry.result as Record<string, unknown>
           : null;
         inquiryError = null;
-        break;
+        if (inquiryResult) {
+          successfulReference = reference;
+          break;
+        }
       } catch (error) {
         inquiryError = error;
         if (index === references.length - 1) break;
@@ -131,6 +130,8 @@ export async function POST(
     if (!returnedPaymentId || (storedPaymentId && returnedPaymentId !== storedPaymentId)) {
       throw new Error("TRANSACTION_ID_MISMATCH");
     }
+    const verifiedTracking = storedTracking ||
+      (successfulReference === fallbackTracking ? fallbackTracking : undefined);
 
     const paidAt = dependencies.now();
     const result = await runPaymentTransaction(dependencies.db, async (tx) => {
@@ -167,7 +168,8 @@ export async function POST(
         currency: "IRR",
         totalAmount: expectedAmount,
         balePaymentId: returnedPaymentId,
-        baleTrackingNumber: effectiveTracking,
+        baleTrackingNumber: verifiedTracking,
+        verificationSource: "inquiry_paid",
         paidAt,
       });
       if (finalized !== "paid") throw new Error("TRANSACTION_ALREADY_USED");

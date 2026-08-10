@@ -30,14 +30,36 @@ export async function GET(
         application: { select: { id: true, status: true, userId: true, courseId: true, fullName: true, email: true, phone: true, nationalCode: true, birthDate: true, province: true, city: true, address: true, postalCode: true, workHistory: true, artHistory: true, educationLevel: true, educationField: true, reason: true, knowsInstructors: true, familiarityDetails: true, instagramId: true, virtualPhone: true, landline: true, discountCode: true, discountLabel: true, discountPercent: true, finalAmountTomans: true, discountDocumentUrl: true, createdAt: true, updatedAt: true } },
         reviewer: { select: { id: true, name: true, email: true, role: true, userType: true, createdAt: true, updatedAt: true } },
         createdBy: { select: { id: true, name: true, email: true, role: true } },
-        attempts: { orderBy: { sequence: "asc" } },
+        attempts: {
+          orderBy: { sequence: "asc" },
+          select: {
+            id: true,
+            sequence: true,
+            method: true,
+            status: true,
+            amountRials: true,
+            balePaymentId: true,
+            baleTrackingNumber: true,
+            baleReceiptReference: true,
+            baleVerificationStatus: true,
+            rejectionReason: true,
+            createdAt: true,
+            expiresAt: true,
+            baleInvoiceSentAt: true,
+            balePreCheckoutAt: true,
+            paidAt: true,
+            submittedAt: true,
+            invalidatedAt: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),
     dependencies.db.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
-  const safeOrders = orders.map(({ payerCardEncrypted, ...order }) => ({
+  const safeOrders = orders.map(({ payerCardEncrypted, balePayload: _balePayload, ...order }) => ({
     ...order,
+    attempts: order.attempts.map(({ balePayload: _attemptPayload, ...attempt }: any) => attempt),
     payerCardNumber: payerCardEncrypted ? (() => { try { return decryptPaymentCard(payerCardEncrypted); } catch { return null; } })() : null,
   }));
   return NextResponse.json({ orders: safeOrders, settings });

@@ -35,13 +35,17 @@ export type BaleSuccessfulPaymentInput = {
   payerBaleName?: string;
 };
 
-export type FinalizeBalePaymentInput = BaleSuccessfulPaymentInput & { attemptId: string };
+export type FinalizeBalePaymentInput = Omit<BaleSuccessfulPaymentInput, "baleTrackingNumber"> & {
+  attemptId: string;
+  baleTrackingNumber?: string;
+  verificationSource?: "successful_payment" | "inquiry_paid";
+};
 
-function validIdentifiers(input: BaleSuccessfulPaymentInput) {
-  return Boolean(input.balePaymentId.trim() && input.baleTrackingNumber.trim());
+function validIdentifiers(input: { balePaymentId: string; baleTrackingNumber?: string; verificationSource?: string }) {
+  return Boolean(input.balePaymentId.trim() && (input.baleTrackingNumber?.trim() || input.verificationSource === "inquiry_paid"));
 }
 
-function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInput) {
+function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInput | FinalizeBalePaymentInput) {
   if (
     !attempt ||
     attempt.method !== "bale_wallet" ||
@@ -54,10 +58,10 @@ function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInp
   }
 }
 
-async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, input: BaleSuccessfulPaymentInput) {
+async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, input: BaleSuccessfulPaymentInput | FinalizeBalePaymentInput) {
   if (
     (attempt.balePaymentId && attempt.balePaymentId !== input.balePaymentId) ||
-    (attempt.baleTrackingNumber && attempt.baleTrackingNumber !== input.baleTrackingNumber)
+    (input.baleTrackingNumber && attempt.baleTrackingNumber && attempt.baleTrackingNumber !== input.baleTrackingNumber)
   ) {
     throw new Error("BALE_PAYMENT_IDENTIFIER_CONFLICT");
   }
@@ -66,16 +70,15 @@ async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, inp
     where: {
       OR: [
         { balePaymentId: input.balePaymentId },
-        { baleTrackingNumber: input.baleTrackingNumber },
+        ...(input.baleTrackingNumber ? [{ baleTrackingNumber: input.baleTrackingNumber }] : []),
       ],
     },
     select: { id: true, status: true, balePaymentId: true, baleTrackingNumber: true },
   });
   const otherOwners = owners.filter((owner) => owner.id !== attempt.id);
   if (otherOwners.length === 0) return "owned" as const;
-  const exactOwner = otherOwners.find((owner) =>
-    owner.balePaymentId === input.balePaymentId && owner.baleTrackingNumber === input.baleTrackingNumber,
-  );
+  const exactOwner = otherOwners.find((owner) => owner.balePaymentId === input.balePaymentId &&
+    (!input.baleTrackingNumber || owner.baleTrackingNumber === input.baleTrackingNumber));
   if (exactOwner && ["paid", "paid_duplicate"].includes(exactOwner.status) && otherOwners.length === 1) return "already_paid" as const;
   throw new Error("BALE_PAYMENT_IDENTIFIER_CONFLICT");
 }
@@ -88,7 +91,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
   const paidAt = input.paidAt || new Date();
   const samePayment =
     attempt.balePaymentId === input.balePaymentId &&
-    attempt.baleTrackingNumber === input.baleTrackingNumber;
+    (!input.baleTrackingNumber || attempt.baleTrackingNumber === input.baleTrackingNumber);
 
   if (attempt.order.status === "paid" && samePayment && ["paid", "paid_duplicate"].includes(attempt.status)) return "already_paid";
 
@@ -97,7 +100,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
       where: { id: attempt.id },
       data: {
         balePaymentId: input.balePaymentId,
-        baleTrackingNumber: input.baleTrackingNumber,
+        ...(input.baleTrackingNumber ? { baleTrackingNumber: input.baleTrackingNumber } : {}),
         baleVerificationStatus: "successful_payment",
         status: "paid_duplicate",
         paidAt,
@@ -110,7 +113,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
     where: { id: attempt.id },
     data: {
       balePaymentId: input.balePaymentId,
-      baleTrackingNumber: input.baleTrackingNumber,
+      ...(input.baleTrackingNumber ? { baleTrackingNumber: input.baleTrackingNumber } : {}),
       baleVerificationStatus: "successful_payment",
       status: "paid",
       paidAt,
@@ -133,7 +136,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
       paidAt,
       activeAttemptId: attempt.id,
       balePayload: attempt.balePayload,
-      baleTransactionRef: input.baleTrackingNumber,
+      ...(input.baleTrackingNumber ? { baleTransactionRef: input.baleTrackingNumber } : {}),
       ...(input.payerBaleId ? { payerBaleId: input.payerBaleId } : {}),
       ...(input.payerBaleName ? { payerBaleName: input.payerBaleName } : {}),
     },
