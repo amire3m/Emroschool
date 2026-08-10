@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getIranianCardInfo } from "@/lib/iranian-card";
 import { encryptPaymentCard } from "@/lib/payment-card-crypto";
+import { isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 
 function userId(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -42,9 +43,11 @@ export async function POST(req: NextRequest) {
     const payerCard = method === "card_to_card" ? getIranianCardInfo(String(payerCardNumber || "")) : null;
     if (method === "card_to_card" && !payerCard) return NextResponse.json({ error: "شماره کارت پرداخت‌کننده معتبر نیست" }, { status: 400 });
 
-    const orderNumber = `PAY-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+    const now = new Date();
+    const expiresAt = method === "bale_wallet" ? newBaleExpiry(now) : null;
+    const orderNumber = `PAY-${now.getTime()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
     const payload = method === "bale_wallet" ? `payment:${orderNumber}:${crypto.randomBytes(16).toString("hex")}` : null;
-    const order = await prisma.paymentOrder.create({ data: { orderNumber, amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", balePayload: payload, ...(payerCard ? { payerCardEncrypted: encryptPaymentCard(payerCard.cardNumber), payerCardMasked: payerCard.maskedCardNumber, payerBankName: payerCard.bankName, payerBankSlug: payerCard.bankSlug } : {}), userId: id, courseId: course.id, applicationId: application.id, attempts: { create: { sequence: 1, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, balePayload: payload } } } });
+    const order = await prisma.paymentOrder.create({ data: { orderNumber, amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", balePayload: payload, expiresAt, ...(payerCard ? { payerCardEncrypted: encryptPaymentCard(payerCard.cardNumber), payerCardMasked: payerCard.maskedCardNumber, payerBankName: payerCard.bankName, payerBankSlug: payerCard.bankSlug } : {}), userId: id, courseId: course.id, applicationId: application.id, attempts: { create: { sequence: 1, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, balePayload: payload, expiresAt } } } });
     const attempt = await prisma.paymentAttempt.findFirst({ where: { orderId: order.id }, orderBy: { sequence: "desc" } });
     if (attempt) await prisma.paymentOrder.update({ where: { id: order.id }, data: { activeAttemptId: attempt.id } });
     const settings = method === "card_to_card" ? await prisma.paymentSettings.findUnique({ where: { id: 1 } }) : null;
@@ -62,7 +65,21 @@ export async function GET(req: NextRequest) {
   const id = userId(req);
   if (!id) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
     const applicationId = new URL(req.url).searchParams.get("applicationId");
-    const orders = await prisma.paymentOrder.findMany({ where: { userId: id, ...(applicationId ? { applicationId } : {}) }, include: { course: { select: { id: true, title: true, slug: true, thumbnail: true } }, application: { select: { id: true, status: true, finalAmountTomans: true } }, attempts: { orderBy: { sequence: "desc" } } }, orderBy: { createdAt: "desc" } });
+    const query = { where: { userId: id, ...(applicationId ? { applicationId } : {}) }, include: { course: { select: { id: true, title: true, slug: true, thumbnail: true } }, application: { select: { id: true, status: true, finalAmountTomans: true } }, attempts: { orderBy: { sequence: "desc" as const } } }, orderBy: { createdAt: "desc" as const } };
+    let orders = await prisma.paymentOrder.findMany(query);
+    const now = new Date();
+    const stale = orders.filter((order) => order.method === "bale_wallet" && order.status === "pending" && order.expiresAt instanceof Date && isExpired(order.expiresAt, now));
+    for (const order of stale) {
+      await prisma.$transaction(async (tx) => {
+        const current = await tx.paymentOrder.findFirst({ where: { id: order.id, userId: id } });
+        if (!current || current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending" || !(current.expiresAt instanceof Date) || !isExpired(current.expiresAt, now)) return;
+        const attempt = current.activeAttemptId ? await tx.paymentAttempt.findUnique({ where: { id: current.activeAttemptId } }) : null;
+        if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.expiresAt instanceof Date) || !isExpired(attempt.expiresAt, now)) return;
+        await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "expired", invalidatedAt: now } });
+        await tx.paymentOrder.update({ where: { id: current.id }, data: { status: "expired" } });
+      });
+    }
+    if (stale.length > 0) orders = await prisma.paymentOrder.findMany(query);
     const instructions = orders[0]?.method === "card_to_card" ? await cardInstructions() : undefined;
     return NextResponse.json({ orders, paymentInstructions: instructions });
 }
