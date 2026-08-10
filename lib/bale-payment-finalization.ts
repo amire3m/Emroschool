@@ -4,6 +4,7 @@ import {
   isBalePayloadValid,
   isExpired,
 } from "./bale-payment-domain";
+import { runPaymentTransaction } from "./payment-transaction";
 
 type BaleTransaction = {
   paymentAttempt: {
@@ -36,28 +37,8 @@ export type BaleSuccessfulPaymentInput = {
 
 export type FinalizeBalePaymentInput = BaleSuccessfulPaymentInput & { attemptId: string };
 
-const MAX_TRANSACTION_ATTEMPTS = 3;
-
 function validIdentifiers(input: BaleSuccessfulPaymentInput) {
   return Boolean(input.balePaymentId.trim() && input.baleTrackingNumber.trim());
-}
-
-function isRetryableTransactionError(error: unknown) {
-  const code = String((error as { code?: unknown })?.code || "");
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return ["P1008", "P2024", "P2034", "SQLITE_BUSY", "SQLITE_LOCKED"].includes(code) || /database (?:table )?is locked/.test(message);
-}
-
-async function runTransaction<T>(db: BaleDatabase, callback: (tx: BaleTransaction) => Promise<T>) {
-  for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
-    try {
-      return await db.$transaction(callback);
-    } catch (error) {
-      if (!isRetryableTransactionError(error) || attempt === MAX_TRANSACTION_ATTEMPTS) throw error;
-      await new Promise((resolve) => setTimeout(resolve, attempt * 10));
-    }
-  }
-  throw new Error("BALE_TRANSACTION_RETRY_EXHAUSTED");
 }
 
 function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInput) {
@@ -175,7 +156,7 @@ export async function processBaleSuccessfulPayment(db: BaleDatabase, input: Bale
   });
   if (!attempt) return null;
 
-  const storeEvidence = () => runTransaction(db, async (tx) => {
+  const storeEvidence = () => runPaymentTransaction(db, async (tx) => {
     const current = await tx.paymentAttempt.findUnique({ where: { id: attempt.id }, include: { order: true } });
     validateSuccessfulPayment(current, input);
     const ownership = await resolveIdentifierOwnership(tx, current, input);
@@ -204,7 +185,7 @@ export async function processBaleSuccessfulPayment(db: BaleDatabase, input: Bale
     }
   }
   if (evidence === "already_paid") return evidence;
-  return runTransaction(db, (tx) => finalizeBalePayment(tx, { ...input, attemptId: attempt.id }));
+  return runPaymentTransaction(db, (tx) => finalizeBalePayment(tx, { ...input, attemptId: attempt.id }));
 }
 
 export async function processBalePreCheckout(
@@ -212,7 +193,7 @@ export async function processBalePreCheckout(
   input: { id: string; invoicePayload: string; currency: unknown; totalAmount: unknown; checkedAt?: Date },
 ) {
   try {
-    return await runTransaction(db, async (tx) => {
+    return await runPaymentTransaction(db, async (tx) => {
       const attempt = await tx.paymentAttempt.findUnique({
         where: { balePayload: input.invoicePayload },
         include: { order: true },
@@ -233,7 +214,7 @@ export async function processBalePreCheckout(
       );
       if (!valid) return false;
       const owners = await tx.paymentAttempt.findMany({ where: { OR: [{ balePaymentId: input.id }] }, select: { id: true } });
-      if (owners.some((owner) => owner.id !== attempt.id)) return false;
+      if (owners.some((owner: { id: string }) => owner.id !== attempt.id)) return false;
       await tx.paymentAttempt.update({
         where: { id: attempt.id },
         data: { balePaymentId: input.id, balePreCheckoutAt: checkedAt },

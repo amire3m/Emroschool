@@ -2,27 +2,27 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
 
-import prisma from "../lib/prisma";
 import { generateToken } from "../lib/auth";
 import { POST as createPayment, GET as getPayments } from "../app/api/payments/route";
 import { POST as changeMethod } from "../app/api/payments/[id]/change-method/route";
 import { POST as expirePayment } from "../app/api/payments/[id]/expire/route";
+import { POST as submitReceipt } from "../app/api/payments/[id]/receipt/route";
 
 const token = generateToken({ id: "user-1", email: "user@example.com", role: "user" });
 process.env.PAYMENT_CARD_ENCRYPTION_KEY ||= "00".repeat(32);
 
-function request(url: string, method = "GET", body?: unknown) {
+function request(url: string, method = "GET", body?: unknown, authorization = `Bearer ${token}`) {
   return new NextRequest(url, {
     method,
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(authorization ? { Authorization: authorization } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
 
-function paymentApplication() {
+function paymentApplication(paymentOrder: unknown = null) {
   return {
     id: "application-1",
     userId: "user-1",
@@ -30,225 +30,387 @@ function paymentApplication() {
     discountCode: null,
     discountDocumentUrl: null,
     finalAmountTomans: 400_000,
-    paymentOrder: null,
+    paymentOrder,
     course: { id: "course-1", published: true, scheduleStatus: "upcoming" },
   };
 }
 
-async function captureCreatedPayment(method: "bale_wallet" | "card_to_card") {
-  const original = {
-    applicationFind: prisma.courseApplication.findUnique,
-    orderCreate: prisma.paymentOrder.create,
-    attemptFind: prisma.paymentAttempt.findFirst,
-    orderUpdate: prisma.paymentOrder.update,
-    settingsFind: prisma.paymentSettings.findUnique,
-  };
-  let createdData: any;
-  (prisma.courseApplication as any).findUnique = async () => paymentApplication();
-  (prisma.paymentOrder as any).create = async ({ data }: any) => {
-    createdData = data;
-    return { id: "order-1", ...data };
-  };
-  (prisma.paymentAttempt as any).findFirst = async () => ({ id: "attempt-1" });
-  (prisma.paymentOrder as any).update = async () => ({});
-  (prisma.paymentSettings as any).findUnique = async () => null;
-
-  try {
-    const response = await createPayment(request("http://localhost/api/payments", "POST", {
-      applicationId: "application-1",
-      method,
-      ...(method === "card_to_card" ? { payerCardNumber: "6037997512345670" } : {}),
-    }));
-    assert.equal(response.status, 201);
-    return createdData;
-  } finally {
-    (prisma.courseApplication as any).findUnique = original.applicationFind;
-    (prisma.paymentOrder as any).create = original.orderCreate;
-    (prisma.paymentAttempt as any).findFirst = original.attemptFind;
-    (prisma.paymentOrder as any).update = original.orderUpdate;
-    (prisma.paymentSettings as any).findUnique = original.settingsFind;
-  }
-}
-
-test("creates each Bale order and attempt with the same server-owned 15-minute deadline", async () => {
-  const before = Date.now();
-  const data = await captureCreatedPayment("bale_wallet");
-  const after = Date.now();
-
-  assert.ok(data.expiresAt instanceof Date);
-  assert.equal(data.attempts.create.expiresAt, data.expiresAt);
-  assert.ok(data.expiresAt.getTime() >= before + 15 * 60_000);
-  assert.ok(data.expiresAt.getTime() <= after + 15 * 60_000);
-});
-
-test("explicitly clears order and attempt deadlines for card-to-card creation", async () => {
-  const data = await captureCreatedPayment("card_to_card");
-
-  assert.equal(data.expiresAt, null);
-  assert.equal(data.attempts.create.expiresAt, null);
-});
-
-type ExpirationState = {
-  order: { id: string; userId: string; status: string; method: string; activeAttemptId: string; expiresAt: Date | null };
-  attempt: { id: string; status: string; method: string; expiresAt: Date | null; paidAt: Date | null };
-  attemptUpdates: number;
-  orderUpdates: number;
-};
-
-function expirationFixture(status = "pending", attemptStatus = "pending") {
-  const state: ExpirationState = {
-    order: { id: "order-1", userId: "user-1", status, method: "bale_wallet", activeAttemptId: "attempt-1", expiresAt: new Date("2026-08-10T12:15:00.000Z") },
-    attempt: { id: "attempt-1", status: attemptStatus, method: "bale_wallet", expiresAt: new Date("2026-08-10T12:15:00.000Z"), paidAt: attemptStatus === "paid" ? new Date("2026-08-10T12:15:00.000Z") : null },
-    attemptUpdates: 0,
-    orderUpdates: 0,
-  };
-  const tx = {
+function creationFixture(options: { failAttemptLookup?: boolean } = {}) {
+  const state: { order: any; attempt: any; transactions: number } = { order: null, attempt: null, transactions: 0 };
+  const db = {
+    courseApplication: { findUnique: async () => paymentApplication() },
+    paymentSettings: { findUnique: async () => null },
     paymentOrder: {
-      findFirst: async () => ({ ...state.order }),
+      create: async ({ data }: any) => {
+        state.order = { id: "order-1", ...data };
+        state.attempt = { id: "attempt-1", orderId: "order-1", ...data.attempts.create };
+        return { ...state.order };
+      },
       update: async ({ data }: any) => {
-        state.orderUpdates += 1;
         Object.assign(state.order, data);
         return { ...state.order };
       },
     },
     paymentAttempt: {
-      findUnique: async () => ({ ...state.attempt }),
-      update: async ({ data }: any) => {
-        state.attemptUpdates += 1;
-        Object.assign(state.attempt, data);
-        return { ...state.attempt };
+      findFirst: async () => {
+        if (options.failAttemptLookup) throw new Error("attempt lookup failed");
+        return state.attempt ? { ...state.attempt } : null;
       },
     },
+    $transaction: async (callback: (tx: any) => Promise<any>) => {
+      state.transactions += 1;
+      const draft = { order: state.order ? { ...state.order } : null, attempt: state.attempt ? { ...state.attempt } : null };
+      const tx = {
+        paymentOrder: {
+          create: async ({ data }: any) => {
+            draft.order = { id: "order-1", ...data };
+            draft.attempt = { id: "attempt-1", orderId: "order-1", ...data.attempts.create };
+            return { ...draft.order };
+          },
+          update: async ({ where, data }: any) => {
+            assert.equal(where.id, "order-1");
+            Object.assign(draft.order, data);
+            return { ...draft.order };
+          },
+        },
+        paymentAttempt: {
+          findFirst: async ({ where }: any) => {
+            if (options.failAttemptLookup) throw new Error("attempt lookup failed");
+            return draft.attempt?.orderId === where.orderId ? { ...draft.attempt } : null;
+          },
+        },
+      };
+      const result = await callback(tx);
+      state.order = draft.order;
+      state.attempt = draft.attempt;
+      return result;
+    },
   };
-  return { state, db: { $transaction: async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx) } };
+  return { state, db };
 }
 
-test("expires the active Bale attempt and order at the server deadline", async () => {
-  const { state, db } = expirationFixture();
+async function createWithFixture(method: "bale_wallet" | "card_to_card", fixture = creationFixture()) {
+  const now = new Date("2026-08-10T12:00:00.000Z");
+  const response = await createPayment(
+    request("http://localhost/api/payments", "POST", {
+      applicationId: "application-1",
+      method,
+      ...(method === "card_to_card" ? { payerCardNumber: "6037997512345670" } : {}),
+    }),
+    { params: {} },
+    { db: fixture.db, now: () => now, onError: () => undefined },
+  );
+  return { ...fixture, response, now };
+}
 
-  const first = await expirePayment(
-    request("http://localhost/api/payments/order-1/expire", "POST"),
-    { params: { id: "order-1" } },
-    { db, now: () => new Date("2026-08-10T12:15:00.000Z") },
-  );
-  const second = await expirePayment(
-    request("http://localhost/api/payments/order-1/expire", "POST"),
-    { params: { id: "order-1" } },
-    { db, now: () => new Date("2026-08-10T12:16:00.000Z") },
-  );
+test("atomically creates a Bale order, attempt, active pointer, and exact deadline", async () => {
+  const { state, response } = await createWithFixture("bale_wallet");
+
+  assert.equal(response.status, 201);
+  assert.equal(state.transactions, 1);
+  assert.equal(state.order.activeAttemptId, "attempt-1");
+  assert.equal(state.order.expiresAt.toISOString(), "2026-08-10T12:15:00.000Z");
+  assert.equal(state.attempt.expiresAt, state.order.expiresAt);
+});
+
+test("rolls back the initial order when active-attempt setup fails", async () => {
+  const fixture = creationFixture({ failAttemptLookup: true });
+  const { state, response } = await createWithFixture("bale_wallet", fixture);
+
+  assert.equal(response.status, 500);
+  assert.equal(state.order, null);
+  assert.equal(state.attempt, null);
+});
+
+test("explicitly clears order and attempt deadlines for card-to-card creation", async () => {
+  const { state, response } = await createWithFixture("card_to_card");
+
+  assert.equal(response.status, 201);
+  assert.equal(state.order.expiresAt, null);
+  assert.equal(state.attempt.expiresAt, null);
+});
+
+type PaymentState = {
+  order: any;
+  attempts: any[];
+  attemptUpdates: number;
+  orderUpdates: number;
+  transactions: number;
+};
+
+function transactionFixture(options: {
+  status?: string;
+  attemptStatus?: string;
+  activeAttemptId?: string;
+  attempts?: any[];
+  failures?: Error[];
+  afterFailure?: (state: PaymentState) => void;
+} = {}) {
+  const defaultAttempt = { id: "attempt-1", orderId: "order-1", sequence: 1, status: options.attemptStatus || "pending", method: "bale_wallet", expiresAt: new Date("2026-08-10T12:15:00.000Z"), paidAt: null, balePayload: "payment:PAY-1:old" };
+  const state: PaymentState = {
+    order: { id: "order-1", orderNumber: "PAY-1", userId: "user-1", status: options.status || "pending", method: "bale_wallet", amountTomans: 400_000, amountRials: 4_000_000, activeAttemptId: options.activeAttemptId === undefined ? "attempt-1" : options.activeAttemptId, expiresAt: new Date("2026-08-10T12:15:00.000Z") },
+    attempts: (options.attempts || [defaultAttempt]).map((attempt) => ({ ...attempt })),
+    attemptUpdates: 0,
+    orderUpdates: 0,
+    transactions: 0,
+  };
+  const failures = [...(options.failures || [])];
+
+  function txFor(draft: PaymentState) {
+    return {
+      paymentOrder: {
+        findFirst: async ({ where }: any) => draft.order.id === where.id && draft.order.userId === where.userId ? { ...draft.order } : null,
+        update: async ({ where, data }: any) => {
+          assert.equal(where.id, draft.order.id);
+          draft.orderUpdates += 1;
+          Object.assign(draft.order, data);
+          return { ...draft.order };
+        },
+      },
+      paymentAttempt: {
+        findFirst: async ({ where, orderBy }: any) => {
+          const matches = draft.attempts.filter((attempt) =>
+            (where.id === undefined || attempt.id === where.id) &&
+            (where.orderId === undefined || attempt.orderId === where.orderId),
+          );
+          if (orderBy?.sequence === "desc") matches.sort((a, b) => b.sequence - a.sequence);
+          return matches[0] ? { ...matches[0] } : null;
+        },
+        updateMany: async ({ where, data }: any) => {
+          assert.ok(where.id);
+          assert.ok(where.orderId);
+          const attempt = draft.attempts.find((item) => item.id === where.id && item.orderId === where.orderId);
+          if (!attempt) return { count: 0 };
+          draft.attemptUpdates += 1;
+          Object.assign(attempt, data);
+          return { count: 1 };
+        },
+        create: async ({ data }: any) => {
+          if (draft.attempts.some((attempt) => attempt.orderId === data.orderId && attempt.sequence === data.sequence)) {
+            throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+          }
+          const attempt = { id: `attempt-${data.sequence}`, ...data };
+          draft.attempts.push(attempt);
+          return { ...attempt };
+        },
+      },
+    };
+  }
+
+  const db = {
+    paymentSettings: { findUnique: async () => null },
+    paymentOrder: {
+      findMany: async () => [{ ...state.order, attempts: state.attempts.filter((attempt) => attempt.orderId === state.order.id).map((attempt) => ({ ...attempt })) }],
+    },
+    $transaction: async (callback: (tx: any) => Promise<any>) => {
+      state.transactions += 1;
+      const failure = failures.shift();
+      if (failure) {
+        options.afterFailure?.(state);
+        throw failure;
+      }
+      const draft: PaymentState = {
+        order: { ...state.order },
+        attempts: state.attempts.map((attempt) => ({ ...attempt })),
+        attemptUpdates: state.attemptUpdates,
+        orderUpdates: state.orderUpdates,
+        transactions: state.transactions,
+      };
+      const result = await callback(txFor(draft));
+      state.order = draft.order;
+      state.attempts = draft.attempts;
+      state.attemptUpdates = draft.attemptUpdates;
+      state.orderUpdates = draft.orderUpdates;
+      return result;
+    },
+  };
+  return { state, db };
+}
+
+const locked = () => Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+
+test("expiration retries contention and remains idempotent", async () => {
+  const { state, db } = transactionFixture({ failures: [locked()] });
+
+  const first = await expirePayment(request("http://localhost/api/payments/order-1/expire", "POST"), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T12:15:00.000Z") });
+  const second = await expirePayment(request("http://localhost/api/payments/order-1/expire", "POST"), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T12:16:00.000Z") });
 
   assert.equal(first.status, 200);
   assert.equal(second.status, 200);
-  assert.equal(state.attempt.status, "expired");
+  assert.equal(state.transactions, 3);
   assert.equal(state.order.status, "expired");
+  assert.equal(state.attempts[0].status, "expired");
   assert.equal(state.attemptUpdates, 1);
   assert.equal(state.orderUpdates, 1);
 });
 
-test("expiration re-read leaves a payment finalized at the deadline untouched", async () => {
-  const { state, db } = expirationFixture("paid", "paid");
-
-  const response = await expirePayment(
-    request("http://localhost/api/payments/order-1/expire", "POST"),
-    { params: { id: "order-1" } },
-    { db, now: () => new Date("2026-08-10T12:15:00.000Z") },
-  );
-  const body = await response.json();
-
-  assert.equal(body.order.status, "paid");
-  assert.equal(state.attempt.status, "paid");
-  assert.equal(state.attemptUpdates, 0);
-  assert.equal(state.orderUpdates, 0);
-});
-
-function restartFixture(targetMethod: "bale_wallet" | "card_to_card") {
-  const oldPayload = "payment:PAY-1:old";
-  const active = { id: "attempt-1", sequence: 1, method: "bale_wallet", status: "expired", balePayload: oldPayload };
-  let attemptData: any;
-  let orderData: any;
-  const tx = {
-    paymentOrder: {
-      findFirst: async () => ({ id: "order-1", orderNumber: "PAY-1", userId: "user-1", status: "expired", method: "bale_wallet", amountTomans: 400_000, amountRials: 4_000_000, attempts: [active] }),
-      update: async ({ data }: any) => {
-        orderData = data;
-        return { id: "order-1", ...data };
-      },
-    },
-    paymentAttempt: {
-      update: async () => { throw new Error("expired history must not be invalidated"); },
-      create: async ({ data }: any) => {
-        attemptData = data;
-        return { id: "attempt-2", ...data };
-      },
-    },
-  };
-  const db = {
-    $transaction: async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx),
-    paymentSettings: { findUnique: async () => null },
-  };
-  const body = targetMethod === "card_to_card" ? { method: targetMethod, payerCardNumber: "6037997512345670" } : { method: targetMethod };
-  return { oldPayload, body, db, attempt: () => attemptData, order: () => orderData };
-}
-
-test("restarts an expired Bale attempt with a new sequence, payload, and deadline", async () => {
-  const state = restartFixture("bale_wallet");
-
-  const response = await changeMethod(
-    request("http://localhost/api/payments/order-1/change-method", "POST", state.body),
-    { params: { id: "order-1" } },
-    { db: state.db, now: () => new Date("2026-08-10T13:00:00.000Z") },
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(state.attempt().sequence, 2);
-  assert.notEqual(state.attempt().balePayload, state.oldPayload);
-  assert.equal(state.attempt().expiresAt.toISOString(), "2026-08-10T13:15:00.000Z");
-  assert.equal(state.order().expiresAt, state.attempt().expiresAt);
-});
-
-test("switching an expired Bale order to card-to-card clears both deadlines", async () => {
-  const state = restartFixture("card_to_card");
-
-  const response = await changeMethod(
-    request("http://localhost/api/payments/order-1/change-method", "POST", state.body),
-    { params: { id: "order-1" } },
-    { db: state.db, now: () => new Date("2026-08-10T13:00:00.000Z") },
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(state.attempt().expiresAt, null);
-  assert.equal(state.order().expiresAt, null);
-});
-
-test("GET normalizes a stale pending Bale deadline before returning payment state", async () => {
-  const originalFindMany = prisma.paymentOrder.findMany;
-  const originalTransaction = prisma.$transaction;
-  const stale = { id: "order-1", userId: "user-1", status: "pending", method: "bale_wallet", activeAttemptId: "attempt-1", expiresAt: new Date(0), attempts: [{ id: "attempt-1", status: "pending", method: "bale_wallet", expiresAt: new Date(0) }] };
-  let reads = 0;
-  (prisma.paymentOrder as any).findMany = async () => {
-    reads += 1;
-    return [{ ...stale, attempts: stale.attempts.map((attempt) => ({ ...attempt })) }];
-  };
-  (prisma as any).$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
-    paymentOrder: {
-      findFirst: async () => ({ ...stale }),
-      update: async ({ data }: any) => Object.assign(stale, data),
-    },
-    paymentAttempt: {
-      findUnique: async () => ({ ...stale.attempts[0] }),
-      update: async ({ data }: any) => Object.assign(stale.attempts[0], data),
+test("a payment finalized during expiration contention wins at the deadline", async () => {
+  const { state, db } = transactionFixture({
+    failures: [locked()],
+    afterFailure: (current) => {
+      current.order.status = "paid";
+      current.attempts[0].status = "paid";
+      current.attempts[0].paidAt = new Date("2026-08-10T12:15:00.000Z");
     },
   });
 
-  try {
-    const response = await getPayments(request("http://localhost/api/payments?applicationId=application-1"));
-    const body = await response.json();
+  const response = await expirePayment(request("http://localhost/api/payments/order-1/expire", "POST"), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T12:15:00.000Z") });
+  const body = await response.json();
 
-    assert.equal(body.orders[0].status, "expired");
-    assert.equal(body.orders[0].attempts[0].status, "expired");
-    assert.equal(reads, 2);
-  } finally {
-    (prisma.paymentOrder as any).findMany = originalFindMany;
-    (prisma as any).$transaction = originalTransaction;
-  }
+  assert.equal(response.status, 200);
+  assert.equal(body.order.status, "paid");
+  assert.equal(state.attempts[0].status, "paid");
+  assert.equal(state.attemptUpdates, 0);
+});
+
+test("expiration never reads or mutates a foreign active attempt", async () => {
+  const foreign = { id: "attempt-foreign", orderId: "order-foreign", sequence: 9, status: "pending", method: "bale_wallet", expiresAt: new Date(0) };
+  const { state, db } = transactionFixture({ activeAttemptId: foreign.id, attempts: [foreign] });
+
+  const response = await expirePayment(request("http://localhost/api/payments/order-1/expire", "POST"), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T12:15:00.000Z") });
+
+  assert.equal(response.status, 200);
+  assert.equal(state.order.status, "pending");
+  assert.equal(state.attempts[0].status, "pending");
+  assert.equal(state.attemptUpdates, 0);
+});
+
+test("expiration rejects unauthenticated and foreign-order requests", async () => {
+  const { db } = transactionFixture();
+  const unauthorized = await expirePayment(request("http://localhost/api/payments/order-1/expire", "POST", undefined, ""), { params: { id: "order-1" } }, { db });
+  const foreign = await expirePayment(request("http://localhost/api/payments/order-foreign/expire", "POST"), { params: { id: "order-foreign" } }, { db });
+
+  assert.equal(unauthorized.status, 401);
+  assert.equal(foreign.status, 404);
+});
+
+test("restart uses activeAttemptId and preserves monotonic sequence", async () => {
+  const active = { id: "attempt-1", orderId: "order-1", sequence: 1, status: "expired", method: "bale_wallet", expiresAt: new Date(0), balePayload: "old" };
+  const later = { id: "attempt-3", orderId: "order-1", sequence: 3, status: "invalidated", method: "card_to_card", expiresAt: null };
+  const { state, db } = transactionFixture({ status: "expired", attempts: [active, later] });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "bale_wallet" }), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+
+  assert.equal(response.status, 200);
+  assert.equal(state.order.activeAttemptId, "attempt-4");
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-4")?.sequence, 4);
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-1")?.status, "expired");
+});
+
+test("restart recovers a malformed order without mutating a foreign active attempt", async () => {
+  const own = { id: "attempt-3", orderId: "order-1", sequence: 3, status: "pending", method: "bale_wallet", expiresAt: new Date(0) };
+  const foreign = { id: "attempt-foreign", orderId: "order-foreign", sequence: 20, status: "pending", method: "bale_wallet", expiresAt: new Date(0) };
+  const { state, db } = transactionFixture({ activeAttemptId: foreign.id, attempts: [own, foreign] });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "bale_wallet" }), { params: { id: "order-1" } }, { db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+
+  assert.equal(response.status, 200);
+  assert.equal(state.order.activeAttemptId, "attempt-4");
+  assert.equal(state.attempts.find((attempt) => attempt.id === foreign.id)?.status, "pending");
+  assert.equal(state.attempts.find((attempt) => attempt.id === "attempt-4")?.sequence, 4);
+});
+
+test("a concurrent restart loser refreshes state and returns a meaningful conflict", async () => {
+  const active = { id: "attempt-1", orderId: "order-1", sequence: 1, status: "expired", method: "bale_wallet", expiresAt: new Date(0) };
+  const fixture = transactionFixture({ status: "expired", attempts: [active], failures: [Object.assign(new Error("Unique constraint failed"), { code: "P2002" })], afterFailure: (state) => {
+    state.attempts.push({ id: "attempt-2", orderId: "order-1", sequence: 2, status: "pending", method: "bale_wallet", expiresAt: new Date("2026-08-10T13:15:00.000Z") });
+    state.order.status = "pending";
+    state.order.activeAttemptId = "attempt-2";
+  } });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "bale_wallet" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+  const body = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.match(body.error, /دوباره|همزمان/);
+  assert.equal(fixture.state.attempts.filter((attempt) => attempt.orderId === "order-1").length, 2);
+  assert.equal(fixture.state.order.activeAttemptId, "attempt-2");
+});
+
+test("a concurrent different-method winner is not overwritten after restart retry", async () => {
+  const active = { id: "attempt-1", orderId: "order-1", sequence: 1, status: "expired", method: "bale_wallet", expiresAt: new Date(0) };
+  const fixture = transactionFixture({ status: "expired", attempts: [active], failures: [Object.assign(new Error("Transaction conflict"), { code: "P2034" })], afterFailure: (state) => {
+    state.attempts.push({ id: "attempt-2", orderId: "order-1", sequence: 2, status: "awaiting_receipt", method: "card_to_card", expiresAt: null });
+    state.order.status = "awaiting_receipt";
+    state.order.method = "card_to_card";
+    state.order.activeAttemptId = "attempt-2";
+  } });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "bale_wallet" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+
+  assert.equal(response.status, 409);
+  assert.equal(fixture.state.order.method, "card_to_card");
+  assert.equal(fixture.state.order.activeAttemptId, "attempt-2");
+  assert.equal(fixture.state.attempts.length, 2);
+});
+
+test("exhausted restart uniqueness conflicts return 409 instead of an opaque server error", async () => {
+  const conflict = () => Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+  const active = { id: "attempt-1", orderId: "order-1", sequence: 1, status: "expired", method: "bale_wallet", expiresAt: new Date(0) };
+  const fixture = transactionFixture({ status: "expired", attempts: [active], failures: [conflict(), conflict(), conflict()] });
+
+  const response = await changeMethod(request("http://localhost/api/payments/order-1/change-method", "POST", { method: "bale_wallet" }), { params: { id: "order-1" } }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+
+  assert.equal(response.status, 409);
+  assert.equal(fixture.state.order.activeAttemptId, "attempt-1");
+  assert.equal(fixture.state.attempts.length, 1);
+});
+
+test("GET retries stale normalization and returns paid when finalization wins", async () => {
+  const fixture = transactionFixture({ failures: [locked()], afterFailure: (state) => {
+    state.order.status = "paid";
+    state.attempts[0].status = "paid";
+  } });
+  fixture.state.order.expiresAt = new Date(0);
+  fixture.state.attempts[0].expiresAt = new Date(0);
+
+  const response = await getPayments(request("http://localhost/api/payments?applicationId=application-1"), { params: {} }, { db: fixture.db, now: () => new Date("2026-08-10T13:00:00.000Z") });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.orders[0].status, "paid");
+  assert.equal(body.orders[0].attempts[0].status, "paid");
+  assert.equal(fixture.state.transactions, 2);
+  assert.equal(fixture.state.attemptUpdates, 0);
+});
+
+test("receipt submission never mutates an active attempt owned by another order", async () => {
+  const order = { id: "order-1", orderNumber: "PAY-1", userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign" };
+  const foreign = { id: "attempt-foreign", orderId: "order-foreign", status: "awaiting_receipt" };
+  const form = new FormData();
+  form.set("file", new File([new Uint8Array([1, 2, 3])], "receipt.png", { type: "image/png" }));
+  const receiptRequest = new NextRequest("http://localhost/api/payments/order-1/receipt", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+  const db = {
+    paymentOrder: { findFirst: async () => ({ ...order }) },
+    paymentSettings: { findUnique: async () => null },
+    $transaction: async (callback: (tx: any) => Promise<any>) => callback({
+      paymentOrder: {
+        findUnique: async () => ({ ...order }),
+        update: async ({ data }: any) => ({ ...order, ...data }),
+      },
+      paymentAttempt: {
+        findFirst: async ({ where }: any) => {
+          assert.deepEqual(where, { id: "attempt-foreign", orderId: "order-1" });
+          return null;
+        },
+        updateMany: async () => {
+          foreign.status = "mutated";
+          return { count: 1 };
+        },
+      },
+    }),
+  };
+
+  const response = await submitReceipt(receiptRequest, { params: { id: "order-1" } }, {
+    db,
+    mkdir: async () => undefined,
+    writeFile: async () => undefined,
+    randomUUID: () => "receipt-id",
+    now: () => new Date("2026-08-10T13:00:00.000Z"),
+    sendMessage: async () => undefined,
+    onError: () => undefined,
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(foreign.status, "awaiting_receipt");
 });

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 import { isExpired } from "@/lib/bale-payment-domain";
 import { NextRequest, NextResponse } from "next/server";
+import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 type ExpirationDependencies = { db: any; now: () => Date };
 
@@ -18,13 +19,14 @@ export async function POST(
   const dependencies = { ...defaultDependencies, ...overrides };
   try {
     const now = dependencies.now();
-    const order = await dependencies.db.$transaction(async (tx: any) => {
+    const order = await runPaymentTransaction(dependencies.db, async (tx) => {
       const current = await tx.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
       if (!current) throw new Error("NOT_FOUND");
       if (current.status === "paid" || current.method !== "bale_wallet" || current.status !== "pending" || !(current.expiresAt instanceof Date) || !isExpired(current.expiresAt, now)) return current;
-      const attempt = current.activeAttemptId ? await tx.paymentAttempt.findUnique({ where: { id: current.activeAttemptId } }) : null;
+      const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
       if (!attempt || attempt.status === "paid" || attempt.method !== "bale_wallet" || attempt.status !== "pending" || !(attempt.expiresAt instanceof Date) || !isExpired(attempt.expiresAt, now)) return current;
-      await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "expired", invalidatedAt: now } });
+      const updated = await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { status: "expired", invalidatedAt: now } });
+      if (updated.count !== 1) throw Object.assign(new Error("Active attempt changed"), { code: "P2034" });
       return tx.paymentOrder.update({ where: { id: current.id }, data: { status: "expired" } });
     });
     return NextResponse.json({ order });
