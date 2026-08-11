@@ -225,6 +225,35 @@ model Course {
   instructorId  String?
   instructorProfile Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   instructors CourseInstructor[]
+  chapters CourseChapter[]
+}
+
+model CourseChapter {
+  id        String   @id @default(cuid())
+  title     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons  CourseLesson[]
+
+  @@index([courseId, order])
+}
+
+model CourseLesson {
+  id              String   @id @default(cuid())
+  title           String
+  durationMinutes Int?
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  chapterId String
+  chapter   CourseChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId, order])
 }
 
 model CourseInstructor {
