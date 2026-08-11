@@ -1,28 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import {
+  createLocationRequestOwner,
+  parseCityResponse,
+  parseProvinceResponse,
+  readLocationResponse,
+  startLocationLoad,
+} from "@/lib/iran-location-client";
 
 interface Province { id: number; name: string; }
+
+export function IranLocationError({ message }: { message: string }) {
+  return message
+    ? <p role="alert" className="-mt-2 text-xs font-normal text-error md:col-span-2">{message}</p>
+    : null;
+}
 
 export default function IranLocationFields({ province, city, onChange }: { province: string; city: string; onChange: (values: { province: string; city: string }) => void }) {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
+  const [provinceError, setProvinceError] = useState("");
+  const [cityError, setCityError] = useState("");
   const [provinceSearch, setProvinceSearch] = useState("");
   const [citySearch, setCitySearch] = useState("");
   const [showProvinces, setShowProvinces] = useState(false);
   const [showCities, setShowCities] = useState(false);
+  const [provinceRequestOwner] = useState(createLocationRequestOwner);
+  const [cityRequestOwner] = useState(createLocationRequestOwner);
   const provinceId = provinces.find((item) => item.name === province)?.id;
 
-  useEffect(() => { fetch("/api/locations").then((response) => response.json()).then((data) => setProvinces(data.provinces || [])).catch(() => {}); }, []);
   useEffect(() => {
-    if (!provinceId) { setCities([]); return; }
-    setLoadingCities(true);
-    fetch(`/api/locations?provinceId=${provinceId}`).then((response) => response.json()).then((data) => setCities(data.cities || [])).catch(() => setCities([])).finally(() => setLoadingCities(false));
-  }, [provinceId]);
+    const load = startLocationLoad({
+      owner: provinceRequestOwner,
+      errorMessage: "دریافت فهرست استان‌ها ناموفق بود",
+      load: (signal) => readLocationResponse(
+        fetch("/api/locations", { signal }),
+        parseProvinceResponse,
+        signal,
+      ),
+      onStart: () => setProvinceError(""),
+      onSuccess: (nextProvinces) => {
+        setProvinces(nextProvinces);
+        setProvinceError("");
+      },
+      onError: (message) => {
+        setProvinces([]);
+        setProvinceError(message);
+      },
+      onComplete: () => {},
+    });
+    return load.cancel;
+  }, [provinceRequestOwner]);
+  useEffect(() => {
+    setCities([]);
+    setCitySearch("");
+    setShowCities(false);
+    if (!provinceId) {
+      cityRequestOwner.cancel();
+      setLoadingCities(false);
+      setCityError("");
+      return;
+    }
+    const load = startLocationLoad({
+      owner: cityRequestOwner,
+      errorMessage: "دریافت فهرست شهرها ناموفق بود",
+      load: (signal) => readLocationResponse(
+        fetch(`/api/locations?provinceId=${provinceId}`, { signal }),
+        parseCityResponse,
+        signal,
+      ),
+      onStart: () => {
+        setCityError("");
+        setLoadingCities(true);
+      },
+      onSuccess: (nextCities) => {
+        setCities(nextCities);
+        setCityError("");
+      },
+      onError: (message) => {
+        setCities([]);
+        onChange({ province, city: "" });
+        setCityError(message);
+      },
+      onComplete: () => setLoadingCities(false),
+    });
+    return load.cancel;
+  }, [provinceId, cityRequestOwner]);
 
   const inputClass = "mt-1.5 w-full rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-secondary-fixed disabled:cursor-not-allowed disabled:bg-surface-low";
   const filteredProvinces = provinces.filter((item) => item.name.includes(provinceSearch));
   const filteredCities = cities.filter((name) => name.includes(citySearch));
-  return <><label className="relative text-sm font-bold text-primary">استان *<input value={showProvinces ? provinceSearch : province} onFocus={() => { setProvinceSearch(""); setShowProvinces(true); }} onChange={(event) => { setProvinceSearch(event.target.value); setShowProvinces(true); }} placeholder="جستجو و انتخاب استان" className={inputClass} />{showProvinces && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1 shadow-lg">{filteredProvinces.map((item) => <button type="button" key={item.id} onClick={() => { onChange({ province: item.name, city: "" }); setShowProvinces(false); }} className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-surface-low">{item.name}</button>)}{filteredProvinces.length === 0 && <p className="p-3 text-center text-xs text-outline">استانی پیدا نشد</p>}</div>}</label><label className="relative text-sm font-bold text-primary">شهر *<input value={showCities ? citySearch : city} disabled={!provinceId || loadingCities} onFocus={() => { setCitySearch(""); setShowCities(true); }} onChange={(event) => { setCitySearch(event.target.value); setShowCities(true); }} placeholder={loadingCities ? "در حال دریافت شهرها..." : provinceId ? "جستجو و انتخاب شهر" : "ابتدا استان را انتخاب کنید"} className={inputClass} />{showCities && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1 shadow-lg">{filteredCities.map((name) => <button type="button" key={name} onClick={() => { onChange({ province, city: name }); setShowCities(false); }} className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-surface-low">{name}</button>)}{filteredCities.length === 0 && <p className="p-3 text-center text-xs text-outline">شهری پیدا نشد</p>}</div>}</label></>;
+  const locationError = provinceError || cityError;
+  return <><label className="relative text-sm font-bold text-primary">استان *<input value={showProvinces ? provinceSearch : province} onFocus={() => { setProvinceSearch(""); setShowProvinces(true); }} onChange={(event) => { setProvinceSearch(event.target.value); setShowProvinces(true); }} placeholder="جستجو و انتخاب استان" className={inputClass} />{showProvinces && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1 shadow-lg">{filteredProvinces.map((item) => <button type="button" key={item.id} onClick={() => { onChange({ province: item.name, city: "" }); setShowProvinces(false); }} className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-surface-low">{item.name}</button>)}{filteredProvinces.length === 0 && <p className="p-3 text-center text-xs text-outline">استانی پیدا نشد</p>}</div>}</label><label className="relative text-sm font-bold text-primary">شهر *<input value={showCities ? citySearch : city} disabled={!provinceId || loadingCities} onFocus={() => { setCitySearch(""); setShowCities(true); }} onChange={(event) => { setCitySearch(event.target.value); setShowCities(true); }} placeholder={loadingCities ? "در حال دریافت شهرها..." : provinceId ? "جستجو و انتخاب شهر" : "ابتدا استان را انتخاب کنید"} className={inputClass} />{showCities && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1 shadow-lg">{filteredCities.map((name) => <button type="button" key={name} onClick={() => { onChange({ province, city: name }); setShowCities(false); }} className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-surface-low">{name}</button>)}{filteredCities.length === 0 && <p className="p-3 text-center text-xs text-outline">شهری پیدا نشد</p>}</div>}</label><IranLocationError message={locationError} /></>;
 }

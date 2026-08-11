@@ -9,13 +9,20 @@ import {
   isValidIranianNationalCode,
   normalizeIranianNationalCode,
 } from "@/lib/iranian-national-code";
-import IranLocationFields from "@/components/ui/iran-location-fields";
+import CourseRegistrationLocationFields, {
+  startCourseTehranDistrictLoad,
+} from "@/components/courses/course-registration-location-fields";
 import {
   getIranianMobileOperator,
   isValidIranianMobile,
   normalizeIranianMobile,
 } from "@/lib/iranian-mobile";
 import { defaultRegistrationForm, RegistrationFormSchema } from "@/lib/registration-form";
+import {
+  createLocationRequestOwner,
+  parseTehranDistrictResponse,
+  readLocationResponse,
+} from "@/lib/iran-location-client";
 
 const initialForm = {
   fullName: "",
@@ -45,6 +52,14 @@ const initialForm = {
 };
 type FormData = typeof initialForm;
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function profileString(user: Record<string, unknown>, key: string): string {
+  return typeof user[key] === "string" ? user[key] : "";
+}
+
 export default function CourseRegistrationModal({
   courseId,
   courseTitle,
@@ -68,6 +83,7 @@ export default function CourseRegistrationModal({
   const [discountCode, setDiscountCode] = useState("");
   const [discountDocument, setDiscountDocument] = useState<File | null>(null);
   const [tehranDistricts, setTehranDistricts] = useState<Record<string, string[]>>({});
+  const [tehranDistrictError, setTehranDistrictError] = useState("");
   const [universities, setUniversities] = useState<string[]>([]);
   const [universitySearch, setUniversitySearch] = useState("");
   const [showUniversities, setShowUniversities] = useState(false);
@@ -78,40 +94,51 @@ export default function CourseRegistrationModal({
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const token = getCookie("token");
-    fetch("/api/user/profile", {
-      headers: { authorization: `Bearer ${token || ""}` },
-    })
-      .then((response) => response.json())
-      .then(({ user }) => {
-        if (user)
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/user/profile", {
+          headers: { authorization: `Bearer ${token || ""}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Failed to load profile");
+        const data: unknown = await response.json();
+        if (!isPlainObject(data) || !isPlainObject(data.user)) throw new TypeError("Invalid profile response");
+        const user = data.user;
+        if (!controller.signal.aborted) {
           setForm({
-            fullName: user.name || "",
-            email: user.email || "",
-            phone: normalizeIranianMobile(user.phone || ""),
-            nationalCode: user.nationalCode || "",
-            birthDate: user.birthDate || "",
-            gender: user.gender || "",
-            province: user.province || "",
-            city: user.city || "",
-            district: user.district || "",
-            neighborhood: user.neighborhood || "",
-            address: user.address || "",
-            postalCode: user.postalCode || "",
-            workHistory: user.workHistory || "",
-            artHistory: user.artHistory || "",
-            educationLevel: user.educationLevel || "",
-            educationField: user.educationField || "",
-            university: user.university || "",
-            universityField: user.universityField || "",
+            fullName: profileString(user, "name"),
+            email: profileString(user, "email"),
+            phone: normalizeIranianMobile(profileString(user, "phone")),
+            nationalCode: profileString(user, "nationalCode"),
+            birthDate: profileString(user, "birthDate"),
+            gender: profileString(user, "gender"),
+            province: profileString(user, "province"),
+            city: profileString(user, "city"),
+            district: profileString(user, "district"),
+            neighborhood: profileString(user, "neighborhood"),
+            address: profileString(user, "address"),
+            postalCode: profileString(user, "postalCode"),
+            workHistory: profileString(user, "workHistory"),
+            artHistory: profileString(user, "artHistory"),
+            educationLevel: profileString(user, "educationLevel"),
+            educationField: profileString(user, "educationField"),
+            university: profileString(user, "university"),
+            universityField: profileString(user, "universityField"),
             reason: "",
             knowsInstructors: false,
             familiarityDetails: "",
-            instagramId: user.instagramId || "",
-            virtualPhone: user.virtualPhone || user.phone || "",
-            landline: user.landline || "",
+            instagramId: profileString(user, "instagramId"),
+            virtualPhone: profileString(user, "virtualPhone") || profileString(user, "phone"),
+            landline: profileString(user, "landline"),
           });
-      })
-      .finally(() => setLoading(false));
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
     fetch("/api/discount-codes")
       .then((response) => response.json())
       .then(({ discountCodes }) =>
@@ -126,10 +153,22 @@ export default function CourseRegistrationModal({
             : [],
         ),
       );
-    fetch("/api/tehran-neighborhoods").then((response) => response.json()).then((data) => setTehranDistricts(data.districts || {})).catch(() => {});
+    const tehranOwner = createLocationRequestOwner();
+    const tehranLoad = startCourseTehranDistrictLoad({
+      owner: tehranOwner,
+      load: (signal) => readLocationResponse(
+        fetch("/api/tehran-neighborhoods", { signal }),
+        parseTehranDistrictResponse,
+        signal,
+      ),
+      onDistrictsChange: setTehranDistricts,
+      onErrorChange: setTehranDistrictError,
+    });
     fetch("/api/universities").then((response) => response.json()).then((data) => setUniversities(data.universities || [])).catch(() => {});
     fetch(`/api/registration-form?courseId=${courseId}`).then((response) => response.json()).then((data) => { if (data.schema) setFormSchema(data.schema); }).catch(() => {});
     return () => {
+      controller.abort();
+      tehranLoad.cancel();
       document.body.style.overflow = "";
     };
   }, []);
@@ -342,14 +381,15 @@ export default function CourseRegistrationModal({
                           : "شماره موبایل معتبر نیست"}
                     </span>
                   </label>
-                  <IranLocationFields
-                    province={form.province}
-                    city={form.city}
-                    onChange={({ province, city }) =>
-                      setForm((current) => ({ ...current, province, city, district: province === "تهران" && city === "تهران" ? current.district : "", neighborhood: province === "تهران" && city === "تهران" ? current.neighborhood : "" }))
+                  <CourseRegistrationLocationFields
+                    districts={tehranDistricts}
+                    districtError={tehranDistrictError}
+                    value={form}
+                    onChange={(location) =>
+                      setForm((current) => ({ ...current, ...location }))
                     }
+                    inputClassName={inputClass}
                   />
-                  {isTehran && <><label className="text-sm font-bold text-primary">منطقه محل سکونت *<select value={form.district} onChange={(event) => setForm((current) => ({ ...current, district: event.target.value, neighborhood: "" }))} className={inputClass}><option value="">انتخاب منطقه</option>{Object.keys(tehranDistricts).map((district) => <option key={district} value={district}>{district}</option>)}</select></label><label className="text-sm font-bold text-primary">محله محل سکونت *<select value={form.neighborhood} disabled={!form.district} onChange={(event) => update("neighborhood", event.target.value)} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-surface-low`}><option value="">{form.district ? "انتخاب محله" : "ابتدا منطقه را انتخاب کنید"}</option>{(tehranDistricts[form.district] || []).map((neighborhood) => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}</select></label></>}
                   <label className="text-sm font-bold text-primary">
                     کد ملی *
                     <input

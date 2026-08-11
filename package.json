@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --require ./tests/server-only-test-register.cjs --test tests/*.test.ts",
     "db:push": "npx prisma db push",
     "db:seed": "npx tsx lib/seed.ts",
     "db:sync-categories": "npx tsx lib/sync-categories.ts",
@@ -36,6 +36,7 @@
     "react-hot-toast": "^2.4.1",
     "react-multi-date-picker": "^4.5.2",
     "react-player": "^2.15.0",
+    "server-only": "^0.0.1",
     "shaba": "^1.0.1",
     "xlsx": "^0.18.5",
     "zustand": "^4.5.0"

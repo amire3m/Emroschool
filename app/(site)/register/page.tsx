@@ -6,10 +6,18 @@ import Link from "next/link";
 import { CheckCircle2, ChevronLeft, KeyRound, Loader2, Mail, MapPin, Phone, User } from "lucide-react";
 import { getCookie, setCookie } from "@/lib/cookie";
 import AvatarUpload from "@/components/profile/avatar-upload";
+import StandaloneRegistrationLocationFields from "@/components/auth/standalone-registration-location-fields";
+import {
+  createLocationRequestOwner,
+  parseCityResponse,
+  parseProvinceResponse,
+  parseTehranDistrictResponse,
+  readLocationResponse,
+  startLocationLoad,
+} from "@/lib/iran-location-client";
 
 type VerificationMethod = "email" | "bale" | "sms" | "call";
 type Province = { id: number; name: string };
-type TehranDistrict = { name?: string; district?: string; neighborhoods?: string[]; areas?: string[] };
 
 const discoveryOptions = ["دوستان و آشنایان", "گوگل", "اینستاگرام", "پیام‌رسان‌ها", "تبلیغات", "سایر"];
 
@@ -30,14 +38,17 @@ export default function RegisterPage() {
   const [cities, setCities] = useState<string[]>([]);
   const [province, setProvince] = useState("");
   const [city, setCity] = useState("");
-  const [districts, setDistricts] = useState<TehranDistrict[]>([]);
+  const [districts, setDistricts] = useState<Record<string, string[]>>({});
   const [district, setDistrict] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [discoverySource, setDiscoverySource] = useState("");
   const [avatar, setAvatar] = useState("");
   const [error, setError] = useState("");
+  const [locationError, setLocationError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [provinceRequestOwner] = useState(createLocationRequestOwner);
+  const [locationRequestOwner] = useState(createLocationRequestOwner);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("google") !== "1") return;
@@ -60,20 +71,78 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (step !== "details") return;
-    fetch("/api/locations").then((res) => res.json()).then((data) => setProvinces(data.provinces || [])).catch(() => setError("دریافت فهرست استان‌ها ناموفق بود"));
-  }, [step]);
+    const load = startLocationLoad({
+      owner: provinceRequestOwner,
+      errorMessage: "دریافت فهرست استان‌ها ناموفق بود",
+      load: (signal) => readLocationResponse(
+        fetch("/api/locations", { signal }),
+        parseProvinceResponse,
+        signal,
+      ),
+      onStart: () => setLocationError(""),
+      onSuccess: (nextProvinces) => {
+        setProvinces(nextProvinces);
+        setLocationError("");
+      },
+      onError: (message) => {
+        setProvinces([]);
+        setLocationError(message);
+      },
+      onComplete: () => {},
+    });
+    return load.cancel;
+  }, [step, provinceRequestOwner]);
 
   useEffect(() => {
-    if (!province) return setCities([]);
+    setCities([]); setDistricts({}); setCity(""); setDistrict(""); setNeighborhood("");
+    if (!province) {
+      locationRequestOwner.cancel();
+      setLocationError("");
+      return;
+    }
     const selected = provinces.find((item) => item.name === province);
-    if (!selected) return;
-    setCity(""); setDistrict(""); setNeighborhood("");
-    fetch(`/api/locations?provinceId=${selected.id}`).then((res) => res.json()).then((data) => setCities(data.cities || [])).catch(() => setError("دریافت فهرست شهرها ناموفق بود"));
-    if (province === "تهران") fetch("/api/tehran-neighborhoods").then((res) => res.json()).then((data) => setDistricts(data.districts || [])).catch(() => setError("دریافت فهرست مناطق تهران ناموفق بود"));
-  }, [province, provinces]);
+    if (!selected) {
+      locationRequestOwner.cancel();
+      return;
+    }
 
-  const selectedDistrict = districts.find((item) => (item.name || item.district) === district);
-  const neighborhoods = selectedDistrict?.neighborhoods || selectedDistrict?.areas || [];
+    const load = startLocationLoad({
+      owner: locationRequestOwner,
+      errorMessage: "دریافت فهرست شهرها ناموفق بود",
+      load: async (signal) => {
+        const citiesPromise = readLocationResponse(
+          fetch(`/api/locations?provinceId=${selected.id}`, { signal }),
+          parseCityResponse,
+          signal,
+          "دریافت فهرست شهرها ناموفق بود",
+        );
+        const districtsPromise = province === "تهران"
+          ? readLocationResponse(
+              fetch("/api/tehran-neighborhoods", { signal }),
+              parseTehranDistrictResponse,
+              signal,
+              "دریافت فهرست مناطق تهران ناموفق بود",
+            )
+          : Promise.resolve<Record<string, string[]>>({});
+        const [nextCities, nextDistricts] = await Promise.all([citiesPromise, districtsPromise]);
+        return { nextCities, nextDistricts };
+      },
+      onStart: () => setLocationError(""),
+      onSuccess: ({ nextCities, nextDistricts }) => {
+        setCities(nextCities);
+        setDistricts(nextDistricts);
+        setLocationError("");
+      },
+      onError: (message) => {
+        setCities([]); setDistricts({}); setCity(""); setDistrict(""); setNeighborhood("");
+        setLocationError(message);
+      },
+      onComplete: () => {},
+    });
+
+    return load.cancel;
+  }, [province, provinces, locationRequestOwner]);
+
   const clearMessages = () => { setError(""); setNotice(""); };
 
   async function createAccount(event: FormEvent) {
@@ -120,7 +189,7 @@ export default function RegisterPage() {
   async function saveDetails(event: FormEvent) {
     event.preventDefault(); clearMessages();
     if (!province || !city || !discoverySource) return setError("استان، شهر و نحوه آشنایی با سایت را انتخاب کنید");
-    if (province === "تهران" && (!district || !neighborhood)) return setError("برای تهران، منطقه و محله را انتخاب کنید");
+    if (province === "تهران" && city === "تهران" && (!district || !neighborhood.trim())) return setError("برای تهران، منطقه را انتخاب و محله را وارد کنید");
     setLoading(true);
     try {
       const res = await fetch("/api/auth/complete-registration", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ province, city, district, neighborhood, discoverySource }) });
@@ -130,14 +199,15 @@ export default function RegisterPage() {
 
   function finish() { window.dispatchEvent(new Event("profile-updated")); router.push("/dashboard"); }
   const stepNumber = step === "account" ? 1 : step === "verify" ? 2 : step === "details" ? 3 : 4;
+  const displayedError = error || locationError;
 
   return <main className="min-h-[calc(100vh-96px)] bg-surface px-4 py-24"><div className="mx-auto w-full max-w-xl rounded-3xl border border-outline-variant/30 bg-white p-6 shadow-sm md:p-9">
     <div className="mb-8 text-center"><h1 className="text-2xl font-black text-primary">ایجاد حساب کاربری</h1><p className="mt-2 text-sm text-outline">مرحله {stepNumber} از 4</p><div className="mt-4 flex gap-2">{[1, 2, 3, 4].map((item) => <span key={item} className={`h-1.5 flex-1 rounded-full ${item <= stepNumber ? "bg-secondary" : "bg-outline-variant/30"}`} />)}</div></div>
-    {(error || notice) && <div className={`mb-6 flex gap-2 rounded-xl px-4 py-3 text-sm ${error ? "bg-error-container text-error" : "bg-green-50 text-green-800"}`}>{error ? <KeyRound size={17} /> : <CheckCircle2 size={17} />}{error || notice}</div>}
+    {(displayedError || notice) && <div className={`mb-6 flex gap-2 rounded-xl px-4 py-3 text-sm ${displayedError ? "bg-error-container text-error" : "bg-green-50 text-green-800"}`}>{displayedError ? <KeyRound size={17} /> : <CheckCircle2 size={17} />}{displayedError || notice}</div>}
     {step === "account" && <form onSubmit={createAccount} className="space-y-5">{googleRegistration && <p className="rounded-xl bg-green-50 p-3 text-sm leading-6 text-green-800">ایمیل شما توسط گوگل تأیید شده است. برای تکمیل ثبت‌نام، اطلاعات زیر را وارد کنید.</p>}<Field label="نام و نام خانوادگی"><input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="محمدرضا حسینی" /></Field><fieldset><legend className="mb-2 block text-sm font-bold text-primary">جنسیت</legend><div className="grid grid-cols-2 gap-3">{[["male", "آقا"], ["female", "خانم"]].map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${gender === value ? "border-primary bg-primary text-white" : "border-outline-variant text-primary"}`}><input className="sr-only" type="radio" name="gender" checked={gender === value} onChange={() => setGender(value)} />{label}</label>)}</div></fieldset><Field label="شماره تلفن همراه"><input dir="ltr" inputMode="numeric" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="09123456789" /></Field><Field label="ایمیل"><input readOnly={googleRegistration} dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="example@email.com" /></Field>{!googleRegistration && <><Field label="رمز عبور"><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></Field><Field label="تکرار رمز عبور"><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" /></Field></>}<Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
     {step === "verify" && !method && <div className="space-y-3"><p className="text-center text-sm leading-7 text-outline">حداقل یکی از روش‌ها را تأیید کنید.</p><VerificationButton icon={<Mail />} title="تأیید ایمیل" description={email} onClick={() => sendCode("email")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیام‌رسان بله" description="کد در پیام‌رسان بله ارسال می‌شود" onClick={() => sendCode("bale")} disabled={loading} /><VerificationButton icon={<Phone />} title="تأیید با پیامک" description="کد به شماره همراه ارسال می‌شود" onClick={() => sendCode("sms")} disabled={loading} /><VerificationButton icon={<Phone />} title="تماس گویای کد" description="در صورت نرسیدن پیامک، کد را تلفنی دریافت کنید" onClick={() => sendCode("call")} disabled={loading} /></div>}
     {step === "verify" && method && <form onSubmit={verifyCode} className="space-y-5"><div className="text-center"><KeyRound className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">کد تأیید را وارد کنید</h2><p className="mt-1 text-sm text-outline">{method === "email" ? email : phone}</p></div><Field label="کد شش‌رقمی"><input dir="ltr" inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value)} maxLength={6} className="text-center tracking-[0.5em]" /></Field><Submit loading={loading}>تأیید و ادامه <ChevronLeft size={18} /></Submit><button type="button" onClick={() => { clearMessages(); setMethod(null); }} className="w-full text-sm font-bold text-secondary">تغییر روش تأیید</button></form>}
-    {step === "details" && <form onSubmit={saveDetails} className="space-y-5"><div className="text-center"><MapPin className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">اطلاعات تکمیلی</h2></div><Select label="استان" value={province} onChange={setProvince} options={provinces.map((item) => item.name)} /><Select label="شهر" value={city} onChange={setCity} options={cities} disabled={!province} />{province === "تهران" && <><Select label="منطقه" value={district} onChange={(value) => { setDistrict(value); setNeighborhood(""); }} options={districts.map((item) => item.name || item.district || "").filter(Boolean)} /><Select label="محله" value={neighborhood} onChange={setNeighborhood} options={neighborhoods} disabled={!district} /></>}<Select label="چطور با سایت ما آشنا شدید؟" value={discoverySource} onChange={setDiscoverySource} options={discoveryOptions} /><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
+    {step === "details" && <form onSubmit={saveDetails} className="space-y-5"><div className="text-center"><MapPin className="mx-auto text-secondary" size={32} /><h2 className="mt-3 font-bold text-primary">اطلاعات تکمیلی</h2></div><StandaloneRegistrationLocationFields provinces={provinces} cities={cities} districts={districts} value={{ province, city, district, neighborhood }} onChange={(value) => { setProvince(value.province); setCity(value.city); setDistrict(value.district); setNeighborhood(value.neighborhood); }} /><Select label="چطور با سایت ما آشنا شدید؟" value={discoverySource} onChange={setDiscoverySource} options={discoveryOptions} /><Submit loading={loading}>ادامه <ChevronLeft size={18} /></Submit></form>}
     {step === "avatar" && <div className="space-y-6 text-center"><User className="mx-auto text-secondary" size={32} /><div><h2 className="font-bold text-primary">تصویر پروفایل</h2><p className="mt-2 text-sm leading-7 text-outline">برای صدور گواهی پایان دوره، داشتن تصویر پروفایل مناسب الزامی است. می‌توانید اکنون تصویر را انتخاب کنید یا بعداً از بخش پروفایل آن را تکمیل کنید.</p></div><div className="flex justify-center text-right"><AvatarUpload value={avatar} onChange={(url) => setAvatar(url)} /></div><button type="button" onClick={finish} className="w-full rounded-xl bg-primary py-3.5 font-bold text-white">{avatar ? "پایان ثبت‌نام" : "بعداً انتخاب می‌کنم"}</button></div>}
     <p className="mt-7 text-center text-sm text-outline">حساب دارید؟ <Link className="font-bold text-secondary" href="/login">وارد شوید</Link></p>
   </div></main>;

@@ -72,7 +72,7 @@ Automated tests must prove:
 - API routes return the existing contracts and make no network requests.
 - The registration district/neighborhood projection accepts the object contract and cannot call array methods on it.
 - Rapid province changes cannot commit stale city results.
-- Production source contains no runtime GitHub/Gist URL for location data.
+- Production source contains no runtime GitHub/Gist URL for province, city, or Tehran district location data. Unrelated data such as `/api/universities` remains outside this scope.
 
 Malformed repository snapshots are build/test failures, not runtime fallbacks. We do not silently serve partial location data.
 

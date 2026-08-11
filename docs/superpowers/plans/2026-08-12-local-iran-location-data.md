@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace runtime GitHub location lookups with validated repository snapshots and make province, city, Tehran district, and neighborhood selection reliable in every registration flow.
+**Goal:** Replace runtime GitHub lookups for province, city, and Tehran district data with validated repository snapshots, and make location selection reliable in every registration flow.
 
 **Architecture:** Commit normalized JSON snapshots and expose them through the existing first-party API contracts. Keep large datasets server-only behind `lib/iran-locations.ts`; use a small client parser/request-owner module to validate responses and suppress stale province requests without bundling location data into the browser.
 
@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Production location routes perform no runtime network request and contain no GitHub Raw or Gist URL.
+- Production province, city, and Tehran district location routes perform no runtime network request and contain no GitHub Raw or Gist URL. Unrelated routes such as `/api/universities` are not part of this change.
 - Preserve `GET /api/locations` response contracts for province and city callers.
 - Preserve `GET /api/tehran-neighborhoods` as `{ districts: Record<string, string[]> }`.
 - Keep all current Iranian provinces and cities, with districts and neighborhoods only for Tehran city.
