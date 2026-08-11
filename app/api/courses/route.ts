@@ -2,6 +2,12 @@ import prisma from "@/lib/prisma";
 import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { sortCoursesBySchedule } from "@/lib/course-order";
+import {
+  COURSE_CURRICULUM_OWNERSHIP_ERROR,
+  normalizeCurriculum,
+  syncCourseCurriculum,
+} from "@/lib/course-curriculum";
+import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -56,6 +62,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    let normalizedCurriculum: ReturnType<typeof normalizeCurriculum> | undefined;
+    if (Object.prototype.hasOwnProperty.call(body, "curriculum")) {
+      try {
+        normalizedCurriculum = normalizeCurriculum(body.curriculum);
+      } catch {
+        return NextResponse.json({ error: "ساختار سرفصل‌های دوره نامعتبر است" }, { status: 400 });
+      }
+    }
     const {
       title,
       slug,
@@ -111,37 +125,43 @@ export async function POST(req: NextRequest) {
     if (instructorProfiles.length !== selectedInstructorIds.length) return NextResponse.json({ error: "یکی از مدرس‌های انتخاب‌شده پیدا نشد" }, { status: 400 });
     const primaryInstructor = instructorProfiles[0] || null;
 
-    const course = await prisma.course.create({
-      data: {
-        title,
-        slug,
-        description,
-        price: price ?? 0,
-        oldPrice: oldPrice ?? null,
-        instructor: instructorProfiles.length ? instructorProfiles.map((profile) => profile.name || profile.user?.name).filter(Boolean).join("، ") : instructor || null,
-        instructorId: primaryInstructor?.id ?? null,
-        instructors: selectedInstructorIds.length ? { create: selectedInstructorIds.map((instructorId) => ({ instructorId })) } : undefined,
-        categoryId: category?.id ?? null,
-        categoryName: category?.name ?? categoryName ?? null,
-        level: level ?? null,
-        thumbnail: thumbnail ?? null,
-        videoUrl: videoUrl ?? null,
-        duration: duration ?? null,
-        published: published ?? false,
-        featured: featured ?? false,
-        courseType,
-        scheduleStatus,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-        registrationMode: "registration",
-        deliveryModes: selectedDeliveryModes.join(","),
-        parentId: courseType === "single" ? parentId || null : null,
-        prerequisiteId: prerequisite?.id || null,
-      },
+    const course = await runPaymentTransaction(prisma, async (tx) => {
+      const created = await tx.course.create({
+        data: {
+          title,
+          slug,
+          description,
+          price: price ?? 0,
+          oldPrice: oldPrice ?? null,
+          instructor: instructorProfiles.length ? instructorProfiles.map((profile) => profile.name || profile.user?.name).filter(Boolean).join("، ") : instructor || null,
+          instructorId: primaryInstructor?.id ?? null,
+          instructors: selectedInstructorIds.length ? { create: selectedInstructorIds.map((instructorId) => ({ instructorId })) } : undefined,
+          categoryId: category?.id ?? null,
+          categoryName: category?.name ?? categoryName ?? null,
+          level: level ?? null,
+          thumbnail: thumbnail ?? null,
+          videoUrl: videoUrl ?? null,
+          duration: duration ?? null,
+          published: published ?? false,
+          featured: featured ?? false,
+          courseType,
+          scheduleStatus,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+          registrationMode: "registration",
+          deliveryModes: selectedDeliveryModes.join(","),
+          parentId: courseType === "single" ? parentId || null : null,
+          prerequisiteId: prerequisite?.id || null,
+        },
+      });
+      if (normalizedCurriculum === undefined) return created;
+      await syncCourseCurriculum(tx, created.id, normalizedCurriculum);
+      return tx.course.findUniqueOrThrow({ where: { id: created.id } });
     });
 
     return NextResponse.json({ course }, { status: 201 });
   } catch (error) {
+    if ((error as { code?: string }).code === COURSE_CURRICULUM_OWNERSHIP_ERROR) return NextResponse.json({ error: "شناسه سرفصل یا درس متعلق به این دوره نیست" }, { status: 409 });
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "آدرس این دوره قبلاً استفاده شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در ایجاد دوره" }, { status: 500 });
   }

@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 export type CurriculumInput = Array<{
   id?: string;
   title: string;
@@ -126,4 +128,100 @@ export function curriculumSummary(chapters: NormalizedCurriculum) {
       totalDurationMinutes: 0,
     },
   );
+}
+
+export const COURSE_CURRICULUM_OWNERSHIP_ERROR = "COURSE_CURRICULUM_OWNERSHIP";
+
+export async function syncCourseCurriculum(
+  tx: Prisma.TransactionClient,
+  courseId: string,
+  curriculum: NormalizedCurriculum,
+) {
+  const ownedChapters = await tx.courseChapter.findMany({
+    where: { courseId },
+    select: { id: true, lessons: { select: { id: true } } },
+  });
+  const ownedChapterIds = new Set(ownedChapters.map(({ id }) => id));
+  const ownedLessonIds = new Set(
+    ownedChapters.flatMap(({ lessons }) => lessons.map(({ id }) => id)),
+  );
+
+  for (const chapter of curriculum) {
+    if (chapter.id && !ownedChapterIds.has(chapter.id)) {
+      throw Object.assign(new Error("Course curriculum chapter is not owned"), {
+        code: COURSE_CURRICULUM_OWNERSHIP_ERROR,
+      });
+    }
+    for (const lesson of chapter.lessons) {
+      if (lesson.id && !ownedLessonIds.has(lesson.id)) {
+        throw Object.assign(new Error("Course curriculum lesson is not owned"), {
+          code: COURSE_CURRICULUM_OWNERSHIP_ERROR,
+        });
+      }
+    }
+  }
+
+  const persistedChapters: Array<{
+    id: string;
+    lessons: NormalizedCurriculum[number]["lessons"];
+  }> = [];
+  for (const chapter of curriculum) {
+    const persisted = chapter.id
+      ? await tx.courseChapter.update({
+          where: { id: chapter.id },
+          data: { title: chapter.title, order: chapter.order },
+          select: { id: true },
+        })
+      : await tx.courseChapter.create({
+          data: { courseId, title: chapter.title, order: chapter.order },
+          select: { id: true },
+        });
+    persistedChapters.push({ id: persisted.id, lessons: chapter.lessons });
+  }
+
+  for (const chapter of persistedChapters) {
+    for (const lesson of chapter.lessons) {
+      if (lesson.id) {
+        await tx.courseLesson.update({
+          where: { id: lesson.id },
+          data: {
+            chapterId: chapter.id,
+            title: lesson.title,
+            durationMinutes: lesson.durationMinutes,
+            order: lesson.order,
+          },
+        });
+      } else {
+        await tx.courseLesson.create({
+          data: {
+            chapterId: chapter.id,
+            title: lesson.title,
+            durationMinutes: lesson.durationMinutes,
+            order: lesson.order,
+          },
+        });
+      }
+    }
+  }
+
+  const retainedLessonIds = new Set(
+    curriculum.flatMap(({ lessons }) => lessons.flatMap(({ id }) => (id ? [id] : []))),
+  );
+  const omittedLessonIds = [...ownedLessonIds].filter((id) => !retainedLessonIds.has(id));
+  if (omittedLessonIds.length) {
+    await tx.courseLesson.deleteMany({ where: { id: { in: omittedLessonIds } } });
+  }
+
+  const retainedChapterIds = new Set(
+    curriculum.flatMap(({ id }) => (id ? [id] : [])),
+  );
+  const omittedChapterIds = [...ownedChapterIds].filter((id) => !retainedChapterIds.has(id));
+  if (omittedChapterIds.length) {
+    await tx.courseChapter.deleteMany({ where: { id: { in: omittedChapterIds } } });
+  }
+
+  await tx.course.update({
+    where: { id: courseId },
+    data: { updatedAt: new Date() },
+  });
 }

@@ -2,6 +2,12 @@ import prisma from "@/lib/prisma";
 import { isAdminRole, verifyToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { sortCoursesBySchedule } from "@/lib/course-order";
+import {
+  COURSE_CURRICULUM_OWNERSHIP_ERROR,
+  normalizeCurriculum,
+  syncCourseCurriculum,
+} from "@/lib/course-curriculum";
+import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 async function getAdminUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -58,6 +64,14 @@ export async function PUT(
     }
 
     const body = await req.json();
+    let normalizedCurriculum: ReturnType<typeof normalizeCurriculum> | undefined;
+    if (Object.prototype.hasOwnProperty.call(body, "curriculum")) {
+      try {
+        normalizedCurriculum = normalizeCurriculum(body.curriculum);
+      } catch {
+        return NextResponse.json({ error: "ساختار سرفصل‌های دوره نامعتبر است" }, { status: 400 });
+      }
+    }
     const {
       title,
       slug,
@@ -122,39 +136,45 @@ export async function PUT(
     if (selectedInstructorIds && instructorProfiles.length !== selectedInstructorIds.length) return NextResponse.json({ error: "یکی از مدرس‌های انتخاب‌شده پیدا نشد" }, { status: 400 });
     const primaryInstructor = instructorProfiles[0] || null;
 
-    const course = await prisma.course.update({
-      where: { id: params.id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(slug !== undefined && { slug }),
-        ...(description !== undefined && { description }),
-        ...(price !== undefined && { price }),
-        ...(oldPrice !== undefined && { oldPrice }),
-        ...(selectedInstructorIds !== undefined && { instructorId: primaryInstructor?.id ?? null, instructor: instructorProfiles.map((profile) => profile.name || profile.user?.name).filter(Boolean).join("، ") || null, instructors: { deleteMany: {}, create: selectedInstructorIds.map((instructorId) => ({ instructorId })) } }),
-        ...(instructorId === undefined && instructor !== undefined && { instructor }),
-        ...(categoryId !== undefined && { categoryId: category?.id ?? null }),
-        ...(categoryId !== undefined
-          ? { categoryName: category?.name ?? null }
-          : categoryName !== undefined && { categoryName }),
-        ...(level !== undefined && { level }),
-        ...(thumbnail !== undefined && { thumbnail }),
-        ...(videoUrl !== undefined && { videoUrl }),
-        ...(duration !== undefined && { duration }),
-        ...(published !== undefined && { published }),
-        ...(featured !== undefined && { featured }),
-        courseType: nextCourseType,
-        scheduleStatus: nextScheduleStatus,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-        registrationMode: nextRegistrationMode,
-        ...(selectedDeliveryModes !== undefined && { deliveryModes: selectedDeliveryModes.join(",") }),
-        parentId: nextCourseType === "single" ? nextParentId : null,
-        ...(prerequisiteId !== undefined && { prerequisiteId: prerequisite?.id || null }),
-      },
+    const course = await runPaymentTransaction(prisma, async (tx) => {
+      const updated = await tx.course.update({
+        where: { id: params.id },
+        data: {
+          ...(title !== undefined && { title }),
+          ...(slug !== undefined && { slug }),
+          ...(description !== undefined && { description }),
+          ...(price !== undefined && { price }),
+          ...(oldPrice !== undefined && { oldPrice }),
+          ...(selectedInstructorIds !== undefined && { instructorId: primaryInstructor?.id ?? null, instructor: instructorProfiles.map((profile) => profile.name || profile.user?.name).filter(Boolean).join("، ") || null, instructors: { deleteMany: {}, create: selectedInstructorIds.map((instructorId) => ({ instructorId })) } }),
+          ...(instructorId === undefined && instructor !== undefined && { instructor }),
+          ...(categoryId !== undefined && { categoryId: category?.id ?? null }),
+          ...(categoryId !== undefined
+            ? { categoryName: category?.name ?? null }
+            : categoryName !== undefined && { categoryName }),
+          ...(level !== undefined && { level }),
+          ...(thumbnail !== undefined && { thumbnail }),
+          ...(videoUrl !== undefined && { videoUrl }),
+          ...(duration !== undefined && { duration }),
+          ...(published !== undefined && { published }),
+          ...(featured !== undefined && { featured }),
+          courseType: nextCourseType,
+          scheduleStatus: nextScheduleStatus,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+          registrationMode: nextRegistrationMode,
+          ...(selectedDeliveryModes !== undefined && { deliveryModes: selectedDeliveryModes.join(",") }),
+          parentId: nextCourseType === "single" ? nextParentId : null,
+          ...(prerequisiteId !== undefined && { prerequisiteId: prerequisite?.id || null }),
+        },
+      });
+      if (normalizedCurriculum === undefined) return updated;
+      await syncCourseCurriculum(tx, params.id, normalizedCurriculum);
+      return tx.course.findUniqueOrThrow({ where: { id: params.id } });
     });
 
     return NextResponse.json({ course });
   } catch (error) {
+    if ((error as { code?: string }).code === COURSE_CURRICULUM_OWNERSHIP_ERROR) return NextResponse.json({ error: "شناسه سرفصل یا درس متعلق به این دوره نیست" }, { status: 409 });
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "آدرس این دوره قبلاً استفاده شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در بروزرسانی دوره" }, { status: 500 });
   }
