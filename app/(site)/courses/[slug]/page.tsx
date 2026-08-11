@@ -32,6 +32,7 @@ import {
   createCourseRefreshState,
   finishCourseRefreshFailure,
   registrationActionPlacement,
+  startIndependentCourseRefreshes,
   type CourseRefreshState,
 } from "@/lib/course-detail-refresh";
 
@@ -144,6 +145,7 @@ export default function CourseDetailPage() {
     courseImages,
     loading,
     notFound,
+    error: refreshError,
     isEnrolled,
     applicationStatus,
     applicationId,
@@ -198,14 +200,15 @@ export default function CourseDetailPage() {
           failCurrent(false);
           return;
         }
+        const courseId = found.id;
 
         const token = getCookie("token");
         const [detailRes, imagesRes] = await Promise.all([
-          fetch(`/api/courses/${found.id}`, {
+          fetch(`/api/courses/${courseId}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             signal: owner.signal,
           }),
-          fetch(`/api/courses/${found.id}/images`, {
+          fetch(`/api/courses/${courseId}/images`, {
             signal: owner.signal,
           }).catch(() => null),
         ]);
@@ -224,6 +227,7 @@ export default function CourseDetailPage() {
           course: detailData.course,
           loading: false,
           notFound: false,
+          error: false,
           curriculumRefreshing: false,
         });
 
@@ -236,42 +240,52 @@ export default function CourseDetailPage() {
         }
 
         if (token) {
-          const [enrollRes, applicationRes] = await Promise.all([
-            fetch(`/api/enroll?courseId=${found.id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: owner.signal,
-            }).catch(() => null),
-            fetch("/api/course-applications", {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: owner.signal,
-            }).catch(() => null),
-          ]);
-          if (!owner.isCurrent(slug)) return;
-
-          if (enrollRes?.ok) {
-            const enrollData = await enrollRes.json().catch(() => null);
-            if (!owner.isCurrent(slug)) return;
-            if (enrollData) {
+          async function refreshEnrollment() {
+            try {
+              const enrollRes = await fetch(
+                `/api/enroll?courseId=${courseId}`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                  signal: owner.signal,
+                },
+              );
+              if (!owner.isCurrent(slug) || !enrollRes.ok) return;
+              const enrollData = await enrollRes.json();
+              if (!owner.isCurrent(slug)) return;
               updateCurrent({ isEnrolled: Boolean(enrollData.enrolled) });
+            } catch {
+              // Enrollment is optional page enhancement; the locked baseline is safe.
             }
           }
 
-          if (applicationRes?.ok) {
-            const applicationData = await applicationRes
-              .json()
-              .catch(() => null);
-            if (!owner.isCurrent(slug)) return;
-            const application = applicationData?.applications?.find(
-              (item: { courseId: string; id: string; status: string }) =>
-                item.courseId === found.id,
-            );
-            if (application) {
-              updateCurrent({
-                applicationId: application.id,
-                applicationStatus: application.status,
+          async function refreshApplication() {
+            try {
+              const applicationRes = await fetch("/api/course-applications", {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: owner.signal,
               });
+              if (!owner.isCurrent(slug) || !applicationRes.ok) return;
+              const applicationData = await applicationRes.json();
+              if (!owner.isCurrent(slug)) return;
+              const application = applicationData?.applications?.find(
+                (item: { courseId: string; id: string; status: string }) =>
+                  item.courseId === courseId,
+              );
+              if (application) {
+                updateCurrent({
+                  applicationId: application.id,
+                  applicationStatus: application.status,
+                });
+              }
+            } catch {
+              // Application state is independent from enrollment access.
             }
           }
+
+          startIndependentCourseRefreshes({
+            enrollment: refreshEnrollment,
+            application: refreshApplication,
+          });
         }
       } catch {
         if (!owner.isCurrent(slug)) return;
@@ -289,6 +303,22 @@ export default function CourseDetailPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center pt-32">
         <Loader2 size={32} className="animate-spin text-secondary" />
+      </div>
+    );
+  }
+
+  if (refreshError && !course) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center pt-32">
+        <p className="text-outline text-lg mb-4">
+          دریافت اطلاعات دوره انجام نشد
+        </p>
+        <button
+          onClick={() => router.push("/courses")}
+          className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary-container transition-all"
+        >
+          بازگشت به دوره‌ها
+        </button>
       </div>
     );
   }

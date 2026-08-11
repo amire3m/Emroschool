@@ -259,6 +259,7 @@ test("slug reset drops earlier protected data and clears all course-scoped state
       courseImages: [],
       loading: true,
       notFound: false,
+      error: false,
       isEnrolled: false,
       applicationStatus: null,
       applicationId: null,
@@ -285,6 +286,7 @@ test("refresh failure retains a matching locked SSR baseline but never an older 
     ...baseline,
     loading: false,
     notFound: false,
+    error: false,
     curriculumRefreshing: false,
   });
   assert.deepEqual(subject.finishCourseRefreshFailure(baseline, true), {
@@ -292,8 +294,62 @@ test("refresh failure retains a matching locked SSR baseline but never an older 
     course: null,
     loading: false,
     notFound: true,
+    error: false,
     curriculumRefreshing: false,
   });
+});
+
+test("non-authoritative failure without SSR data settles as error rather than not-found", async () => {
+  const subject = await loadRefreshSubject();
+  assert.ok(subject, "course detail refresh module should exist");
+  const baseline = subject.createCourseRefreshState("current-course", null);
+
+  assert.deepEqual(subject.finishCourseRefreshFailure(baseline, false), {
+    ...baseline,
+    course: null,
+    loading: false,
+    notFound: false,
+    error: true,
+    curriculumRefreshing: false,
+  });
+});
+
+test("enrollment settlement does not wait for a pending application refresh", async () => {
+  const subject = await loadRefreshSubject();
+  assert.ok(subject, "course detail refresh module should exist");
+  const start = (
+    subject as unknown as {
+      startIndependentCourseRefreshes?: (tasks: {
+        enrollment: () => Promise<void>;
+        application: () => Promise<void>;
+      }) => { enrollment: Promise<void>; application: Promise<void> };
+    }
+  ).startIndependentCourseRefreshes;
+  assert.equal(typeof start, "function");
+  if (!start) return;
+
+  let releaseApplication!: () => void;
+  let enrollmentCommitted = false;
+  let applicationCommitted = false;
+  const applicationGate = new Promise<void>((resolve) => {
+    releaseApplication = resolve;
+  });
+  const flows = start({
+    async enrollment() {
+      enrollmentCommitted = true;
+    },
+    async application() {
+      await applicationGate;
+      applicationCommitted = true;
+    },
+  });
+
+  await flows.enrollment;
+  assert.equal(enrollmentCommitted, true);
+  assert.equal(applicationCommitted, false);
+  releaseApplication();
+  await flows.application;
+  assert.equal(applicationCommitted, true);
 });
 
 test("registration action relocates once from sidebar to a settled locked curriculum", async () => {

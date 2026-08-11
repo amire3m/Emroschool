@@ -13,6 +13,7 @@ export interface CourseRefreshState<
   courseImages: TImage[];
   loading: boolean;
   notFound: boolean;
+  error: boolean;
   isEnrolled: boolean;
   applicationStatus: string | null;
   applicationId: string | null;
@@ -46,6 +47,15 @@ export function commitCurrentCourseRefreshState<TState extends { slug: string }>
   return { ...current, ...updates };
 }
 
+export function startIndependentCourseRefreshes(tasks: {
+  enrollment: () => Promise<void>;
+  application: () => Promise<void>;
+}) {
+  const enrollment = tasks.enrollment();
+  const application = tasks.application();
+  return { enrollment, application };
+}
+
 export function createCourseRefreshState<
   TCourse extends RefreshableCourse,
   TImage = unknown,
@@ -64,6 +74,7 @@ export function createCourseRefreshState<
     courseImages: [],
     loading: course === null,
     notFound: false,
+    error: false,
     isEnrolled: false,
     applicationStatus: null,
     applicationId: null,
@@ -85,7 +96,8 @@ export function finishCourseRefreshFailure<
     ...baseline,
     course: authoritativeNotFound ? null : baseline.course,
     loading: false,
-    notFound: authoritativeNotFound || baseline.course === null,
+    notFound: authoritativeNotFound,
+    error: !authoritativeNotFound && baseline.course === null,
     curriculumRefreshing: false,
   };
 }
