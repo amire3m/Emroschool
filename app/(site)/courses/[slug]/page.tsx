@@ -19,6 +19,10 @@ import {
 import { getCookie } from "@/lib/cookie";
 import CourseRegistrationModal from "@/components/courses/course-registration-modal";
 import ComprehensiveCoursePath from "@/components/courses/comprehensive-course-path";
+import CourseCurriculum, {
+  createCourseCurriculumView,
+  type CourseCurriculumData,
+} from "@/components/courses/course-curriculum";
 import CopyLinkButton from "@/components/ui/copy-link-button";
 import toast from "react-hot-toast";
 import { useInitialData } from "@/components/seo/initial-data-provider";
@@ -35,7 +39,7 @@ interface CourseImage {
   alt?: string;
 }
 
-interface CourseDetail {
+interface CourseDetailBase {
   id: string;
   title: string;
   slug: string;
@@ -97,6 +101,8 @@ interface CourseDetail {
   }>;
 }
 
+type CourseDetail = CourseDetailBase & CourseCurriculumData;
+
 function formatPrice(price: number) {
   return price.toLocaleString("fa-IR");
 }
@@ -130,6 +136,12 @@ export default function CourseDetailPage() {
   );
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [curriculumRefreshing, setCurriculumRefreshing] = useState(
+    Boolean(
+      initialCourse?.curriculumLocked &&
+        initialCourse.curriculumSummary.chapterCount > 0,
+    ),
+  );
 
   useEffect(() => {
     async function fetchCourse() {
@@ -145,8 +157,11 @@ export default function CourseDetailPage() {
           return;
         }
 
+        const token = getCookie("token");
         const [detailRes, imagesRes] = await Promise.all([
-          fetch(`/api/courses/${found.id}`),
+          fetch(`/api/courses/${found.id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }),
           fetch(`/api/courses/${found.id}/images`).catch(() => null),
         ]);
         if (!detailRes.ok) {
@@ -161,7 +176,6 @@ export default function CourseDetailPage() {
           setCourseImages(imagesData.images || []);
         }
 
-        const token = getCookie("token");
         if (token) {
           const enrollRes = await fetch(`/api/enroll?courseId=${found.id}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -191,6 +205,7 @@ export default function CourseDetailPage() {
         setNotFound(true);
       } finally {
         setLoading(false);
+        setCurriculumRefreshing(false);
       }
     }
     fetchCourse();
@@ -219,6 +234,60 @@ export default function CourseDetailPage() {
   }
 
   const courseInstructors = course.instructors?.map((assignment) => assignment.instructor) || (course.instructorProfile ? [course.instructorProfile] : []);
+  const curriculumView = curriculumRefreshing
+    ? ({ state: "hidden" } as const)
+    : createCourseCurriculumView(course);
+  const registrationAction = course.courseType === "single" ? (
+    course.scheduleStatus === "completed" ? (
+      <button
+        disabled
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-surface-variant py-3 font-bold text-outline"
+      >
+        <CheckCircle2 size={18} />
+        این دوره به پایان رسیده است
+      </button>
+    ) : isEnrolled ? (
+      <button className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-3 font-bold text-white transition-colors hover:bg-secondary-container hover:text-on-secondary-fixed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+        <Play size={18} />
+        ادامه یادگیری
+      </button>
+    ) : ["pending", "pending_payment"].includes(applicationStatus || "") &&
+      applicationId ? (
+      <button
+        onClick={() => router.push(`/invoice?application=${applicationId}`)}
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white transition-colors hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <ShoppingCart size={18} />
+        مشاهده فاکتور و پرداخت
+      </button>
+    ) : applicationStatus ? (
+      <div
+        className={`mb-3 w-full rounded-xl py-3 text-center font-bold ${applicationStatus === "approved" ? "bg-green-50 text-green-700" : applicationStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}
+      >
+        {applicationStatus === "approved"
+          ? "درخواست شما تأیید شده"
+          : applicationStatus === "rejected"
+            ? "درخواست شما رد شده"
+            : "درخواست شما در انتظار بررسی است"}
+      </div>
+    ) : (
+      <button
+        onClick={() => {
+          if (!getCookie("token")) {
+            router.push(
+              `/login?redirect=${encodeURIComponent(`/courses/${slug}`)}`,
+            );
+            return;
+          }
+          setRegistrationOpen(true);
+        }}
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white transition-colors hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <ClipboardEdit size={18} />
+        تکمیل فرم ثبت‌نام
+      </button>
+    )
+  ) : null;
 
   return (
     <div className="min-h-screen pt-32 pb-16">
@@ -352,6 +421,22 @@ export default function CourseDetailPage() {
             <div className="prose prose-sm max-w-none text-on-background leading-relaxed whitespace-pre-line">
               {course.description}
             </div>
+            {curriculumRefreshing &&
+            course.curriculumSummary.chapterCount > 0 ? (
+              <section
+                className="mt-10 rounded-2xl border border-outline-variant/40 bg-white p-6 text-sm text-outline shadow-sm"
+                aria-live="polite"
+              >
+                در حال بررسی دسترسی شما به سرفصل‌های دوره...
+              </section>
+            ) : curriculumView.state === "locked" ? (
+              <CourseCurriculum
+                {...curriculumView}
+                registrationAction={registrationAction}
+              />
+            ) : (
+              <CourseCurriculum {...curriculumView} />
+            )}
             {course.enrollments && course.enrollments.length > 0 && <section className="mt-10 overflow-hidden rounded-[2rem] border border-primary/10 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-surface-variant bg-surface-low px-5 py-4"><div><p className="text-xs font-bold text-secondary">جامعه یادگیری</p><h2 className="mt-1 text-xl font-black text-primary">دانشجویان این دوره</h2></div><span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-secondary-fixed">{course._count.enrollments.toLocaleString("fa-IR")} دانشجو</span></div><div className="grid gap-3 p-4 sm:grid-cols-2">{course.enrollments.map((enrollment) => <Link key={enrollment.id} href={`/profile/${enrollment.user.id}`} className="group flex items-center gap-3 rounded-2xl border border-surface-variant bg-white p-3 transition hover:-translate-y-0.5 hover:border-secondary hover:shadow-md"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-fixed text-primary">{enrollment.user.avatar ? <img src={enrollment.user.avatar} alt={enrollment.user.name} className="h-full w-full object-cover" /> : <User size={20} />}</div><div className="min-w-0"><p className="truncate text-sm font-black text-primary">{enrollment.user.name}</p>{enrollment.user.expertise && <p className="mt-1 truncate text-xs text-outline">{enrollment.user.expertise}</p>}</div></Link>)}</div>{course._count.enrollments > course.enrollments.length && <p className="px-5 pb-5 text-center text-xs text-outline">فقط دانشجویانی که پروفایل عمومی تأییدشده دارند نمایش داده می‌شوند.</p>}</section>}
             {course.courseType === "comprehensive" && (
               <section className="mt-10 rounded-[2rem] border border-secondary-fixed/60 bg-gradient-to-br from-[#fffdf8] to-[#f8f5ff] p-5 md:p-7">
@@ -477,57 +562,7 @@ export default function CourseDetailPage() {
                     )}
                   </div>}
 
-                  {course.scheduleStatus === "completed" ? (
-                    <button
-                      disabled
-                      className="w-full bg-surface-variant text-outline py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-3"
-                    >
-                      <CheckCircle2 size={18} />
-                      این دوره به پایان رسیده است
-                    </button>
-                  ) : isEnrolled ? (
-                    <button className="w-full bg-secondary text-white py-3 rounded-xl font-bold hover:bg-secondary-container hover:text-on-secondary-fixed transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3">
-                      <Play size={18} />
-                      ادامه یادگیری
-                    </button>
-                  ) : ["pending", "pending_payment"].includes(applicationStatus || "") &&
-                    applicationId ? (
-                    <button
-                      onClick={() =>
-                        router.push(`/invoice?application=${applicationId}`)
-                      }
-                      className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"
-                    >
-                      <ShoppingCart size={18} />
-                      مشاهده فاکتور و پرداخت
-                    </button>
-                  ) : applicationStatus ? (
-                    <div
-                      className={`w-full py-3 rounded-xl font-bold text-center mb-3 ${applicationStatus === "approved" ? "bg-green-50 text-green-700" : applicationStatus === "rejected" ? "bg-error-container text-error" : "bg-yellow-50 text-yellow-700"}`}
-                    >
-                      {applicationStatus === "approved"
-                        ? "درخواست شما تأیید شده"
-                        : applicationStatus === "rejected"
-                          ? "درخواست شما رد شده"
-                          : "درخواست شما در انتظار بررسی است"}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (!getCookie("token")) {
-                          router.push(
-                            `/login?redirect=${encodeURIComponent(`/courses/${slug}`)}`,
-                          );
-                          return;
-                        }
-                        setRegistrationOpen(true);
-                      }}
-                      className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-3"
-                    >
-                      <ClipboardEdit size={18} />
-                      تکمیل فرم ثبت‌نام
-                    </button>
-                  )}
+                  {curriculumView.state !== "locked" && registrationAction}
 
                   <p className="text-xs text-outline text-center">
                     تضمین کیفیت آموزش
