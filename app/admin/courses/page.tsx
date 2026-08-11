@@ -15,14 +15,17 @@ import {
    GitBranch,
    ChevronDown,
    Folder,
-   FolderOpen,
-   User,
+    FolderOpen,
+    User,
+    LockKeyhole,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import Link from "next/link";
 import ImageUpload from "@/components/ui/ImageUpload";
 import PersianDateTimePicker from "@/components/ui/persian-date-time-picker";
+import CourseCurriculumEditor from "@/components/admin/course-curriculum-editor";
+import type { CurriculumInput } from "@/lib/course-curriculum";
 
 interface Course {
   id: string;
@@ -54,6 +57,7 @@ interface Course {
   prerequisite?: { id: string; title: string; slug: string } | null;
   childCount?: number;
   enrollmentCount?: number;
+  curriculum?: CurriculumInput;
 }
 
 const levels = ["مبتدی", "متوسط", "پیشرفته"];
@@ -163,6 +167,8 @@ export default function AdminCourses() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingCourseId, setLoadingCourseId] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [existingChildId, setExistingChildId] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [instructorSearch, setInstructorSearch] = useState("");
@@ -191,6 +197,7 @@ export default function AdminCourses() {
     deliveryModes: ["in_person"] as string[],
     parentId: "",
     prerequisiteId: "",
+    curriculum: [] as CurriculumInput,
   });
 
   const getToken = () => getCookie("token") || "";
@@ -242,9 +249,11 @@ export default function AdminCourses() {
       deliveryModes: ["in_person"],
       parentId: "",
       prerequisiteId: "",
+      curriculum: [],
     });
     setEditingCourse(null);
     setInstructorsChanged(false);
+    setSaveError("");
   };
 
   const openCreateModal = () => {
@@ -256,8 +265,9 @@ export default function AdminCourses() {
     setEditingCourse(null);
     setForm({
       title: "", slug: "", description: "", price: "", oldPrice: "", instructor: "", instructorIds: [], category: parent.categoryId || "", level: "", thumbnail: "", videoUrl: "", published: false, featured: false,
-      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", deliveryModes: ["in_person"], parentId: parent.id, prerequisiteId: "",
+      courseType: "single", scheduleStatus: "upcoming", startDate: "", endDate: "", deliveryModes: ["in_person"], parentId: parent.id, prerequisiteId: "", curriculum: [],
     });
+    setSaveError("");
     setShowModal(true);
   };
 
@@ -275,32 +285,57 @@ export default function AdminCourses() {
     finally { setSaving(false); }
   };
 
-  const openEditModal = (course: Course) => {
-    setForm({
-      title: course.title,
-      slug: course.slug,
-      description: course.description,
-      price: formatPrice(String(course.price)),
-      oldPrice: course.oldPrice ? formatPrice(String(course.oldPrice)) : "",
-      instructor: course.instructor || "",
-      instructorIds: course.instructors?.map((assignment) => assignment.instructor.id) || (course.instructorId ? [course.instructorId] : []),
-      category: course.categoryId || categories.find((category) => category.name === course.categoryName)?.id || "",
-      level: reverseLevelMap[course.level || ""] || course.level || "",
-      thumbnail: course.thumbnail || "",
-      videoUrl: course.videoUrl || "",
-      published: course.published,
-      featured: course.featured,
-      courseType: course.courseType || "single",
-      scheduleStatus: course.scheduleStatus || "upcoming",
-      startDate: course.startDate || "",
-      endDate: course.endDate || "",
-      deliveryModes: (course.deliveryModes || "in_person").split(",").filter(Boolean),
-      parentId: course.parentId || "",
-      prerequisiteId: course.prerequisiteId || "",
-    });
-    setEditingCourse(course);
-    setInstructorsChanged(false);
-    setShowModal(true);
+  const openEditModal = async (course: Course) => {
+    setLoadingCourseId(course.id);
+    try {
+      const response = await fetch(`/api/courses/${course.id}`, {
+        headers: { authorization: `Bearer ${getToken()}` },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.course) {
+        throw new Error(data.error || "خطا در دریافت جزئیات دوره");
+      }
+      const detail = data.course as Course;
+      setForm({
+        title: detail.title,
+        slug: detail.slug,
+        description: detail.description,
+        price: formatPrice(String(detail.price)),
+        oldPrice: detail.oldPrice ? formatPrice(String(detail.oldPrice)) : "",
+        instructor: detail.instructor || "",
+        instructorIds: detail.instructors?.map((assignment) => assignment.instructor.id) || (detail.instructorId ? [detail.instructorId] : []),
+        category: detail.categoryId || categories.find((category) => category.name === detail.categoryName)?.id || "",
+        level: reverseLevelMap[detail.level || ""] || detail.level || "",
+        thumbnail: detail.thumbnail || "",
+        videoUrl: detail.videoUrl || "",
+        published: detail.published,
+        featured: detail.featured,
+        courseType: detail.courseType || "single",
+        scheduleStatus: detail.scheduleStatus || "upcoming",
+        startDate: detail.startDate || "",
+        endDate: detail.endDate || "",
+        deliveryModes: (detail.deliveryModes || "in_person").split(",").filter(Boolean),
+        parentId: detail.parentId || "",
+        prerequisiteId: detail.prerequisiteId || "",
+        curriculum: (detail.curriculum || []).map((chapter) => ({
+          ...(chapter.id ? { id: chapter.id } : {}),
+          title: chapter.title,
+          lessons: chapter.lessons.map((lesson) => ({
+            ...(lesson.id ? { id: lesson.id } : {}),
+            title: lesson.title,
+            durationMinutes: lesson.durationMinutes ?? null,
+          })),
+        })),
+      });
+      setEditingCourse(detail);
+      setInstructorsChanged(false);
+      setSaveError("");
+      setShowModal(true);
+    } catch (editError) {
+      toast.error(editError instanceof Error ? editError.message : "خطا در دریافت جزئیات دوره");
+    } finally {
+      setLoadingCourseId("");
+    }
   };
 
   const handleTitleChange = (value: string) => {
@@ -314,6 +349,7 @@ export default function AdminCourses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveError("");
     const token = getToken();
 
     const selectedCategory = categories.find((category) => category.id === form.category);
@@ -338,6 +374,7 @@ export default function AdminCourses() {
       deliveryModes: form.deliveryModes,
       parentId: form.courseType === "single" ? form.parentId || null : null,
       prerequisiteId: form.prerequisiteId || null,
+      curriculum: form.curriculum,
     };
 
     try {
@@ -368,7 +405,9 @@ export default function AdminCourses() {
       resetForm();
       fetchCourses();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "خطا");
+      const message = err instanceof Error ? err.message : "ذخیره دوره انجام نشد";
+      setSaveError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -466,7 +505,7 @@ export default function AdminCourses() {
               </button>
               <div className="flex items-center gap-1">
                 <button onClick={() => openCreateChildCourse(course)} className="rounded-lg px-2.5 py-2 text-xs font-bold text-primary hover:bg-secondary-fixed" title="افزودن زیر‌دوره"><Plus size={17} /></button>
-                <button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-white hover:text-primary" title="ویرایش پوشه"><Pencil size={17} /></button>
+                <button disabled={Boolean(loadingCourseId)} onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-white hover:text-primary focus:outline-none focus:ring-2 focus:ring-[#ffdeab] disabled:cursor-wait disabled:opacity-50" title="ویرایش پوشه" aria-label={`ویرایش ${course.title}`}>{loadingCourseId === course.id ? <Loader2 size={17} className="animate-spin" /> : <Pencil size={17} />}</button>
                 <button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={17} /></button>
               </div>
             </div>
@@ -475,14 +514,14 @@ export default function AdminCourses() {
                 <GitBranch size={16} className="shrink-0 text-secondary" />
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{child.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={child.instructor} avatar={child.instructorProfile?.avatar || child.instructorProfile?.user?.avatar} />{child.instructorProfile ? <Link href={`/instructors/${child.instructorProfile.profileSlug || child.instructorProfile.id}`} target="_blank" className="font-bold text-secondary hover:underline">{child.instructor || "بدون مدرس"}</Link> : <span>{child.instructor || "بدون مدرس"}</span>}<span>· {child.price.toLocaleString("fa-IR")} تومان</span></p></div>
                 <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${child.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{child.published ? "منتشر شده" : "پیش‌نویس"}</span>
-                <div className="flex items-center gap-1"><button onClick={() => showStudents(child)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="دانشجویان دوره"><User size={15} /></button><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
+                <div className="flex items-center gap-1"><button onClick={() => showStudents(child)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="دانشجویان دوره"><User size={15} /></button><button onClick={() => copyCourseLink(child.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button disabled={Boolean(loadingCourseId)} onClick={() => openEditModal(child)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary focus:outline-none focus:ring-2 focus:ring-[#ffdeab] disabled:cursor-wait disabled:opacity-50" title="ویرایش" aria-label={`ویرایش ${child.title}`}>{loadingCourseId === child.id ? <Loader2 size={15} className="animate-spin" /> : <Pencil size={15} />}</button><button onClick={() => setDeleteTarget(child)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div>
               </div>)}
               {children.length === 0 && <p className="p-4 text-center text-sm text-outline">زیر‌دوره‌ای در این پوشه نیست.</p>}
             </div>}
           </section>;
         })}
 
-        {standaloneCourses.length > 0 && <section className="overflow-hidden rounded-2xl border border-surface-variant bg-white shadow-sm"><div className="border-b border-surface-variant bg-surface-low px-4 py-3 text-sm font-bold text-primary">دوره‌های مستقل</div><div className="divide-y divide-surface-variant">{standaloneCourses.map((course) => <div key={course.id} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-low/60"><GitBranch size={17} className="shrink-0 text-outline" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{course.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={course.instructor} avatar={course.instructorProfile?.avatar || course.instructorProfile?.user?.avatar} />{course.instructor || "بدون مدرس"}<span>· {course.price.toLocaleString("fa-IR")} تومان</span></p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${course.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{course.published ? "منتشر شده" : "پیش‌نویس"}</span><div className="flex items-center gap-1"><button onClick={() => copyCourseLink(course.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary" title="ویرایش"><Pencil size={15} /></button><button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div></div>)}</div></section>}
+        {standaloneCourses.length > 0 && <section className="overflow-hidden rounded-2xl border border-surface-variant bg-white shadow-sm"><div className="border-b border-surface-variant bg-surface-low px-4 py-3 text-sm font-bold text-primary">دوره‌های مستقل</div><div className="divide-y divide-surface-variant">{standaloneCourses.map((course) => <div key={course.id} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-low/60"><GitBranch size={17} className="shrink-0 text-outline" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-primary">{course.title}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-outline"><InstructorAvatar name={course.instructor} avatar={course.instructorProfile?.avatar || course.instructorProfile?.user?.avatar} />{course.instructor || "بدون مدرس"}<span>· {course.price.toLocaleString("fa-IR")} تومان</span></p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${course.published ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>{course.published ? "منتشر شده" : "پیش‌نویس"}</span><div className="flex items-center gap-1"><button onClick={() => copyCourseLink(course.slug)} className="rounded-lg p-2 text-outline hover:bg-secondary-fixed hover:text-secondary" title="کپی لینک"><Link2 size={15} /></button><button disabled={Boolean(loadingCourseId)} onClick={() => openEditModal(course)} className="rounded-lg p-2 text-outline hover:bg-[#eeecfc] hover:text-primary focus:outline-none focus:ring-2 focus:ring-[#ffdeab] disabled:cursor-wait disabled:opacity-50" title="ویرایش" aria-label={`ویرایش ${course.title}`}>{loadingCourseId === course.id ? <Loader2 size={15} className="animate-spin" /> : <Pencil size={15} />}</button><button onClick={() => setDeleteTarget(course)} className="rounded-lg p-2 text-outline hover:bg-error-container hover:text-error" title="حذف"><Trash2 size={15} /></button></div></div>)}</div></section>}
 
         {comprehensiveCourses.length === 0 && standaloneCourses.length === 0 && <div className="rounded-2xl border border-surface-variant bg-white p-10 text-center text-outline">هیچ دوره‌ای یافت نشد</div>}
       </div>
@@ -491,7 +530,7 @@ export default function AdminCourses() {
 
       {showModal && (
         <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content !max-w-5xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-primary">
                 {editingCourse ? "ویرایش دوره" : "افزودن دوره جدید"}
@@ -505,6 +544,7 @@ export default function AdminCourses() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {saveError && <div role="alert" className="flex items-start gap-2 rounded-xl bg-error-container px-4 py-3 text-sm leading-6 text-error"><AlertCircle size={18} className="mt-0.5 shrink-0" />{saveError}</div>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">عنوان</label>
@@ -529,7 +569,7 @@ export default function AdminCourses() {
                       style={{ fontFamily: "'Courier New', monospace" }}
                     />
                   </div>
-                  <p className="text-xs text-outline mt-1 flex items-center gap-1">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
+                  <p className="text-xs text-outline mt-1 flex items-center gap-1"><LockKeyhole size={13} aria-hidden="true" />به‌صورت خودکار از عنوان ساخته می‌شود</p>
                 </div>
               </div>
 
@@ -543,6 +583,13 @@ export default function AdminCourses() {
                   className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none"
                 />
               </div>
+
+              <CourseCurriculumEditor
+                key={editingCourse?.id || `new-${form.parentId}`}
+                value={form.curriculum}
+                onChange={(curriculum) => setForm((current) => ({ ...current, curriculum }))}
+                disabled={saving}
+              />
 
               <div className="rounded-2xl border border-surface-variant bg-surface-low p-4 space-y-4">
                 <h4 className="font-bold text-primary text-sm">ساختار و زمان‌بندی دوره</h4>
