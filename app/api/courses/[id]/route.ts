@@ -16,6 +16,16 @@ async function getAdminUser(req: NextRequest) {
   return payload;
 }
 
+type CourseWriteDependencies = {
+  db: typeof prisma;
+  authorize: typeof getAdminUser;
+};
+
+const defaultWriteDependencies: CourseWriteDependencies = {
+  db: prisma,
+  authorize: getAdminUser,
+};
+
 function getAuthenticatedUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
@@ -76,15 +86,17 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
+  overrides: Partial<CourseWriteDependencies> = {},
 ) {
-  const admin = await getAdminUser(req);
+  const dependencies = { ...defaultWriteDependencies, ...overrides };
+  const admin = await dependencies.authorize(req);
   if (!admin) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 
   try {
-    const existing = await prisma.course.findUnique({ where: { id: params.id }, include: { _count: { select: { children: true } } } });
+    const existing = await dependencies.db.course.findUnique({ where: { id: params.id }, include: { _count: { select: { children: true } } } });
     if (!existing) {
       return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     }
@@ -138,12 +150,12 @@ export async function PUT(
     if (nextCourseType === "comprehensive" && nextPublished && existing._count.children === 0) return NextResponse.json({ error: "دوره جامع برای انتشار باید حداقل یک دوره فرزند داشته باشد" }, { status: 400 });
     if (nextParentId === params.id) return NextResponse.json({ error: "یک دوره نمی‌تواند والد خودش باشد" }, { status: 400 });
     if (prerequisiteId === params.id) return NextResponse.json({ error: "یک دوره نمی‌تواند پیش‌نیاز خودش باشد" }, { status: 400 });
-    const parent = nextParentId ? await prisma.course.findUnique({ where: { id: nextParentId } }) : null;
+    const parent = nextParentId ? await dependencies.db.course.findUnique({ where: { id: nextParentId } }) : null;
     if (nextParentId && (!parent || parent.courseType !== "comprehensive")) return NextResponse.json({ error: "دوره والد باید یک دوره جامع معتبر باشد" }, { status: 400 });
-    const prerequisite = prerequisiteId !== undefined && prerequisiteId ? await prisma.course.findUnique({ where: { id: prerequisiteId } }) : null;
+    const prerequisite = prerequisiteId !== undefined && prerequisiteId ? await dependencies.db.course.findUnique({ where: { id: prerequisiteId } }) : null;
     if (prerequisiteId && !prerequisite) return NextResponse.json({ error: "دوره پیش‌نیاز پیدا نشد" }, { status: 400 });
     if (existing.parentId && existing.parentId !== nextParentId) {
-      const oldParent = await prisma.course.findUnique({ where: { id: existing.parentId }, include: { _count: { select: { children: true } } } });
+      const oldParent = await dependencies.db.course.findUnique({ where: { id: existing.parentId }, include: { _count: { select: { children: true } } } });
       if (oldParent?.published && oldParent._count.children <= 1) return NextResponse.json({ error: "این دوره تنها فرزند والد منتشرشده است؛ ابتدا فرزند دیگری به دوره جامع متصل کنید" }, { status: 400 });
     }
     const parsedStartDate = startDate !== undefined ? (startDate ? new Date(startDate) : null) : existing.startDate;
@@ -152,17 +164,17 @@ export async function PUT(
     if (nextScheduleStatus === "completed" && (!parsedEndDate || Number.isNaN(parsedEndDate.getTime()))) return NextResponse.json({ error: "تاریخ پایان دوره برگزارشده الزامی است" }, { status: 400 });
 
     const category = categoryId
-      ? await prisma.category.findUnique({ where: { id: categoryId } })
+      ? await dependencies.db.category.findUnique({ where: { id: categoryId } })
       : null;
     if (categoryId && !category) {
       return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
     }
     const selectedInstructorIds = Array.isArray(instructorIds) ? [...new Set(instructorIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0))] : instructorId !== undefined ? (instructorId ? [instructorId] : []) : undefined;
-    const instructorProfiles = selectedInstructorIds?.length ? await prisma.instructor.findMany({ where: { id: { in: selectedInstructorIds } }, include: { user: { select: { name: true } } } }) : [];
+    const instructorProfiles = selectedInstructorIds?.length ? await dependencies.db.instructor.findMany({ where: { id: { in: selectedInstructorIds } }, include: { user: { select: { name: true } } } }) : [];
     if (selectedInstructorIds && instructorProfiles.length !== selectedInstructorIds.length) return NextResponse.json({ error: "یکی از مدرس‌های انتخاب‌شده پیدا نشد" }, { status: 400 });
     const primaryInstructor = instructorProfiles[0] || null;
 
-    const course = await runPaymentTransaction(prisma, async (tx) => {
+    const course = await runPaymentTransaction(dependencies.db, async (tx) => {
       const updated = await tx.course.update({
         where: { id: params.id },
         data: {

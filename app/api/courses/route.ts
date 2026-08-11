@@ -17,6 +17,16 @@ async function getAdminUser(req: NextRequest) {
   return payload;
 }
 
+type CourseWriteDependencies = {
+  db: typeof prisma;
+  authorize: typeof getAdminUser;
+};
+
+const defaultWriteDependencies: CourseWriteDependencies = {
+  db: prisma,
+  authorize: getAdminUser,
+};
+
 export async function GET(req: NextRequest) {
   try {
     const admin = await getAdminUser(req);
@@ -54,8 +64,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  const admin = await getAdminUser(req);
+export async function POST(
+  req: NextRequest,
+  _context: { params: Record<string, string> } = { params: {} },
+  overrides: Partial<CourseWriteDependencies> = {},
+) {
+  const dependencies = { ...defaultWriteDependencies, ...overrides };
+  const admin = await dependencies.authorize(req);
   if (!admin) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
@@ -109,23 +124,23 @@ export async function POST(req: NextRequest) {
     const parsedEndDate = endDate ? new Date(endDate) : null;
     if (scheduleStatus === "upcoming" && (!parsedStartDate || Number.isNaN(parsedStartDate.getTime()))) return NextResponse.json({ error: "تاریخ شروع دوره آینده الزامی است" }, { status: 400 });
     if (scheduleStatus === "completed" && (!parsedEndDate || Number.isNaN(parsedEndDate.getTime()))) return NextResponse.json({ error: "تاریخ پایان دوره برگزارشده الزامی است" }, { status: 400 });
-    const parent = parentId ? await prisma.course.findUnique({ where: { id: parentId } }) : null;
+    const parent = parentId ? await dependencies.db.course.findUnique({ where: { id: parentId } }) : null;
     if (parentId && (!parent || parent.courseType !== "comprehensive")) return NextResponse.json({ error: "دوره والد باید یک دوره جامع معتبر باشد" }, { status: 400 });
-    const prerequisite = prerequisiteId ? await prisma.course.findUnique({ where: { id: prerequisiteId } }) : null;
+    const prerequisite = prerequisiteId ? await dependencies.db.course.findUnique({ where: { id: prerequisiteId } }) : null;
     if (prerequisiteId && !prerequisite) return NextResponse.json({ error: "دوره پیش‌نیاز پیدا نشد" }, { status: 400 });
 
     const category = categoryId
-      ? await prisma.category.findUnique({ where: { id: categoryId } })
+      ? await dependencies.db.category.findUnique({ where: { id: categoryId } })
       : null;
     if (categoryId && !category) {
       return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده پیدا نشد" }, { status: 400 });
     }
     const selectedInstructorIds = Array.isArray(instructorIds) ? [...new Set(instructorIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0))] : instructorId ? [instructorId] : [];
-    const instructorProfiles = selectedInstructorIds.length ? await prisma.instructor.findMany({ where: { id: { in: selectedInstructorIds } }, include: { user: { select: { name: true } } } }) : [];
+    const instructorProfiles = selectedInstructorIds.length ? await dependencies.db.instructor.findMany({ where: { id: { in: selectedInstructorIds } }, include: { user: { select: { name: true } } } }) : [];
     if (instructorProfiles.length !== selectedInstructorIds.length) return NextResponse.json({ error: "یکی از مدرس‌های انتخاب‌شده پیدا نشد" }, { status: 400 });
     const primaryInstructor = instructorProfiles[0] || null;
 
-    const course = await runPaymentTransaction(prisma, async (tx) => {
+    const course = await runPaymentTransaction(dependencies.db, async (tx) => {
       const created = await tx.course.create({
         data: {
           title,

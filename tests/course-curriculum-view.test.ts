@@ -131,6 +131,43 @@ test("duration formatting uses Persian numbers for minutes and hours", async () 
   assert.equal(subject.formatCurriculumDuration(120), "۲ ساعت");
 });
 
+test("locked and enrolled summaries omit total duration when no lesson duration is available", async () => {
+  const subject = await loadSubject();
+  assert.ok(subject, "course curriculum view module should exist");
+  const zeroSummary = { chapterCount: 1, lessonCount: 1, totalDurationMinutes: 0 };
+  const lockedMarkup = renderToStaticMarkup(
+    React.createElement(subject.default, {
+      state: "locked",
+      summary: zeroSummary,
+      registrationAction: React.createElement("button", null, "ثبت‌نام"),
+    }),
+  );
+  const enrolledMarkup = renderToStaticMarkup(
+    React.createElement(subject.default, {
+      state: "enrolled",
+      summary: zeroSummary,
+      chapters: [
+        {
+          id: "chapter-undated",
+          title: "فصل بدون زمان",
+          order: 0,
+          lessons: [
+            {
+              id: "lesson-undated",
+              title: "درس بدون زمان",
+              durationMinutes: null,
+              order: 0,
+            },
+          ],
+        },
+      ],
+    }),
+  );
+
+  assert.doesNotMatch(lockedMarkup, /مدت کل|۰ دقیقه/);
+  assert.doesNotMatch(enrolledMarkup, /مدت کل|۰ دقیقه/);
+});
+
 test("enrolled markup starts with the first chapter expanded and linked ARIA panels", async () => {
   const subject = await loadSubject();
   assert.ok(subject, "course curriculum view module should exist");

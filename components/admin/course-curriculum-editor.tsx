@@ -10,7 +10,10 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import type { CurriculumInput } from "@/lib/course-curriculum";
+import {
+  PRISMA_INT_MAX,
+  type CurriculumInput,
+} from "@/lib/course-curriculum";
 
 type MoveDirection = "up" | "down";
 
@@ -133,7 +136,7 @@ export function normalizeMinuteInput(value: string): MinuteInputValue {
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
   const parsed = Number(normalizedDigits);
-  if (/^\d+$/.test(normalizedDigits) && Number.isSafeInteger(parsed) && parsed > 0) {
+  if (/^\d+$/.test(normalizedDigits) && parsed > 0 && parsed <= PRISMA_INT_MAX) {
     return parsed;
   }
   return value;

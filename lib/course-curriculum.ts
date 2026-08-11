@@ -24,6 +24,7 @@ export type NormalizedCurriculum = Array<{
 
 const chapterKeys = new Set(["id", "title", "lessons"]);
 const lessonKeys = new Set(["id", "title", "durationMinutes"]);
+export const PRISMA_INT_MAX = 2_147_483_647;
 
 function isPlainArray(value: unknown): value is unknown[] {
   return Array.isArray(value) && Object.getPrototypeOf(value) === Array.prototype;
@@ -91,7 +92,9 @@ export function normalizeCurriculum(input: unknown): NormalizedCurriculum {
       if (
         duration !== null &&
         duration !== undefined &&
-        (!Number.isInteger(duration) || (duration as number) <= 0)
+        (!Number.isInteger(duration) ||
+          (duration as number) <= 0 ||
+          (duration as number) > PRISMA_INT_MAX)
       ) {
         throw new TypeError("Lesson duration must be a positive integer");
       }

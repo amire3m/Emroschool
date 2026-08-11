@@ -247,18 +247,25 @@ test("mixed numeral minute input uses the same valid contract for parsing and su
   assert.equal(pattern.test("١.٥"), false);
 });
 
-test("unsafe and arbitrarily long minute input remains invalid and never becomes Infinity", () => {
+test("database-out-of-range and arbitrarily long minute input remains invalid and never becomes Infinity", () => {
   const unsafe = "9007199254740992";
   const huge = "9".repeat(400);
   const pattern = new RegExp(`^(?:${MINUTE_INPUT_PATTERN})$`);
 
-  assert.equal(normalizeMinuteInput("9007199254740991"), 9007199254740991);
+  assert.equal(normalizeMinuteInput("9007199254740991"), "9007199254740991");
   assert.equal(normalizeMinuteInput(unsafe), unsafe);
   assert.equal(normalizeMinuteInput(huge), huge);
   assert.notEqual(normalizeMinuteInput(huge), Infinity);
   assert.notEqual(minuteInputError(unsafe), "");
   assert.notEqual(minuteInputError(huge), "");
   assert.equal(pattern.test(huge), false);
+});
+
+test("minute input keeps the Prisma Int maximum valid and the next integer invalid", () => {
+  assert.equal(normalizeMinuteInput("2147483647"), 2_147_483_647);
+  assert.equal(minuteInputError("2147483647"), "");
+  assert.equal(normalizeMinuteInput("2147483648"), "2147483648");
+  assert.notEqual(minuteInputError("2147483648"), "");
 });
 
 test("in-modal add-child and child-edit controls inherit disabled semantics during save", () => {

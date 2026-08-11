@@ -67,6 +67,26 @@ test("accepts only positive integer lesson durations when present", () => {
   }
 });
 
+test("accepts the maximum Prisma Int lesson duration and rejects the next integer", () => {
+  assert.equal(
+    normalizeCurriculum([
+      {
+        title: "Chapter",
+        lessons: [{ title: "Lesson", durationMinutes: 2_147_483_647 }],
+      },
+    ])[0].lessons[0].durationMinutes,
+    2_147_483_647,
+  );
+  assert.throws(() =>
+    normalizeCurriculum([
+      {
+        title: "Chapter",
+        lessons: [{ title: "Lesson", durationMinutes: 2_147_483_648 }],
+      },
+    ]),
+  );
+});
+
 test("rejects malformed and globally duplicated IDs", () => {
   for (const id of ["", "   ", 1, null]) {
     assert.throws(() => normalizeCurriculum([{ id, title: "Chapter", lessons: [] }]));

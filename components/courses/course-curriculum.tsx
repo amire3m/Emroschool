@@ -117,13 +117,15 @@ function Summary({ summary }: { summary: CurriculumSummary }) {
           {summary.lessonCount.toLocaleString("fa-IR")}
         </dd>
       </div>
-      <div className="flex items-center gap-1.5">
-        <Clock size={15} aria-hidden="true" />
-        <dt className="sr-only">مدت کل</dt>
-        <dd className="font-bold text-primary">
-          {formatCurriculumDuration(summary.totalDurationMinutes)}
-        </dd>
-      </div>
+      {summary.totalDurationMinutes > 0 && (
+        <div className="flex items-center gap-1.5">
+          <Clock size={15} aria-hidden="true" />
+          <dt className="sr-only">مدت کل</dt>
+          <dd className="font-bold text-primary">
+            {formatCurriculumDuration(summary.totalDurationMinutes)}
+          </dd>
+        </div>
+      )}
     </dl>
   );
 }
