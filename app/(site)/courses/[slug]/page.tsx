@@ -26,6 +26,14 @@ import CourseCurriculum, {
 import CopyLinkButton from "@/components/ui/copy-link-button";
 import toast from "react-hot-toast";
 import { useInitialData } from "@/components/seo/initial-data-provider";
+import {
+  commitCurrentCourseRefreshState,
+  createCourseRefreshOwner,
+  createCourseRefreshState,
+  finishCourseRefreshFailure,
+  registrationActionPlacement,
+  type CourseRefreshState,
+} from "@/lib/course-detail-refresh";
 
 interface GalleryImage {
   id: string;
@@ -126,34 +134,68 @@ export default function CourseDetailPage() {
   const slug = params.slug as string;
 
   const initialCourse = useInitialData<CourseDetail>("course");
-  const [course, setCourse] = useState<CourseDetail | null>(initialCourse);
-  const [courseImages, setCourseImages] = useState<CourseImage[]>([]);
-  const [loading, setLoading] = useState(!initialCourse);
-  const [notFound, setNotFound] = useState(false);
-  const [isEnrolled, setIsEnrolled] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState<string | null>(
-    null,
+  const [refreshState, setRefreshState] = useState<
+    CourseRefreshState<CourseDetail, CourseImage>
+  >(() =>
+    createCourseRefreshState<CourseDetail, CourseImage>(slug, initialCourse),
   );
-  const [applicationId, setApplicationId] = useState<string | null>(null);
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-  const [curriculumRefreshing, setCurriculumRefreshing] = useState(
-    Boolean(
-      initialCourse?.curriculumLocked &&
-        initialCourse.curriculumSummary.chapterCount > 0,
-    ),
-  );
+  const {
+    course,
+    courseImages,
+    loading,
+    notFound,
+    isEnrolled,
+    applicationStatus,
+    applicationId,
+    registrationOpen,
+    curriculumRefreshing,
+  } = refreshState;
 
   useEffect(() => {
+    const baseline = createCourseRefreshState<CourseDetail, CourseImage>(
+      slug,
+      initialCourse,
+    );
+    const owner = createCourseRefreshOwner(slug);
+    setRefreshState(baseline);
+
+    const updateCurrent = (
+      updates: Partial<CourseRefreshState<CourseDetail, CourseImage>>,
+    ) => {
+      if (!owner.isCurrent(slug)) return false;
+      setRefreshState((current) =>
+        commitCurrentCourseRefreshState(owner, slug, current, updates),
+      );
+      return true;
+    };
+
+    const failCurrent = (authoritativeNotFound: boolean) => {
+      if (!owner.isCurrent(slug)) return;
+      const failure = finishCourseRefreshFailure(
+        baseline,
+        authoritativeNotFound,
+      );
+      setRefreshState((current) =>
+        commitCurrentCourseRefreshState(owner, slug, current, failure),
+      );
+    };
+
     async function fetchCourse() {
       try {
-        const listRes = await fetch("/api/courses");
+        const listRes = await fetch("/api/courses", { signal: owner.signal });
+        if (!owner.isCurrent(slug)) return;
+        if (!listRes.ok) throw new Error("Course list refresh failed");
         const listData = await listRes.json();
-        const courses: Array<{ id: string; slug: string }> =
-          listData.courses || [];
-        const found = courses.find((c) => c.slug === slug);
+        if (!owner.isCurrent(slug)) return;
+        const courses: Array<{ id: string; slug: string }> = Array.isArray(
+          listData.courses,
+        )
+          ? listData.courses
+          : [];
+        const found = courses.find((candidate) => candidate.slug === slug);
 
         if (!found) {
-          setNotFound(true);
+          failCurrent(false);
           return;
         }
 
@@ -161,57 +203,89 @@ export default function CourseDetailPage() {
         const [detailRes, imagesRes] = await Promise.all([
           fetch(`/api/courses/${found.id}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
+            signal: owner.signal,
           }),
-          fetch(`/api/courses/${found.id}/images`).catch(() => null),
+          fetch(`/api/courses/${found.id}/images`, {
+            signal: owner.signal,
+          }).catch(() => null),
         ]);
-        if (!detailRes.ok) {
-          setNotFound(true);
+        if (!owner.isCurrent(slug)) return;
+        if (detailRes.status === 404) {
+          failCurrent(true);
           return;
         }
+        if (!detailRes.ok) throw new Error("Course detail refresh failed");
         const detailData = await detailRes.json();
-        setCourse(detailData.course);
+        if (!owner.isCurrent(slug)) return;
+        if (!detailData.course || detailData.course.slug !== slug) {
+          throw new Error("Course detail refresh returned the wrong course");
+        }
+        updateCurrent({
+          course: detailData.course,
+          loading: false,
+          notFound: false,
+          curriculumRefreshing: false,
+        });
 
-        if (imagesRes && imagesRes.ok) {
-          const imagesData = await imagesRes.json();
-          setCourseImages(imagesData.images || []);
+        if (imagesRes?.ok) {
+          const imagesData = await imagesRes.json().catch(() => null);
+          if (!owner.isCurrent(slug)) return;
+          if (imagesData) {
+            updateCurrent({ courseImages: imagesData.images || [] });
+          }
         }
 
         if (token) {
-          const enrollRes = await fetch(`/api/enroll?courseId=${found.id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => null);
-          if (enrollRes && enrollRes.ok) {
-            const enrollData = await enrollRes.json();
-            if (enrollData.enrolled) {
-              setIsEnrolled(true);
+          const [enrollRes, applicationRes] = await Promise.all([
+            fetch(`/api/enroll?courseId=${found.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: owner.signal,
+            }).catch(() => null),
+            fetch("/api/course-applications", {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: owner.signal,
+            }).catch(() => null),
+          ]);
+          if (!owner.isCurrent(slug)) return;
+
+          if (enrollRes?.ok) {
+            const enrollData = await enrollRes.json().catch(() => null);
+            if (!owner.isCurrent(slug)) return;
+            if (enrollData) {
+              updateCurrent({ isEnrolled: Boolean(enrollData.enrolled) });
             }
           }
-          const applicationRes = await fetch("/api/course-applications", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => null);
+
           if (applicationRes?.ok) {
-            const applicationData = await applicationRes.json();
-            const application = applicationData.applications?.find(
+            const applicationData = await applicationRes
+              .json()
+              .catch(() => null);
+            if (!owner.isCurrent(slug)) return;
+            const application = applicationData?.applications?.find(
               (item: { courseId: string; id: string; status: string }) =>
                 item.courseId === found.id,
             );
             if (application) {
-              setApplicationId(application.id);
-              setApplicationStatus(application.status);
+              updateCurrent({
+                applicationId: application.id,
+                applicationStatus: application.status,
+              });
             }
           }
         }
       } catch {
-        setNotFound(true);
+        if (!owner.isCurrent(slug)) return;
+        failCurrent(false);
       } finally {
-        setLoading(false);
-        setCurriculumRefreshing(false);
+        if (!owner.isCurrent(slug)) return;
+        updateCurrent({ loading: false, curriculumRefreshing: false });
       }
     }
     fetchCourse();
-  }, [slug]);
+    return () => owner.cancel();
+  }, [initialCourse, slug]);
 
-  if (loading) {
+  if (refreshState.slug !== slug || loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center pt-32">
         <Loader2 size={32} className="animate-spin text-secondary" />
@@ -237,6 +311,10 @@ export default function CourseDetailPage() {
   const curriculumView = curriculumRefreshing
     ? ({ state: "hidden" } as const)
     : createCourseCurriculumView(course);
+  const registrationPlacement = registrationActionPlacement(
+    curriculumRefreshing,
+    curriculumView.state,
+  );
   const registrationAction = course.courseType === "single" ? (
     course.scheduleStatus === "completed" ? (
       <button
@@ -279,7 +357,11 @@ export default function CourseDetailPage() {
             );
             return;
           }
-          setRegistrationOpen(true);
+          setRefreshState((current) =>
+            current.slug === slug
+              ? { ...current, registrationOpen: true }
+              : current,
+          );
         }}
         className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white transition-colors hover:bg-primary-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
@@ -562,7 +644,7 @@ export default function CourseDetailPage() {
                     )}
                   </div>}
 
-                  {curriculumView.state !== "locked" && registrationAction}
+                  {registrationPlacement === "sidebar" && registrationAction}
 
                   <p className="text-xs text-outline text-center">
                     تضمین کیفیت آموزش
@@ -597,7 +679,12 @@ export default function CourseDetailPage() {
         <CourseRegistrationModal
           courseId={course.id}
           courseTitle={course.title}
-          onClose={() => setRegistrationOpen(false)}
+          onClose={() =>
+            setRefreshState((current) => ({
+              ...current,
+              registrationOpen: false,
+            }))
+          }
           onSuccess={({
             applicationId: createdApplicationId,
             profileUpdated,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { ChevronDown, Clock, LockKeyhole } from "lucide-react";
 
 export interface CurriculumSummary {
@@ -92,6 +92,16 @@ export function formatCurriculumDuration(minutes: number) {
   return parts.join(" و ");
 }
 
+export function reconcileExpandedChapterId(
+  current: string | null,
+  chapters: Array<{ id: string }>,
+) {
+  if (chapters.length === 0) return null;
+  return current && chapters.some(({ id }) => id === current)
+    ? current
+    : chapters[0].id;
+}
+
 function Summary({ summary }: { summary: CurriculumSummary }) {
   return (
     <dl className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-outline">
@@ -163,6 +173,11 @@ function EnrolledCurriculum({
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(
     chapters[0]?.id ?? null,
   );
+  useEffect(() => {
+    setExpandedChapterId((current) =>
+      reconcileExpandedChapterId(current, chapters),
+    );
+  }, [chapters]);
 
   return (
     <section
