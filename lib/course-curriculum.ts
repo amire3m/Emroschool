@@ -130,6 +130,42 @@ export function curriculumSummary(chapters: NormalizedCurriculum) {
   );
 }
 
+export function serializeCurriculum({
+  chapters,
+  canReadTitles,
+}: {
+  chapters: NormalizedCurriculum;
+  canReadTitles: boolean;
+}) {
+  const summary = curriculumSummary(chapters);
+  if (!canReadTitles) {
+    return {
+      curriculumLocked: true as const,
+      curriculumSummary: summary,
+    };
+  }
+
+  return {
+    curriculumLocked: false as const,
+    curriculumSummary: summary,
+    curriculum: [...chapters]
+      .sort((left, right) => left.order - right.order)
+      .map((chapter) => ({
+        ...(chapter.id === undefined ? {} : { id: chapter.id }),
+        title: chapter.title,
+        order: chapter.order,
+        lessons: [...chapter.lessons]
+          .sort((left, right) => left.order - right.order)
+          .map((lesson) => ({
+            ...(lesson.id === undefined ? {} : { id: lesson.id }),
+            title: lesson.title,
+            durationMinutes: lesson.durationMinutes,
+            order: lesson.order,
+          })),
+      })),
+  };
+}
+
 export const COURSE_CURRICULUM_OWNERSHIP_ERROR = "COURSE_CURRICULUM_OWNERSHIP";
 
 export async function syncCourseCurriculum(

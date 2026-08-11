@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
+import { serializeCurriculum } from "@/lib/course-curriculum";
 import { absoluteUrl, siteName } from "@/lib/seo";
 import { InitialDataProvider } from "@/components/seo/initial-data-provider";
 
@@ -31,11 +32,17 @@ export default async function CourseLayout({ children, params }: { children: Rea
       gallery: true,
       parent: { select: { id: true, title: true, slug: true } },
       children: { where: { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
+      chapters: { orderBy: { order: "asc" }, include: { lessons: { orderBy: { order: "asc" } } } },
       _count: { select: { enrollments: true } },
     },
   });
 
   if (!course) return children;
+  const { chapters, ...courseDetails } = course;
+  const serializedCourse = {
+    ...courseDetails,
+    ...serializeCurriculum({ chapters, canReadTitles: false }),
+  };
 
   const schema = {
     "@context": "https://schema.org",
@@ -49,5 +56,5 @@ export default async function CourseLayout({ children, params }: { children: Rea
     ...(course.startDate ? { hasCourseInstance: { "@type": "CourseInstance", startDate: course.startDate.toISOString() } } : {}),
   };
 
-  return <InitialDataProvider data={{ course }}>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /></InitialDataProvider>;
+  return <InitialDataProvider data={{ course: serializedCourse }}>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /></InitialDataProvider>;
 }

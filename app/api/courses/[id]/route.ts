@@ -5,16 +5,22 @@ import { sortCoursesBySchedule } from "@/lib/course-order";
 import {
   COURSE_CURRICULUM_OWNERSHIP_ERROR,
   normalizeCurriculum,
+  serializeCurriculum,
   syncCourseCurriculum,
 } from "@/lib/course-curriculum";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 
 async function getAdminUser(req: NextRequest) {
+  const payload = getAuthenticatedUser(req);
+  if (!payload || !isAdminRole(payload.role)) return null;
+  return payload;
+}
+
+function getAuthenticatedUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const payload = verifyToken(authHeader.slice(7));
-  if (!payload || !isAdminRole(payload.role)) return null;
-  return payload;
+  return payload || null;
 }
 
 export async function GET(
@@ -22,7 +28,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await getAdminUser(req);
+    const authenticatedUser = getAuthenticatedUser(req);
+    const admin = authenticatedUser && isAdminRole(authenticatedUser.role)
+      ? authenticatedUser
+      : null;
     const course = await prisma.course.findUnique({
       where: { id: params.id, ...(admin ? {} : { published: true }) },
       include: {
@@ -34,6 +43,7 @@ export async function GET(
         children: { where: admin ? undefined : { published: true }, orderBy: { startDate: "asc" }, select: { id: true, title: true, slug: true, thumbnail: true, description: true, instructor: true, price: true, registrationMode: true, scheduleStatus: true, startDate: true, endDate: true } },
         enrollments: { where: admin ? undefined : { user: { profileVisible: true, profileApprovalStatus: "approved" } }, orderBy: { createdAt: "desc" }, take: 12, select: { id: true, user: { select: { id: true, name: true, avatar: true, expertise: true } } } },
         ...(admin ? { enrollments: { orderBy: { createdAt: "desc" as const }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } } } } } : {}),
+        chapters: { orderBy: { order: "asc" }, include: { lessons: { orderBy: { order: "asc" } } } },
         _count: { select: { enrollments: true, applications: true, children: true } },
       },
     });
@@ -42,7 +52,23 @@ export async function GET(
       return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     }
 
-    return NextResponse.json({ course: { ...course, children: sortCoursesBySchedule(course.children) } });
+    const enrollment = !admin && authenticatedUser
+      ? await prisma.enrollment.findUnique({
+          where: {
+            userId_courseId: { userId: authenticatedUser.id, courseId: params.id },
+          },
+          select: { id: true },
+        })
+      : null;
+    const { chapters, ...courseDetails } = course;
+
+    return NextResponse.json({
+      course: {
+        ...courseDetails,
+        children: sortCoursesBySchedule(course.children),
+        ...serializeCurriculum({ chapters, canReadTitles: Boolean(admin || enrollment) }),
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: "خطا در دریافت دوره" }, { status: 500 });
   }
