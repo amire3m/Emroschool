@@ -144,6 +144,13 @@ export function minuteInputError(value: string) {
   return typeof normalizeMinuteInput(value) === "number" ? "" : MINUTE_INPUT_ERROR;
 }
 
+export function syncMinuteInputValidity(
+  input: Pick<HTMLInputElement, "setCustomValidity">,
+  displayedValue: string,
+) {
+  input.setCustomValidity(minuteInputError(displayedValue));
+}
+
 export type EditorKeys = Array<{
   chapter: string;
   lessons: string[];
@@ -191,6 +198,26 @@ type CourseCurriculumEditorProps = {
   onChange: (value: CurriculumInput) => void;
   disabled?: boolean;
 };
+
+type ContextReplacementGroupProps = {
+  saving: boolean;
+  children?: React.ReactNode;
+};
+
+export function ContextReplacementGroup({
+  saving,
+  children,
+}: ContextReplacementGroupProps) {
+  return (
+    <fieldset
+      disabled={saving}
+      aria-disabled={saving}
+      className="contents [&_:disabled]:cursor-not-allowed [&_:disabled]:opacity-50"
+    >
+      {children}
+    </fieldset>
+  );
+}
 
 type InlineDeleteConfirmationProps = {
   disabled: boolean;
@@ -530,6 +557,9 @@ export default function CourseCurriculumEditor({
                                   زمان (دقیقه)
                                 </label>
                                 <input
+                                  ref={(input) => {
+                                    if (input) syncMinuteInputValidity(input, minuteDraft);
+                                  }}
                                   id={durationId}
                                   type="text"
                                   inputMode="numeric"
@@ -539,7 +569,7 @@ export default function CourseCurriculumEditor({
                                   onChange={(event) => {
                                     const raw = event.target.value;
                                     const normalized = normalizeMinuteInput(raw);
-                                    event.currentTarget.setCustomValidity(minuteInputError(raw));
+                                    syncMinuteInputValidity(event.currentTarget, raw);
                                     setMinuteDrafts((current) => ({ ...current, [lessonKey]: raw }));
                                     if (typeof normalized !== "string") {
                                       updateLesson(chapterIndex, lessonIndex, {

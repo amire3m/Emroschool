@@ -8,6 +8,7 @@ import {
   addChapter,
   addLesson,
   canReplaceCourseContext,
+  ContextReplacementGroup,
   createEditorState,
   createDetailRequestOwner,
   InlineDeleteConfirmation,
@@ -19,6 +20,7 @@ import {
   reconcileEditorState,
   removeChapter,
   removeLesson,
+  syncMinuteInputValidity,
 } from "../components/admin/course-curriculum-editor";
 
 const persistedCurriculum: CurriculumInput = [
@@ -257,4 +259,36 @@ test("unsafe and arbitrarily long minute input remains invalid and never becomes
   assert.notEqual(minuteInputError(unsafe), "");
   assert.notEqual(minuteInputError(huge), "");
   assert.equal(pattern.test(huge), false);
+});
+
+test("in-modal add-child and child-edit controls inherit disabled semantics during save", () => {
+  const markup = renderToStaticMarkup(
+    createElement(
+      ContextReplacementGroup,
+      { saving: true },
+      createElement("button", null, "افزودن زیر‌دوره جدید"),
+      createElement("button", null, "ویرایش زیر‌دوره"),
+    ),
+  );
+
+  assert.match(markup, /^<fieldset disabled="" aria-disabled="true"/);
+  assert.match(markup, /:disabled\]:opacity-50/);
+});
+
+test("minute native validity clears stale errors for valid replacements and follows invalid drafts", () => {
+  const input = {
+    validationMessage: "",
+    setCustomValidity(message: string) {
+      this.validationMessage = message;
+    },
+  };
+
+  syncMinuteInputValidity(input, "1.5");
+  assert.notEqual(input.validationMessage, "");
+
+  syncMinuteInputValidity(input, "25");
+  assert.equal(input.validationMessage, "");
+
+  syncMinuteInputValidity(input, "0");
+  assert.notEqual(input.validationMessage, "");
 });
