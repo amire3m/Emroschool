@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -14,7 +14,43 @@ import type { CurriculumInput } from "@/lib/course-curriculum";
 
 type MoveDirection = "up" | "down";
 
+export type DetailRequest = {
+  controller: AbortController;
+};
+
+export function createDetailRequestOwner() {
+  let current: DetailRequest | null = null;
+
+  return {
+    begin() {
+      current?.controller.abort();
+      const request = { controller: new AbortController() };
+      current = request;
+      return request;
+    },
+    cancel() {
+      current?.controller.abort();
+      current = null;
+    },
+    isCurrent(request: DetailRequest) {
+      return current === request && !request.controller.signal.aborted;
+    },
+    finish(request: DetailRequest) {
+      if (current !== request) return false;
+      current = null;
+      return true;
+    },
+  };
+}
+
+export function canReplaceCourseContext(saving: boolean) {
+  return !saving;
+}
+
 export type MinuteInputValue = number | null | string;
+export const MINUTE_INPUT_PATTERN =
+  "(?=.{1,16}$)[1-9۱-۹١-٩][0-9۰-۹٠-٩]*";
+const MINUTE_INPUT_ERROR = "زمان باید یک عدد صحیح بزرگ‌تر از صفر باشد.";
 
 export function addChapter(curriculum: CurriculumInput): CurriculumInput {
   return [...curriculum, { title: "", lessons: [] }];
@@ -96,22 +132,109 @@ export function normalizeMinuteInput(value: string): MinuteInputValue {
   const normalizedDigits = value
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
-  if (/^\d+$/.test(normalizedDigits) && Number(normalizedDigits) > 0) {
-    return Number(normalizedDigits);
+  const parsed = Number(normalizedDigits);
+  if (/^\d+$/.test(normalizedDigits) && Number.isSafeInteger(parsed) && parsed > 0) {
+    return parsed;
   }
   return value;
 }
 
-type EditorKeys = Array<{
+export function minuteInputError(value: string) {
+  if (value.trim() === "") return "";
+  return typeof normalizeMinuteInput(value) === "number" ? "" : MINUTE_INPUT_ERROR;
+}
+
+export type EditorKeys = Array<{
   chapter: string;
   lessons: string[];
 }>;
+
+export type EditorState = {
+  controlledValue: CurriculumInput;
+  keys: EditorKeys;
+  minuteDrafts: Record<string, string>;
+  confirmDelete: string | null;
+};
+
+export function createEditorState(
+  value: CurriculumInput,
+  createKey: (kind: "chapter" | "lesson") => string,
+): EditorState {
+  return {
+    controlledValue: value,
+    keys: value.map((chapter) => ({
+      chapter: chapter.id ? `chapter-${chapter.id}` : createKey("chapter"),
+      lessons: chapter.lessons.map((lesson) =>
+        lesson.id ? `lesson-${lesson.id}` : createKey("lesson"),
+      ),
+    })),
+    minuteDrafts: {},
+    confirmDelete: null,
+  };
+}
+
+export function reconcileEditorState(
+  state: EditorState,
+  nextValue: CurriculumInput,
+  internallyEmittedValue: CurriculumInput | null,
+  createKey: (kind: "chapter" | "lesson") => string,
+): EditorState {
+  if (state.controlledValue === nextValue) return state;
+  if (internallyEmittedValue === nextValue) {
+    return { ...state, controlledValue: nextValue };
+  }
+  return createEditorState(nextValue, createKey);
+}
 
 type CourseCurriculumEditorProps = {
   value: CurriculumInput;
   onChange: (value: CurriculumInput) => void;
   disabled?: boolean;
 };
+
+type InlineDeleteConfirmationProps = {
+  disabled: boolean;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+export function InlineDeleteConfirmation({
+  disabled,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: InlineDeleteConfirmationProps) {
+  return (
+    <div className="mt-3 flex flex-col gap-3 rounded-xl bg-error-container px-3 py-2.5 text-sm text-error sm:flex-row sm:items-center">
+      <p className="flex min-w-0 flex-1 items-start gap-2 leading-6">
+        <AlertTriangle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+        {message}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          autoFocus={!disabled}
+          disabled={disabled}
+          onClick={onConfirm}
+          className="rounded-lg bg-error px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {confirmLabel}
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onCancel}
+          className="rounded-lg border border-error/20 bg-white px-3 py-2 text-xs font-bold text-error focus:outline-none focus:ring-2 focus:ring-error/30 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          انصراف
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function moveItem<T>(items: T[], index: number, direction: MoveDirection) {
   const destination = index + (direction === "up" ? -1 : 1);
@@ -129,22 +252,36 @@ export default function CourseCurriculumEditor({
   const nextKey = useRef(0);
   const createKey = (kind: "chapter" | "lesson") =>
     `curriculum-${kind}-${nextKey.current++}`;
-  const [keys, setKeys] = useState<EditorKeys>(() =>
-    value.map((chapter, chapterIndex) => ({
-      chapter: chapter.id ? `chapter-${chapter.id}` : `chapter-new-${chapterIndex}`,
-      lessons: chapter.lessons.map((lesson, lessonIndex) =>
-        lesson.id
-          ? `lesson-${lesson.id}`
-          : `lesson-new-${chapterIndex}-${lessonIndex}`,
-      ),
-    })),
+  const pendingValue = useRef<CurriculumInput | null>(null);
+  const [editorState, setEditorState] = useState<EditorState>(() =>
+    createEditorState(value, createKey),
   );
-  const [minuteDrafts, setMinuteDrafts] = useState<Record<string, string>>({});
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  if (editorState.controlledValue !== value) {
+    setEditorState(reconcileEditorState(editorState, value, pendingValue.current, createKey));
+    pendingValue.current = null;
+  } else if (pendingValue.current === value) {
+    pendingValue.current = null;
+  }
+  const { keys, minuteDrafts, confirmDelete } = editorState;
+  const setKeys = (update: (current: EditorKeys) => EditorKeys) =>
+    setEditorState((current) => ({ ...current, keys: update(current.keys) }));
+  const setMinuteDrafts = (
+    update: (current: Record<string, string>) => Record<string, string>,
+  ) =>
+    setEditorState((current) => ({
+      ...current,
+      minuteDrafts: update(current.minuteDrafts),
+    }));
+  const setConfirmDelete = (confirmDelete: string | null) =>
+    setEditorState((current) => ({ ...current, confirmDelete }));
+  const emitChange = (nextValue: CurriculumInput) => {
+    pendingValue.current = nextValue;
+    onChange(nextValue);
+  };
   const lessonCount = value.reduce((count, chapter) => count + chapter.lessons.length, 0);
 
   const updateChapterTitle = (chapterIndex: number, title: string) => {
-    onChange(
+    emitChange(
       value.map((chapter, index) =>
         index === chapterIndex ? { ...chapter, title } : chapter,
       ),
@@ -156,7 +293,7 @@ export default function CourseCurriculumEditor({
     lessonIndex: number,
     changes: Partial<CurriculumInput[number]["lessons"][number]>,
   ) => {
-    onChange(
+    emitChange(
       value.map((chapter, index) =>
         index === chapterIndex
           ? {
@@ -171,7 +308,7 @@ export default function CourseCurriculumEditor({
   };
 
   const appendChapter = () => {
-    onChange(addChapter(value));
+    emitChange(addChapter(value));
     setKeys((current) => [
       ...current,
       { chapter: createKey("chapter"), lessons: [] },
@@ -179,7 +316,7 @@ export default function CourseCurriculumEditor({
   };
 
   const appendLesson = (chapterIndex: number) => {
-    onChange(addLesson(value, chapterIndex));
+    emitChange(addLesson(value, chapterIndex));
     setKeys((current) =>
       current.map((chapter, index) =>
         index === chapterIndex
@@ -190,13 +327,13 @@ export default function CourseCurriculumEditor({
   };
 
   const deleteChapter = (chapterIndex: number) => {
-    onChange(removeChapter(value, chapterIndex));
+    emitChange(removeChapter(value, chapterIndex));
     setKeys((current) => current.filter((_, index) => index !== chapterIndex));
     setConfirmDelete(null);
   };
 
   const deleteLesson = (chapterIndex: number, lessonIndex: number) => {
-    onChange(removeLesson(value, chapterIndex, lessonIndex));
+    emitChange(removeLesson(value, chapterIndex, lessonIndex));
     setKeys((current) =>
       current.map((chapter, index) =>
         index === chapterIndex
@@ -211,7 +348,7 @@ export default function CourseCurriculumEditor({
   };
 
   const reorderChapter = (chapterIndex: number, direction: MoveDirection) => {
-    onChange(moveChapter(value, chapterIndex, direction));
+    emitChange(moveChapter(value, chapterIndex, direction));
     setKeys((current) => moveItem(current, chapterIndex, direction));
   };
 
@@ -220,7 +357,7 @@ export default function CourseCurriculumEditor({
     lessonIndex: number,
     direction: MoveDirection,
   ) => {
-    onChange(moveLesson(value, chapterIndex, lessonIndex, direction));
+    emitChange(moveLesson(value, chapterIndex, lessonIndex, direction));
     setKeys((current) =>
       current.map((chapter, index) =>
         index === chapterIndex
@@ -338,29 +475,13 @@ export default function CourseCurriculumEditor({
                   </div>
 
                   {confirmDelete === chapterDeleteKey && (
-                    <div className="mt-3 flex flex-col gap-3 rounded-xl bg-error-container px-3 py-2.5 text-sm text-error sm:flex-row sm:items-center">
-                      <p className="flex min-w-0 flex-1 items-start gap-2 leading-6">
-                        <AlertTriangle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
-                        این فصل و همه درس‌های آن حذف شود؟
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => deleteChapter(chapterIndex)}
-                          className="rounded-lg bg-error px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
-                        >
-                          حذف فصل
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(null)}
-                          className="rounded-lg border border-error/20 bg-white px-3 py-2 text-xs font-bold text-error focus:outline-none focus:ring-2 focus:ring-error/30"
-                        >
-                          انصراف
-                        </button>
-                      </div>
-                    </div>
+                    <InlineDeleteConfirmation
+                      disabled={disabled}
+                      message="این فصل و همه درس‌های آن حذف شود؟"
+                      confirmLabel="حذف فصل"
+                      onConfirm={() => deleteChapter(chapterIndex)}
+                      onCancel={() => setConfirmDelete(null)}
+                    />
                   )}
                 </div>
 
@@ -381,9 +502,8 @@ export default function CourseCurriculumEditor({
                         const minuteDraft =
                           minuteDrafts[lessonKey] ??
                           (lesson.durationMinutes == null ? "" : String(lesson.durationMinutes));
-                        const normalizedMinute = normalizeMinuteInput(minuteDraft);
-                        const minuteInvalid =
-                          minuteDraft.trim() !== "" && typeof normalizedMinute === "string";
+                        const minuteError = minuteInputError(minuteDraft);
+                        const minuteInvalid = Boolean(minuteError);
                         return (
                           <div key={lessonKey} className="p-4">
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
@@ -413,11 +533,13 @@ export default function CourseCurriculumEditor({
                                   id={durationId}
                                   type="text"
                                   inputMode="numeric"
-                                  pattern="(?:[1-9][0-9]*|[۱-۹][۰-۹]*|[١-٩][٠-٩]*)"
+                                  pattern={MINUTE_INPUT_PATTERN}
+                                  maxLength={16}
                                   value={minuteDraft}
                                   onChange={(event) => {
                                     const raw = event.target.value;
                                     const normalized = normalizeMinuteInput(raw);
+                                    event.currentTarget.setCustomValidity(minuteInputError(raw));
                                     setMinuteDrafts((current) => ({ ...current, [lessonKey]: raw }));
                                     if (typeof normalized !== "string") {
                                       updateLesson(chapterIndex, lessonIndex, {
@@ -471,30 +593,17 @@ export default function CourseCurriculumEditor({
                               className={`mt-1 text-xs ${minuteInvalid ? "text-error" : "text-outline"}`}
                             >
                               {minuteInvalid
-                                ? "زمان باید یک عدد صحیح بزرگ‌تر از صفر باشد."
+                                ? minuteError
                                 : "اختیاری؛ فقط عدد صحیح بزرگ‌تر از صفر"}
                             </p>
                             {confirmDelete === lessonDeleteKey && (
-                              <div className="mt-3 flex flex-col gap-3 rounded-xl bg-error-container px-3 py-2.5 text-sm text-error sm:flex-row sm:items-center">
-                                <p className="min-w-0 flex-1 leading-6">این درس حذف شود؟</p>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    autoFocus
-                                    onClick={() => deleteLesson(chapterIndex, lessonIndex)}
-                                    className="rounded-lg bg-error px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
-                                  >
-                                    حذف درس
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDelete(null)}
-                                    className="rounded-lg border border-error/20 bg-white px-3 py-2 text-xs font-bold text-error focus:outline-none focus:ring-2 focus:ring-error/30"
-                                  >
-                                    انصراف
-                                  </button>
-                                </div>
-                              </div>
+                              <InlineDeleteConfirmation
+                                disabled={disabled}
+                                message="این درس حذف شود؟"
+                                confirmLabel="حذف درس"
+                                onConfirm={() => deleteLesson(chapterIndex, lessonIndex)}
+                                onCancel={() => setConfirmDelete(null)}
+                              />
                             )}
                           </div>
                         );

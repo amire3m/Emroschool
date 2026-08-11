@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import type { CurriculumInput } from "../lib/course-curriculum";
 import {
   addChapter,
   addLesson,
+  canReplaceCourseContext,
+  createEditorState,
+  createDetailRequestOwner,
+  InlineDeleteConfirmation,
+  MINUTE_INPUT_PATTERN,
   moveChapter,
   moveLesson,
+  minuteInputError,
   normalizeMinuteInput,
+  reconcileEditorState,
   removeChapter,
   removeLesson,
 } from "../components/admin/course-curriculum-editor";
@@ -117,4 +126,135 @@ test("normalizes blank and positive integer minute input without hiding invalid 
   assert.equal(normalizeMinuteInput("-2"), "-2");
   assert.equal(normalizeMinuteInput("1.5"), "1.5");
   assert.equal(normalizeMinuteInput("abc"), "abc");
+});
+
+test("detail request ownership aborts predecessors and rejects stale success and finally", () => {
+  const owner = createDetailRequestOwner();
+  const first = owner.begin();
+  const second = owner.begin();
+
+  assert.equal(first.controller.signal.aborted, true);
+  assert.equal(owner.isCurrent(first), false);
+  assert.equal(owner.isCurrent(second), true);
+  assert.equal(owner.finish(first), false);
+  assert.equal(owner.isCurrent(second), true);
+  assert.equal(owner.finish(second), true);
+  assert.equal(owner.isCurrent(second), false);
+});
+
+test("save or modal context cancellation aborts and invalidates the current detail request", () => {
+  const owner = createDetailRequestOwner();
+  const request = owner.begin();
+
+  owner.cancel();
+
+  assert.equal(request.controller.signal.aborted, true);
+  assert.equal(owner.isCurrent(request), false);
+  assert.equal(owner.finish(request), false);
+});
+
+test("controlled internal edits preserve stable keys and invalid minute drafts", () => {
+  const state = {
+    ...createEditorState(persistedCurriculum, (kind) => `new-${kind}`),
+    minuteDrafts: { "lesson-lesson-one": "1.5" },
+    confirmDelete: "delete-lesson-lesson-one",
+  };
+  const internallyEdited: CurriculumInput = [
+    { ...persistedCurriculum[0], title: "فصل ویرایش‌شده" },
+    persistedCurriculum[1],
+  ];
+
+  const next = reconcileEditorState(
+    state,
+    internallyEdited,
+    internallyEdited,
+    (kind) => `replacement-${kind}`,
+  );
+
+  assert.strictEqual(next.controlledValue, internallyEdited);
+  assert.strictEqual(next.keys, state.keys);
+  assert.strictEqual(next.minuteDrafts, state.minuteDrafts);
+  assert.equal(next.confirmDelete, "delete-lesson-lesson-one");
+});
+
+test("controlled external replacement rebuilds keys and clears stale lesson UI state", () => {
+  const state = {
+    ...createEditorState(persistedCurriculum, (kind) => `old-${kind}`),
+    minuteDrafts: { "lesson-lesson-one": "1.5" },
+    confirmDelete: "delete-lesson-lesson-one",
+  };
+  const replacement: CurriculumInput = [
+    {
+      id: "chapter-replacement",
+      title: "فصل جایگزین",
+      lessons: [{ id: "lesson-replacement", title: "درس جایگزین", durationMinutes: 9 }],
+    },
+  ];
+
+  const next = reconcileEditorState(
+    state,
+    replacement,
+    null,
+    (kind) => `replacement-${kind}`,
+  );
+
+  assert.strictEqual(next.controlledValue, replacement);
+  assert.deepEqual(next.keys, [
+    { chapter: "chapter-chapter-replacement", lessons: ["lesson-lesson-replacement"] },
+  ]);
+  assert.deepEqual(next.minuteDrafts, {});
+  assert.equal(next.confirmDelete, null);
+});
+
+test("disabled inline confirmation blocks both delete and cancel and enabled confirmation owns focus", () => {
+  const disabledMarkup = renderToStaticMarkup(
+    createElement(InlineDeleteConfirmation, {
+      disabled: true,
+      message: "این درس حذف شود؟",
+      confirmLabel: "حذف درس",
+      onConfirm() {},
+      onCancel() {},
+    }),
+  );
+  const enabledMarkup = renderToStaticMarkup(
+    createElement(InlineDeleteConfirmation, {
+      disabled: false,
+      message: "این درس حذف شود؟",
+      confirmLabel: "حذف درس",
+      onConfirm() {},
+      onCancel() {},
+    }),
+  );
+
+  assert.equal((disabledMarkup.match(/ disabled=""/g) || []).length, 2);
+  assert.equal((enabledMarkup.match(/ autofocus=""/g) || []).length, 1);
+});
+
+test("save ownership blocks modal close and course context replacement", () => {
+  assert.equal(canReplaceCourseContext(true), false);
+  assert.equal(canReplaceCourseContext(false), true);
+});
+
+test("mixed numeral minute input uses the same valid contract for parsing and submission", () => {
+  const pattern = new RegExp(`^(?:${MINUTE_INPUT_PATTERN})$`);
+
+  assert.equal(normalizeMinuteInput("1۲٣"), 123);
+  assert.equal(minuteInputError("1۲٣"), "");
+  assert.equal(pattern.test("1۲٣"), true);
+  assert.equal(pattern.test("۰"), false);
+  assert.equal(pattern.test("١.٥"), false);
+});
+
+test("unsafe and arbitrarily long minute input remains invalid and never becomes Infinity", () => {
+  const unsafe = "9007199254740992";
+  const huge = "9".repeat(400);
+  const pattern = new RegExp(`^(?:${MINUTE_INPUT_PATTERN})$`);
+
+  assert.equal(normalizeMinuteInput("9007199254740991"), 9007199254740991);
+  assert.equal(normalizeMinuteInput(unsafe), unsafe);
+  assert.equal(normalizeMinuteInput(huge), huge);
+  assert.notEqual(normalizeMinuteInput(huge), Infinity);
+  assert.notEqual(minuteInputError(unsafe), "");
+  assert.notEqual(minuteInputError(huge), "");
+  assert.equal(pattern.test(huge), false);
 });
