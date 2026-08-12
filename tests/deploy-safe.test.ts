@@ -9,6 +9,7 @@ import test from "node:test";
 
 const execFileAsync = promisify(execFile);
 const gitBash = process.platform === "win32" ? "C:\\Program Files\\Git\\bin\\bash.exe" : "/bin/bash";
+const deploymentTimeoutMs = 30_000;
 
 function bashPath(value: string) {
   return process.platform === "win32"
@@ -123,6 +124,75 @@ async function waitForFile(filePath: string, timeoutMs = 10_000) {
   }
 }
 
+async function terminatePidFromFile(filePath: string) {
+  let value: string;
+  try {
+    value = (await readFile(filePath, "utf8")).trim();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  if (!/^[1-9]\d*$/.test(value)) return;
+
+  const pid = Number(value);
+  if (!Number.isSafeInteger(pid)) return;
+
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    try {
+      process.kill(pid, signal);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") return;
+      throw error;
+    }
+
+    const deadline = Date.now() + 1_000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      try {
+        process.kill(pid, 0);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ESRCH") return;
+        throw error;
+      }
+    }
+  }
+}
+
+test("PID-file cleanup terminates a recorded process", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "pid-cleanup-"));
+  const pidFile = path.join(root, "child.pid");
+  const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 300_000)"]);
+  try {
+    assert.ok(child.pid);
+    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    await writeFile(pidFile, `${child.pid}\n`);
+    await terminatePidFromFile(pidFile);
+    await Promise.race([
+      exited,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("recorded process was not terminated")), 500)),
+    ]);
+  } finally {
+    child.kill("SIGKILL");
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("PID-file cleanup ignores malformed process identifiers", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "pid-cleanup-"));
+  const pidFile = path.join(root, "child.pid");
+  const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 300_000)"]);
+  try {
+    assert.ok(child.pid);
+    await writeFile(pidFile, `${child.pid}x\n`);
+    await terminatePidFromFile(pidFile);
+    process.kill(child.pid, 0);
+  } finally {
+    child.kill("SIGKILL");
+    await new Promise((resolve) => child.once("exit", resolve));
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 function runDeployment(fixture: Awaited<ReturnType<typeof deploymentFixture>>, overrides: Record<string, string> = {}) {
   const exports = Object.entries(overrides).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(" ");
   return execFileAsync(gitBash, [
@@ -136,7 +206,7 @@ function runDeployment(fixture: Awaited<ReturnType<typeof deploymentFixture>>, o
     bashPath(fixture.lockDir),
     bashPath(fixture.logDir),
     fixture.appUser,
-  ]);
+  ], { timeout: deploymentTimeoutMs, killSignal: "SIGKILL" });
 }
 
 async function runInstalledCron(fixture: Awaited<ReturnType<typeof deploymentFixture>>) {
@@ -403,14 +473,9 @@ test("actual deploy holds its real lock through dispatch and releases it despite
     process.kill(descendantPid, 0);
   } finally {
     await writeFile(fixture.dispatchGate, "release\n").catch(() => undefined);
+    await terminatePidFromFile(fixture.pm2ChildPid);
     await deployment?.catch(() => undefined);
-    if (descendantPid !== undefined) {
-      try {
-        process.kill(descendantPid, "SIGTERM");
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-      }
-    }
+    await terminatePidFromFile(fixture.pm2ChildPid);
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
