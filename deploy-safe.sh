@@ -6,6 +6,10 @@ PM2_APP="${PM2_APP:-emroschool}"
 BACKUP_ROOT="$APP_DIR/backups"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP"
+CRON_FILE="${CRON_FILE:-/etc/cron.d/emroschool-bale-notifications}"
+BALE_LOCK_FILE="${BALE_LOCK_FILE:-/var/lock/emroschool-bale-notifications.lock}"
+BALE_LOG_FILE="${BALE_LOG_FILE:-/var/log/emroschool-bale-notifications.log}"
+APP_USER="${APP_USER:-$(stat -c %U "$APP_DIR")}"
 APP_STOPPED=0
 RESTART_SAFE=1
 
@@ -65,5 +69,29 @@ npm run db:backfill-bale-payments
 rm -rf .next
 npm run build
 restart_writer
+
+NPM_BIN="$(command -v npm)"
+FLOCK_BIN="$(command -v flock)"
+BASH_BIN="$(command -v bash)"
+npm run bale:reconcile-releases
+
+printf -v DISPATCH_COMMAND 'cd %q && set -a && if [ -f %q ]; then . %q; fi && set +a && exec %q run bale:dispatch-group-events' \
+  "$APP_DIR" "$APP_DIR/.env" "$APP_DIR/.env" "$NPM_BIN"
+printf -v CRON_COMMAND '%q -n %q %q -lc %q >/dev/null 2>>%q' \
+  "$FLOCK_BIN" "$BALE_LOCK_FILE" "$BASH_BIN" "$DISPATCH_COMMAND" "$BALE_LOG_FILE"
+
+touch "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
+chown "$APP_USER" "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
+chmod 0640 "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
+
+"$FLOCK_BIN" "$BALE_LOCK_FILE" "$BASH_BIN" -lc "$DISPATCH_COMMAND"
+
+CRON_TEMP="$(mktemp "${CRON_FILE}.tmp.XXXXXX")"
+if ! printf 'SHELL=/bin/sh\n\n* * * * * %s %s\n' "$APP_USER" "$CRON_COMMAND" > "$CRON_TEMP" ||
+  ! chmod 0644 "$CRON_TEMP" ||
+  ! mv -f "$CRON_TEMP" "$CRON_FILE"; then
+  rm -f "$CRON_TEMP"
+  exit 1
+fi
 
 echo "Deployment completed. Backup: $BACKUP_DIR"
