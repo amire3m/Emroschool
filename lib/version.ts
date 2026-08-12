@@ -500,7 +500,7 @@ const unsortedReleaseNotes: ReleaseNote[] = [
     title: "ارتقای سامانه به نسخه ۲",
     summary: "نسخه دوم سامانه با مدیریت یکپارچه صفحه اصلی، کاربران، رسانه‌ها و تجربه کاربری بهبودیافته منتشر شد.",
     publishedAt: "2026-07-30T18:00:00+03:30",
-    version: APP_VERSION,
+    version: "2.0.0",
     type: "release",
   },
   {
