@@ -102,10 +102,18 @@ function fixture() {
   };
   let applicationStatus = "pending_payment";
   const enrollments = new Set<string>();
+  const groupEvents = new Map<string, unknown>();
   const transactionFailures: Array<Error | null> = [];
   const identifierWriteFailures: Error[] = [];
+  const groupEventWriteFailures: Error[] = [];
 
-  const createTx = (attemptState: Attempt[], orderState: Order, application: { status: string }, enrollmentState: Set<string>) => ({
+  const createTx = (
+    attemptState: Attempt[],
+    orderState: Order,
+    application: { status: string },
+    enrollmentState: Set<string>,
+    eventState: Map<string, unknown>,
+  ) => ({
     paymentAttempt: {
       findUnique: async ({ where }: { where: { id?: string; balePayload?: string } }) => {
         const attempt = attemptState.find((item) => item.id === where.id || item.balePayload === where.balePayload);
@@ -171,9 +179,16 @@ function fixture() {
         enrollmentState.add(`${where.userId_courseId.userId}:${where.userId_courseId.courseId}`);
       },
     },
+    baleGroupEvent: {
+      upsert: async (args: any) => {
+        if (groupEventWriteFailures.length > 0) throw groupEventWriteFailures.shift();
+        if (!eventState.has(args.where.eventKey)) eventState.set(args.where.eventKey, args.create);
+        return eventState.get(args.where.eventKey);
+      },
+    },
   });
   const application = { status: applicationStatus };
-  const tx = createTx(attempts, order, application, enrollments);
+  const tx = createTx(attempts, order, application, enrollments, groupEvents);
   const db = {
     paymentAttempt: {
       ...tx.paymentAttempt,
@@ -185,7 +200,8 @@ function fixture() {
       const orderCopy = { ...order };
       const applicationCopy = { status: application.status };
       const enrollmentsCopy = new Set(enrollments);
-      const result = await callback(createTx(attemptCopy, orderCopy, applicationCopy, enrollmentsCopy));
+      const groupEventsCopy = new Map(groupEvents);
+      const result = await callback(createTx(attemptCopy, orderCopy, applicationCopy, enrollmentsCopy, groupEventsCopy));
       const failure = transactionFailures.shift();
       if (failure) throw failure;
       attempts.splice(0, attempts.length, ...attemptCopy);
@@ -193,6 +209,8 @@ function fixture() {
       application.status = applicationCopy.status;
       enrollments.clear();
       for (const enrollment of enrollmentsCopy) enrollments.add(enrollment);
+      groupEvents.clear();
+      for (const [key, event] of groupEventsCopy) groupEvents.set(key, event);
       return result;
     },
   };
@@ -203,8 +221,10 @@ function fixture() {
     tx,
     db,
     enrollments,
+    groupEvents,
     failTransactions: (...failures: Array<Error | null>) => transactionFailures.push(...failures),
     failIdentifierWrites: (...failures: Error[]) => identifierWriteFailures.push(...failures),
+    failGroupEventWrites: (...failures: Error[]) => groupEventWriteFailures.push(...failures),
     applicationStatus: () => application.status,
   };
 }
@@ -234,6 +254,20 @@ test("finalizes a documented successful payment without provider inquiry", async
   assert.equal(state.attempts[1].baleVerificationStatus, "successful_payment");
   assert.equal(state.applicationStatus(), "approved");
   assert.deepEqual([...state.enrollments], ["user-1:course-1"]);
+});
+
+test("rolls back payment finalization when durable outbox insertion fails", async () => {
+  const state = fixture();
+  state.failGroupEventWrites(new Error("OUTBOX_WRITE_FAILED"));
+
+  await assert.rejects(processBaleSuccessfulPayment(state.db, successfulPayment), /OUTBOX_WRITE_FAILED/);
+
+  assert.equal(state.order.status, "pending");
+  assert.equal(state.order.paidAt, null);
+  assert.equal(state.attempts[1].status, "pending");
+  assert.equal(state.applicationStatus(), "pending_payment");
+  assert.deepEqual([...state.enrollments], []);
+  assert.equal(state.groupEvents.size, 0);
 });
 
 test("treats a repeated webhook for the same payment as idempotent", async () => {

@@ -12,7 +12,7 @@ import {
   queuePaidPaymentEvent,
 } from "./bale-group-notifications";
 
-type BaleTransaction = {
+type BaleTransaction = BaleGroupEventTransaction & {
   paymentAttempt: {
     findUnique: (...args: any[]) => Promise<any>;
     findMany: (...args: any[]) => Promise<any[]>;
@@ -65,9 +65,10 @@ function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInp
   }
 }
 
-function hasBaleGroupEventDelegate(tx: BaleTransaction): tx is BaleTransaction & BaleGroupEventTransaction {
-  return "baleGroupEvent" in tx && typeof tx.baleGroupEvent === "object" && tx.baleGroupEvent !== null &&
-    "upsert" in tx.baleGroupEvent && typeof tx.baleGroupEvent.upsert === "function";
+function requireBaleGroupEventDelegate(tx: BaleTransaction) {
+  if (!tx.baleGroupEvent || typeof tx.baleGroupEvent.upsert !== "function") {
+    throw new Error("BALE_GROUP_EVENT_DELEGATE_REQUIRED");
+  }
 }
 
 async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, input: BaleSuccessfulPaymentInput | FinalizeBalePaymentInput) {
@@ -96,6 +97,7 @@ async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, inp
 }
 
 export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBalePaymentInput): Promise<BaleFinalizationResult> {
+  requireBaleGroupEventDelegate(tx);
   const attempt = await tx.paymentAttempt.findUnique({
     where: { id: input.attemptId },
     include: { order: { include: { user: { select: { name: true } }, course: { select: { title: true } }, application: { select: { fullName: true } } } } },
@@ -122,7 +124,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
       },
     });
     if (duplicate.count !== 1) throw new Error("INVALID_BALE_PAYMENT");
-    if (hasBaleGroupEventDelegate(tx)) await queueDuplicatePaymentEvent(tx, attempt.order, attempt.id, paidAt);
+    await queueDuplicatePaymentEvent(tx, attempt.order, attempt.id, paidAt);
     return "paid_duplicate";
   }
 
@@ -167,7 +169,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
     update: {},
     create: { userId: attempt.order.userId, courseId: attempt.order.courseId },
   });
-  if (hasBaleGroupEventDelegate(tx)) await queuePaidPaymentEvent(tx, attempt.order, paidAt);
+  await queuePaidPaymentEvent(tx, attempt.order, paidAt);
   return "paid";
 }
 

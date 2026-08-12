@@ -48,6 +48,43 @@ export function retryAt(now: Date, attempts: number) {
   return new Date(now.getTime() + Math.max(1, attempts) * 60_000);
 }
 
+export function retryBaleGroupEvent(now: Date, attempts: number) {
+  return attempts >= 10
+    ? { status: "needs_review" as const, nextAttemptAt: null }
+    : { status: "retryable" as const, nextAttemptAt: retryAt(now, attempts) };
+}
+
+export function canClaimBaleGroupEvent(
+  event: {
+    status: string;
+    attempts: number;
+    nextAttemptAt: Date;
+    claimedAt: Date | null;
+    sendStartedAt: Date | null;
+  },
+  now: Date,
+  staleBefore: Date,
+) {
+  if (event.attempts >= 10) return false;
+  if (["pending", "retryable"].includes(event.status)) return event.nextAttemptAt <= now;
+  return event.status === "processing" && event.sendStartedAt === null &&
+    event.claimedAt !== null && event.claimedAt < staleBefore;
+}
+
+function formatPersianPaidAt(paidAt: string) {
+  const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(paidAt));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("day")} ${part("month")} ${part("year")}، ${part("hour")}:${part("minute")}`;
+}
+
 export function formatBaleGroupEvent(event: GroupEvent) {
   if (event.type === "release") {
     const payload = event.payload;
@@ -62,6 +99,7 @@ export function formatBaleGroupEvent(event: GroupEvent) {
     `مبلغ: ${payload.amountTomans.toLocaleString("fa-IR")} تومان`,
     `روش پرداخت: ${methodLabels[payload.method] || payload.method}`,
     `شماره سفارش: ${payload.orderNumber}`,
+    `تاریخ پرداخت: ${formatPersianPaidAt(payload.paidAt)}`,
   ].join("\n");
 }
 

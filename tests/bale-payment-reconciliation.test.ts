@@ -90,6 +90,7 @@ function createState(input: {
     attempts: [...(attempt ? [attempt] : []), ...(input.otherAttempts || [])],
     applicationStatus: "pending_payment",
     enrollments: 0,
+    groupEvents: new Map<string, unknown>(),
   };
 
   function database(target: typeof state) {
@@ -168,6 +169,12 @@ function createState(input: {
       enrollment: {
         upsert: async () => { target.enrollments = 1; },
       },
+      baleGroupEvent: {
+        upsert: async (args: any) => {
+          if (!target.groupEvents.has(args.where.eventKey)) target.groupEvents.set(args.where.eventKey, args.create);
+          return target.groupEvents.get(args.where.eventKey);
+        },
+      },
     };
   }
 
@@ -180,6 +187,7 @@ function createState(input: {
       state.attempts = snapshot.attempts;
       state.applicationStatus = snapshot.applicationStatus;
       state.enrollments = snapshot.enrollments;
+      state.groupEvents = snapshot.groupEvents;
       return result;
     },
   };

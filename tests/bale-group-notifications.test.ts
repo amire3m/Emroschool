@@ -6,11 +6,13 @@ import { PATCH as reviewPayment } from "../app/api/admin/payments/[id]/route";
 import { POST as createManualPayment } from "../app/api/admin/payments/manual/route";
 import { finalizeBalePayment } from "../lib/bale-payment-finalization";
 import {
+  canClaimBaleGroupEvent,
   formatBaleGroupEvent,
   paymentDuplicateEventKey,
   paymentPaidEventKey,
   queuePaidPaymentEvent,
   retryAt,
+  retryBaleGroupEvent,
 } from "../lib/bale-group-notifications";
 
 const payload = {
@@ -29,6 +31,7 @@ test("formats safe successful and duplicate payment messages", () => {
   assert.match(paid, /علی رضایی/);
   assert.match(paid, /۱٬۲۵۰٬۰۰۰ تومان/);
   assert.match(paid, /کیف پول بله/);
+  assert.match(paid, /تاریخ پرداخت: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰/);
   assert.match(duplicate, /پرداخت تکراری/);
   assert.doesNotMatch(paid + duplicate, /phone|card|payload|tracking|token/i);
 });
@@ -39,6 +42,58 @@ test("builds stable event keys and increasing retry times", () => {
   const now = new Date("2026-08-12T12:00:00.000Z");
   assert.equal(retryAt(now, 1).toISOString(), "2026-08-12T12:01:00.000Z");
   assert.equal(retryAt(now, 3).toISOString(), "2026-08-12T12:03:00.000Z");
+});
+
+test("stops retrying after the tenth failed attempt", () => {
+  const now = new Date("2026-08-12T12:00:00.000Z");
+  assert.deepEqual(retryBaleGroupEvent(now, 9), {
+    status: "retryable",
+    nextAttemptAt: new Date("2026-08-12T12:09:00.000Z"),
+  });
+  assert.deepEqual(retryBaleGroupEvent(now, 10), {
+    status: "needs_review",
+    nextAttemptAt: null,
+  });
+});
+
+test("claims only due work or a stale pre-send processing lease", () => {
+  const now = new Date("2026-08-12T12:00:00.000Z");
+  const staleBefore = new Date("2026-08-12T11:55:00.000Z");
+  assert.equal(canClaimBaleGroupEvent({
+    status: "retryable",
+    attempts: 2,
+    nextAttemptAt: new Date("2026-08-12T12:00:00.000Z"),
+    claimedAt: null,
+    sendStartedAt: null,
+  }, now, staleBefore), true);
+  assert.equal(canClaimBaleGroupEvent({
+    status: "retryable",
+    attempts: 2,
+    nextAttemptAt: new Date("2026-08-12T12:00:01.000Z"),
+    claimedAt: null,
+    sendStartedAt: null,
+  }, now, staleBefore), false);
+  assert.equal(canClaimBaleGroupEvent({
+    status: "processing",
+    attempts: 2,
+    nextAttemptAt: new Date("2026-08-12T11:00:00.000Z"),
+    claimedAt: new Date("2026-08-12T11:54:59.000Z"),
+    sendStartedAt: null,
+  }, now, staleBefore), true);
+  assert.equal(canClaimBaleGroupEvent({
+    status: "processing",
+    attempts: 2,
+    nextAttemptAt: new Date("2026-08-12T11:00:00.000Z"),
+    claimedAt: new Date("2026-08-12T11:54:59.000Z"),
+    sendStartedAt: new Date("2026-08-12T11:55:01.000Z"),
+  }, now, staleBefore), false);
+  assert.equal(canClaimBaleGroupEvent({
+    status: "retryable",
+    attempts: 10,
+    nextAttemptAt: new Date("2026-08-12T11:00:00.000Z"),
+    claimedAt: null,
+    sendStartedAt: null,
+  }, now, staleBefore), false);
 });
 
 test("queues one immutable event snapshot for repeated requests", async () => {
@@ -69,6 +124,67 @@ test("queues one immutable event snapshot for repeated requests", async () => {
     eventKey: "payment-paid:order-1",
     type: "payment_paid",
     payload: JSON.stringify(payload),
+  });
+  const serialized = JSON.stringify(events.get("payment-paid:order-1"));
+  assert.doesNotMatch(serialized, /09120000000|secret-card|secret-provider-payload/);
+});
+
+test("Bale finalization rejects a missing outbox delegate before changing payment state", async () => {
+  const state = {
+    attemptUpdates: 0,
+    orderUpdates: 0,
+    enrollments: 0,
+    applicationUpdates: 0,
+  };
+  const order = {
+    id: "order-no-outbox",
+    orderNumber: "PAY-NO-OUTBOX",
+    amountTomans: 400_000,
+    method: "bale_wallet",
+    status: "pending",
+    activeAttemptId: "attempt-no-outbox",
+    applicationId: "application-no-outbox",
+    userId: "user-no-outbox",
+    courseId: "course-no-outbox",
+    user: { name: "هنرجو" },
+    course: { title: "دوره" },
+    application: { fullName: "هنرجو" },
+  };
+  const tx = {
+    paymentAttempt: {
+      findUnique: async () => ({
+        id: "attempt-no-outbox",
+        orderId: order.id,
+        method: "bale_wallet",
+        status: "pending",
+        amountRials: 4_000_000,
+        balePayload: "payload-no-outbox",
+        balePaymentId: null,
+        baleTrackingNumber: null,
+        order,
+      }),
+      findMany: async () => [],
+      update: async () => undefined,
+      updateMany: async () => { state.attemptUpdates += 1; return { count: 1 }; },
+    },
+    paymentOrder: { update: async () => { state.orderUpdates += 1; } },
+    courseApplication: { update: async () => { state.applicationUpdates += 1; } },
+    enrollment: { upsert: async () => { state.enrollments += 1; } },
+  };
+
+  await assert.rejects(finalizeBalePayment(tx as never, {
+    attemptId: "attempt-no-outbox",
+    invoicePayload: "payload-no-outbox",
+    currency: "IRR",
+    totalAmount: 4_000_000,
+    balePaymentId: "payment-no-outbox",
+    baleTrackingNumber: "tracking-no-outbox",
+  }), /BALE_GROUP_EVENT_DELEGATE_REQUIRED/);
+  assert.deepEqual(state, {
+    attemptUpdates: 0,
+    orderUpdates: 0,
+    enrollments: 0,
+    applicationUpdates: 0,
   });
 });
 
