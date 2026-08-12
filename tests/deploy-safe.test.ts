@@ -31,6 +31,7 @@ async function deploymentFixture({
   logDir,
   realFlock = false,
   longLivedPm2Child = false,
+  blockDispatch = false,
 }: {
   failingCopy?: boolean;
   failingCommand?: "npm-ci" | "db-push" | "build" | "pm2-restart" | "reconcile" | "dispatch" | "cron-install";
@@ -41,6 +42,7 @@ async function deploymentFixture({
   logDir?: string;
   realFlock?: boolean;
   longLivedPm2Child?: boolean;
+  blockDispatch?: boolean;
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "deploy-safe-"));
   const app = appDir ?? path.join(root, "app");
@@ -61,6 +63,9 @@ async function deploymentFixture({
   const resolvedLogDir = logDir ?? path.join(root, "log");
   const resolvedLockFile = lockFile ?? path.join(resolvedLockDir, "notifications.lock");
   const notificationLog = path.join(resolvedLogDir, "notifications.log");
+  const dispatchReady = path.join(root, "dispatch-ready");
+  const dispatchGate = path.join(root, "dispatch-gate");
+  const pm2ChildPid = path.join(root, "pm2-child.pid");
   await mkdir(path.dirname(cronFile), { recursive: true });
   await mkdir(resolvedLockDir, { recursive: true });
   await mkdir(resolvedLogDir, { recursive: true });
@@ -70,11 +75,11 @@ async function deploymentFixture({
   await writeFile(scriptPath, script);
   await chmod(scriptPath, 0o755);
 
-  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"\n${longLivedPm2Child ? '[[ "$1" == "restart" ]] && (sleep 30 </dev/null >/dev/null 2>&1 &)' : ":"}\n${failingCommand === "pm2-restart" ? '[[ "$1" == "restart" ]] && exit 35\n:' : ":"}`);
+  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"\n${longLivedPm2Child ? `if [[ "$1" == "restart" ]]; then sleep 300 </dev/null >/dev/null 2>&1 & printf '%s\\n' "$!" > "${bashPath(pm2ChildPid)}"; fi` : ":"}\n${failingCommand === "pm2-restart" ? '[[ "$1" == "restart" ]] && exit 35\n:' : ":"}`);
   await executable(path.join(bin, "git"), `printf 'git %s\\n' "$*" >> "${log}"`);
   await executable(path.join(bin, "npm"), `printf 'npm %s\\n' "$*" >> "${log}"\n${failingCommand === "npm-ci" ? '[[ "$*" == "ci" ]] && exit 31' : failingCommand === "build" ? '[[ "$*" == "run build" ]] && exit 33' : ":"}`);
   await executable(path.join(bin, "npx"), `printf 'npx %s\\n' "$*" >> "${log}"\n${failingCommand === "db-push" ? '[[ "$*" == "prisma db push" ]] && exit 32' : ":"}`);
-  await writeFile(path.join(bin, "node"), `#!/usr/bin/bash\nprintf 'node user=%s inherited=%s token=%s chat=%s args=%s\\n' "$TEST_EXEC_USER" "$DEPLOY_ONLY_SECRET" "$BALE_BOT_TOKEN" "$BALE_COORDINATION_CHAT_ID" "$*" >> "${log}"\n${failingCommand === "reconcile" ? '[[ "$*" == *"reconcile-bale-release-events.ts"* ]] && exit 36' : failingCommand === "dispatch" ? '[[ "$*" == *"dispatch-bale-group-events.ts"* ]] && exit 37' : ":"}\n`);
+  await writeFile(path.join(bin, "node"), `#!/usr/bin/bash\nprintf 'node user=%s inherited=%s token=%s chat=%s args=%s\\n' "$TEST_EXEC_USER" "$DEPLOY_ONLY_SECRET" "$BALE_BOT_TOKEN" "$BALE_COORDINATION_CHAT_ID" "$*" >> "${log}"\n${blockDispatch ? `if [[ "$*" == *"dispatch-bale-group-events.ts"* ]]; then printf ready > "${bashPath(dispatchReady)}"; while [[ ! -e "${bashPath(dispatchGate)}" ]]; do sleep 0.01; done; fi` : ":"}\n${failingCommand === "reconcile" ? '[[ "$*" == *"reconcile-bale-release-events.ts"* ]] && exit 36' : failingCommand === "dispatch" ? '[[ "$*" == *"dispatch-bale-group-events.ts"* ]] && exit 37' : ":"}\n`);
   await chmod(path.join(bin, "node"), 0o755);
   if (!realFlock) {
     await executable(path.join(bin, "flock"), `printf 'flock %s\\n' "$*" >> "${log}"\n[[ "$1" == "--close" || "$1" == "-n" ]] && shift\nlock="$1"\nshift\n[[ "$#" -eq 0 ]] && exit 0\nexec "$@"`);
@@ -100,11 +105,22 @@ async function deploymentFixture({
     lockDir: resolvedLockDir,
     logDir: resolvedLogDir,
     notificationLog,
+    dispatchReady,
+    dispatchGate,
+    pm2ChildPid,
     scriptPath,
     appForBash: bashPath(app),
     binForBash: bashPath(bin),
     appUser,
   };
+}
+
+async function waitForFile(filePath: string, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!existsSync(filePath)) {
+    if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${filePath}`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }
 
 function runDeployment(fixture: Awaited<ReturnType<typeof deploymentFixture>>, overrides: Record<string, string> = {}) {
@@ -364,16 +380,37 @@ test("real flock excludes a contender until the holder exits", { skip: !existsSy
   }
 });
 
-test("actual deploy releases its real lock despite a long-lived PM2 descendant", { skip: process.platform !== "linux" }, async (t) => {
+test("actual deploy holds its real lock through dispatch and releases it despite a live PM2 descendant", { skip: process.platform !== "linux" }, async (t) => {
   const probe = await execFileAsync("/bin/sh", ["-c", "command -v flock || true"]);
   const flock = probe.stdout.trim();
   if (!flock) return t.skip("real flock is unavailable");
 
-  const fixture = await deploymentFixture({ realFlock: true, longLivedPm2Child: true });
+  const fixture = await deploymentFixture({ realFlock: true, longLivedPm2Child: true, blockDispatch: true });
+  let deployment: ReturnType<typeof runDeployment> | undefined;
+  let descendantPid: number | undefined;
   try {
-    await runDeployment(fixture);
+    deployment = runDeployment(fixture);
+    await waitForFile(fixture.dispatchReady);
+    await waitForFile(fixture.pm2ChildPid);
+    descendantPid = Number((await readFile(fixture.pm2ChildPid, "utf8")).trim());
+    process.kill(descendantPid, 0);
+
+    await assert.rejects(execFileAsync(flock, ["-n", fixture.lockFile, "true"]));
+
+    await writeFile(fixture.dispatchGate, "release\n");
+    await deployment;
     await execFileAsync(flock, ["-n", fixture.lockFile, "true"]);
+    process.kill(descendantPid, 0);
   } finally {
+    await writeFile(fixture.dispatchGate, "release\n").catch(() => undefined);
+    await deployment?.catch(() => undefined);
+    if (descendantPid !== undefined) {
+      try {
+        process.kill(descendantPid, "SIGTERM");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+      }
+    }
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
