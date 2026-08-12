@@ -81,6 +81,30 @@ test("transient lock maps to conflict only after authoritative revision changed"
   assert.equal(receipt.status, 409);
 });
 
+test("connection timeouts do not masquerade as concurrent request conflicts", async () => {
+  for (const code of ["P1008", "P2024"]) {
+    const timeout = Object.assign(new Error("Timed out fetching a new connection from the connection pool"), { code });
+    const profileState: any = { ...user, password: "x", bio: null, profileReviewRevision: 0, notificationSmsEnabled: true, notificationBaleEnabled: false, phone: "0912" };
+    let profileRead = false;
+    const profileDb = {
+      user: { findUnique: async () => profileRead ? { profileReviewRevision: 1 } : ({ ...profileState }) },
+      $transaction: async () => { profileRead = true; throw timeout; },
+    };
+    const profile = await updateProfile(new NextRequest("http://test/api/user/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio: "new" }) }), {}, { db: profileDb, authenticate: () => ({ id: user.id }) } as never);
+    assert.equal(profile.status, 500);
+
+    const order: any = { id: `order-${code}`, userId: user.id, method: "card_to_card", status: "awaiting_receipt", receiptSubmissionRevision: 0 };
+    let receiptRead = false;
+    const receiptDb = {
+      paymentOrder: { findFirst: async () => receiptRead ? { receiptSubmissionRevision: 1, status: "under_review" } : ({ ...order }) },
+      $transaction: async () => { receiptRead = true; throw timeout; },
+    };
+    const form = new FormData(); form.set("file", new File([new Uint8Array([1])], "receipt.png", { type: "image/png" }));
+    const receipt = await submitReceipt(new NextRequest(`http://test/api/payments/${order.id}/receipt`, { method: "POST", headers: auth, body: form }), { params: { id: order.id } }, { db: receiptDb, mkdir: async () => undefined, writeFile: async () => undefined, randomUUID: () => "file", onError: () => undefined });
+    assert.equal(receipt.status, 500);
+  }
+});
+
 test("course application route queues one immutable pending event", async () => {
   const box = outbox();
   const course = { id: "course-1", title: "تدوین", published: true, scheduleStatus: "upcoming", price: 800_000, registrationFormOverride: null };

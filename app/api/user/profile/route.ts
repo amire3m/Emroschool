@@ -3,7 +3,7 @@ import { verifyToken, hashPassword } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { queueProfileReviewEvent } from "@/lib/bale-group-notifications";
 import type { Prisma } from "@prisma/client";
-import { isRetryablePaymentTransactionError } from "@/lib/payment-transaction";
+import { isSqliteContentionError } from "@/lib/payment-transaction";
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 const defaultPutDependencies = { db: prisma, authenticate: (req: NextRequest) => {
   const header = req.headers.get("authorization");
   return header?.startsWith("Bearer ") ? verifyToken(header.slice(7)) : null;
-}, now: () => new Date(), afterRevisionRead: async (_tx: Prisma.TransactionClient) => {}, onConcurrencyError: (_error: unknown) => {} };
+}, now: () => new Date() };
 
 export async function PUT(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultPutDependencies> = {}) {
   const dependencies = { ...defaultPutDependencies, ...overrides };
@@ -171,7 +171,6 @@ export async function PUT(req: NextRequest, _context: { params?: Record<string, 
         permissions: true,
       } satisfies Prisma.UserSelect;
     const user = profileContentChanged ? await dependencies.db.$transaction(async (tx) => {
-      await dependencies.afterRevisionRead(tx);
       const changed = await tx.user.updateMany({
         where: { id: payload.id, profileReviewRevision: existing.profileReviewRevision },
         data: { ...data, profileReviewRevision: { increment: 1 } },
@@ -186,8 +185,7 @@ export async function PUT(req: NextRequest, _context: { params?: Record<string, 
     return NextResponse.json({ user });
   } catch (error) {
     if (error instanceof Error && error.message === "PROFILE_REVISION_CONFLICT") return NextResponse.json({ error: "پروفایل هم‌زمان دیگری ثبت شده است" }, { status: 409 });
-    if (isRetryablePaymentTransactionError(error) && userId && expectedRevision !== null) {
-      dependencies.onConcurrencyError(error);
+    if (isSqliteContentionError(error) && userId && expectedRevision !== null) {
       const current = await dependencies.db.user.findUnique({ where: { id: userId }, select: { profileReviewRevision: true } }).catch(() => null);
       if (current && current.profileReviewRevision !== expectedRevision) return NextResponse.json({ error: "پروفایل هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     }
