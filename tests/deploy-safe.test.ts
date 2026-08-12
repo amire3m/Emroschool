@@ -383,6 +383,12 @@ test("deployment rejects a writable Cron parent before stopping PM2", { skip: !e
   }
 });
 
+test("deployment uses a dedicated root-owned parent for notification logs", async () => {
+  const script = await readFile(path.join(process.cwd(), "deploy-safe.sh"), "utf8");
+  assert.match(script, /^BALE_LOG_DIR="\$\{BALE_LOG_DIR:-\/var\/lib\/emroschool\}"$/m);
+  assert.doesNotMatch(script, /^BALE_LOG_DIR="\$\{BALE_LOG_DIR:-\/var\/log(?:\/|\})/m);
+});
+
 test("deployment rejects symlink lock and log targets without changing their victims", { skip: !existsSync(gitBash) || process.platform === "win32" }, async () => {
   for (const target of ["lock", "log"] as const) {
     const fixture = await deploymentFixture();
