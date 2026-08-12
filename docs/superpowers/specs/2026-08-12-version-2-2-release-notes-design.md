@@ -17,7 +17,7 @@ Complete the admin update history after the last existing entry on 2026-08-03, g
 
 Each card describes one user-visible capability rather than one Git commit. Follow-up fixes, hardening, and refactors that complete the same capability are summarized in that capability's card instead of creating technical duplicate entries.
 
-Use the timestamp of the commit that first delivered the capability, except where a later commit is necessary for the capability to be complete and safely usable. The version-release card uses the publication time of this release-note deployment. All timestamps use ISO 8601 with the Iran `+03:30` offset.
+Use the timestamp of the commit that first delivered the capability, except where a later commit is necessary for the capability to be complete and safely usable. The version-release card uses the approved publication timestamp `2026-08-12T11:51:01+03:30`. All timestamps use ISO 8601 with the Iran `+03:30` offset.
 
 Cards remain in `unsortedReleaseNotes`; the existing exported sort continues to place newest entries first.
 
@@ -27,7 +27,7 @@ The following cards will be added. Final Persian copy may be tightened during im
 
 | ID | Type | Published at | Title | Required meaning |
 | --- | --- | --- | --- | --- |
-| `version-2-2` | `release` | release deployment time on 2026-08-12 | انتشار نسخه ۲.۲ سامانه | Summarize the reliability, course-management, registration, support, reporting, performance, and location improvements in version 2.2.0. Set `version` to `2.2.0`. |
+| `version-2-2` | `release` | `2026-08-12T11:51:01+03:30` | انتشار نسخه ۲.۲ سامانه | Summarize the reliability, course-management, registration, support, reporting, performance, and location improvements in version 2.2.0. Set `version` to `2.2.0`. |
 | `local-iran-location-data` | `fix` | `2026-08-12T03:17:02+03:30` | اطلاعات محلی استان‌ها و شهرها | Province, city, and Tehran district data are served locally; Tehran selection no longer crashes; Tehran neighborhood is entered as required text. |
 | `protected-course-curriculum` | `feature` | `2026-08-11T12:31:09+03:30` | مدیریت و نمایش سرفصل دوره‌ها | Admins can manage ordered chapters and lessons; enrolled users and admins can see details while locked users receive only a safe summary. |
 | `reliable-bale-payments` | `improvement` | `2026-08-11T02:28:01+03:30` | پرداخت پایدار با بله | Cover server-owned attempts, countdown and expiry, safe retry/restart, webhook finalization, preservation of uncertain evidence, and authorized admin reconciliation. |
