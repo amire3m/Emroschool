@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BaleApiError } from "../lib/bale-payment";
+import { BaleApiError, sendMessage } from "../lib/bale-payment";
 import { dispatchBaleGroupEvents } from "../scripts/dispatch-bale-group-events";
 import { reconcileBaleReleaseEvents } from "../scripts/reconcile-bale-release-events";
 
@@ -161,6 +161,60 @@ test("successful delivery marks the event sent without persisting a provider ide
   assert.equal(rows[0].sentAt?.toISOString(), now.toISOString());
   assert.equal(rows[0].providerResponseId, null);
   assert.match(messages[0], /پرداخت موفق/);
+});
+
+test("request events send URL-only allowlisted admin buttons from the canonical origin", async () => {
+  const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  process.env.NEXT_PUBLIC_MAIN_SITE_URL = "https://example.test/base";
+  const payload = JSON.stringify({ displayName: "علی رضایی", subject: "مشکل ورود", submittedAt: "2026-08-12T11:00:00.000Z", ticketId: "ticket/1", userId: "user 1" });
+  const { db } = database([event({ type: "support_ticket", eventKey: "support-ticket:ticket-1", payload })]);
+  const deliveries: any[] = [];
+  try {
+    const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now, send: async (...args: any[]) => { deliveries.push(args); return { message_id: 1 }; } });
+    assert.equal(result.sent, 1);
+    assert.deepEqual(deliveries[0][2], { reply_markup: { inline_keyboard: [[
+      { text: "بررسی تیکت", url: "https://example.test/admin/support?ticket=ticket%2F1" },
+      { text: "مشاهده کاربر", url: "https://example.test/admin/users?user=user+1" },
+    ]] } });
+    assert.doesNotMatch(JSON.stringify(deliveries[0][2]), /callback_data|javascript:|token/);
+  } finally {
+    if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+    else process.env.NEXT_PUBLIC_MAIN_SITE_URL = originalOrigin;
+  }
+});
+
+test("request payloads with private or arbitrary action fields are quarantined", async () => {
+  const safe = { displayName: "علی", subject: "ورود", submittedAt: now.toISOString(), ticketId: "ticket-1", userId: "user-1" };
+  const { db, rows } = database([
+    event({ id: "body", type: "support_ticket", payload: JSON.stringify({ ...safe, message: "secret" }) }),
+    event({ id: "url", type: "support_ticket", eventKey: "support-ticket:url", payload: JSON.stringify({ ...safe, url: "https://evil.test" }) }),
+  ]);
+  let sends = 0;
+  const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now, send: async () => { sends += 1; } });
+  assert.equal(result.needsReview, 2);
+  assert.equal(sends, 0);
+  assert.ok(rows.every((row) => row.status === "needs_review"));
+});
+
+test("sendMessage rejects non-allowlisted inline URLs before contacting Bale", async () => {
+  const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  const originalFetch = global.fetch;
+  process.env.NEXT_PUBLIC_MAIN_SITE_URL = "https://example.test";
+  let requests = 0;
+  global.fetch = (async () => { requests += 1; return new Response(); }) as typeof fetch;
+  try {
+    await assert.rejects(sendMessage("group", "message", { reply_markup: { inline_keyboard: [[
+      { text: "unsafe", url: "https://evil.test/admin/users" },
+    ]] } }), /BALE_INVALID_INLINE_KEYBOARD/);
+    await assert.rejects(sendMessage("group", "message", { reply_markup: { inline_keyboard: [[
+      { text: "unsafe", url: "https://example.test/api/admin/users" },
+    ]] } }), /BALE_INVALID_INLINE_KEYBOARD/);
+    assert.equal(requests, 0);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+    else process.env.NEXT_PUBLIC_MAIN_SITE_URL = originalOrigin;
+  }
 });
 
 test("a definitive rejection schedules the next increasing retry", async () => {

@@ -83,8 +83,23 @@ export async function createInvoiceLink(input: { title: string; description: str
   }) as Promise<string>;
 }
 
-export async function sendMessage(chatId: string, text: string): Promise<unknown> {
-  const result = await baleCall("sendMessage", { chat_id: chatId, text });
+export type BaleSendMessageOptions = { reply_markup: { inline_keyboard: Array<Array<{ text: string; url: string }>> } };
+
+export async function sendMessage(chatId: string, text: string, options?: BaleSendMessageOptions): Promise<unknown> {
+  const publicOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  const allowedPaths = new Set(["/admin/support", "/admin/applications", "/admin/payments", "/admin/users"]);
+  if (options && (!Array.isArray(options.reply_markup?.inline_keyboard) || options.reply_markup.inline_keyboard.some((row) =>
+    !Array.isArray(row) || row.length === 0 || row.some((button) => {
+      if (typeof button.text !== "string" || !publicOrigin) return true;
+      try {
+        const url = new URL(button.url);
+        const expectedOrigin = new URL(publicOrigin).origin;
+        return url.origin !== expectedOrigin || !allowedPaths.has(url.pathname) || url.hash !== "";
+      } catch { return true; }
+    })))) {
+    throw new BaleApiError("BALE_INVALID_INLINE_KEYBOARD", "definitive_rejection");
+  }
+  const result = await baleCall("sendMessage", { chat_id: chatId, text, ...(options || {}) });
   if (!result || typeof result !== "object" || Array.isArray(result) ||
     !Number.isSafeInteger((result as Record<string, unknown>).message_id)) {
     throw new BaleApiError("BALE_SENDMESSAGE_PROTOCOL_ERROR", "delivery_uncertain");

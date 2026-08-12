@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-import { sendMessage } from "@/lib/bale-payment";
+import { queuePaymentReceiptEvent } from "@/lib/bale-group-notifications";
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -15,11 +15,10 @@ type ReceiptDependencies = {
   writeFile: typeof writeFile;
   randomUUID: () => string;
   now: () => Date;
-  sendMessage: typeof sendMessage;
   onError: (error: unknown) => void;
 };
 
-const defaultDependencies: ReceiptDependencies = { db: prisma, mkdir, writeFile, randomUUID: crypto.randomUUID, now: () => new Date(), sendMessage, onError: (error) => console.error("Receipt upload error:", error) };
+const defaultDependencies: ReceiptDependencies = { db: prisma, mkdir, writeFile, randomUUID: crypto.randomUUID, now: () => new Date(), onError: (error) => console.error("Receipt upload error:", error) };
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }, overrides: Partial<ReceiptDependencies> = {}) {
   const dependencies = { ...defaultDependencies, ...overrides };
@@ -39,8 +38,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const name = `${dependencies.randomUUID()}${ext}`;
     await dependencies.writeFile(path.join(directory, name), Buffer.from(await file.arrayBuffer()));
     const receiptUrl = `/uploads/users/receipts/${user.id}/${order.id}/${name}`;
+    const revisionId = dependencies.randomUUID();
     const updated = await dependencies.db.$transaction(async (tx: any) => {
-      const current = await tx.paymentOrder.findUnique({ where: { id: order.id } });
+      const current = await tx.paymentOrder.findUnique({ where: { id: order.id }, include: { user: { select: { name: true } }, course: { select: { title: true } } } });
       if (!current || !["awaiting_receipt", "rejected"].includes(current.status)) throw new Error("INVALID_STATUS");
       const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
       const submittedAt = dependencies.now();
@@ -48,10 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const result = await tx.paymentAttempt.updateMany({ where: { id: attempt.id, orderId: current.id }, data: { receiptUrl, status: "under_review", submittedAt, rejectionReason: null } });
         if (result.count !== 1) throw new Error("INVALID_ATTEMPT");
       }
-      return tx.paymentOrder.update({ where: { id: order.id }, data: { receiptUrl, status: "under_review", receiptSubmittedAt: submittedAt, rejectionReason: null } });
+      const changed = await tx.paymentOrder.update({ where: { id: order.id }, data: { receiptUrl, status: "under_review", receiptSubmittedAt: submittedAt, rejectionReason: null } });
+      await queuePaymentReceiptEvent(tx, current, revisionId, submittedAt);
+      return changed;
     });
-    const settings = await dependencies.db.paymentSettings.findUnique({ where: { id: 1 } });
-    if (settings?.adminChatId) dependencies.sendMessage(settings.adminChatId, `رسید جدید پرداخت ${updated.orderNumber} برای بررسی ثبت شد.`).catch(() => undefined);
     return NextResponse.json({ order: updated });
   } catch (error) {
     dependencies.onError(error);

@@ -1,6 +1,9 @@
 import prisma from "@/lib/prisma";
 import { verifyToken, hashPassword } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
+import crypto from "node:crypto";
+import { queueProfileReviewEvent } from "@/lib/bale-group-notifications";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
          profileApprovalStatus: true,
          profileReviewedAt: true,
          profileRejectionReason: true,
-         avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
+         avatarSubmissions: { orderBy: { submittedAt: "desc" as const }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         permissions: true,
         createdAt: true,
       },
@@ -99,9 +102,11 @@ export async function PUT(req: NextRequest) {
     if (socialLinks !== undefined) data.socialLinks = socialLinks;
     const profileContentChanged = [
       [name, existing.name], [birthDate === undefined ? undefined : birthDate || null, existing.birthDate], [province === undefined ? undefined : province || null, existing.province],
-      [city === undefined ? undefined : city || null, existing.city], [address === undefined ? undefined : address || null, existing.address], [postalCode === undefined ? undefined : postalCode || null, existing.postalCode],
+      [city === undefined ? undefined : city || null, existing.city], [district === undefined ? undefined : district || null, existing.district], [neighborhood === undefined ? undefined : neighborhood || null, existing.neighborhood],
+      [address === undefined ? undefined : address || null, existing.address], [postalCode === undefined ? undefined : postalCode || null, existing.postalCode],
       [workHistory === undefined ? undefined : workHistory || null, existing.workHistory], [artHistory === undefined ? undefined : artHistory || null, existing.artHistory], [educationLevel === undefined ? undefined : educationLevel || null, existing.educationLevel],
-      [educationField === undefined ? undefined : educationField || null, existing.educationField], [instagramId === undefined ? undefined : instagramId || null, existing.instagramId], [virtualPhone === undefined ? undefined : virtualPhone || null, existing.virtualPhone],
+      [educationField === undefined ? undefined : educationField || null, existing.educationField], [university === undefined ? undefined : university || null, existing.university], [universityField === undefined ? undefined : universityField || null, existing.universityField],
+      [instagramId === undefined ? undefined : instagramId || null, existing.instagramId], [virtualPhone === undefined ? undefined : virtualPhone || null, existing.virtualPhone],
       [landline === undefined ? undefined : landline || null, existing.landline], [avatar, existing.avatar], [bio, existing.bio], [expertise, existing.expertise], [socialLinks, existing.socialLinks],
     ].some(([nextValue, currentValue]) => nextValue !== undefined && nextValue !== currentValue);
     if (profileContentChanged) {
@@ -134,10 +139,7 @@ export async function PUT(req: NextRequest) {
       data.password = await hashPassword(password);
     }
 
-    const user = await prisma.user.update({
-      where: { id: payload.id },
-      data,
-      select: {
+    const select = {
          id: true,
           newsletterSubscribed: true,
           notificationEmailEnabled: true,
@@ -162,8 +164,12 @@ export async function PUT(req: NextRequest) {
          profileRejectionReason: true,
          avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         permissions: true,
-      },
-    });
+      } satisfies Prisma.UserSelect;
+    const user = profileContentChanged ? await prisma.$transaction(async (tx) => {
+      const changed = await tx.user.update({ where: { id: payload.id }, data, select });
+      await queueProfileReviewEvent(tx, changed, crypto.randomUUID(), new Date());
+      return changed;
+    }) : await prisma.user.update({ where: { id: payload.id }, data, select });
 
     return NextResponse.json({ user });
   } catch (error) {

@@ -549,7 +549,7 @@ test("customer GET selects and returns only checkout-safe attempt fields", async
 });
 
 test("receipt submission never mutates an active attempt owned by another order", async () => {
-  const order = { id: "order-1", orderNumber: "PAY-1", userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign" };
+  const order = { id: "order-1", orderNumber: "PAY-1", userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign", user: { name: "هنرجو" }, course: { title: "دوره" } };
   const foreign = { id: "attempt-foreign", orderId: "order-foreign", status: "awaiting_receipt" };
   const form = new FormData();
   form.set("file", new File([new Uint8Array([1, 2, 3])], "receipt.png", { type: "image/png" }));
@@ -572,6 +572,7 @@ test("receipt submission never mutates an active attempt owned by another order"
           return { count: 1 };
         },
       },
+      baleGroupEvent: { upsert: async () => undefined },
     }),
   };
 
@@ -581,7 +582,6 @@ test("receipt submission never mutates an active attempt owned by another order"
     writeFile: async () => undefined,
     randomUUID: () => "receipt-id",
     now: () => new Date("2026-08-10T13:00:00.000Z"),
-    sendMessage: async () => undefined,
     onError: () => undefined,
   });
 

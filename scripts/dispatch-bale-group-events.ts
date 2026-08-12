@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { canClaimBaleGroupEvent, formatBaleGroupEvent, retryBaleGroupEvent } from "../lib/bale-group-notifications";
+import { baleGroupEventActions, BaleGroupAction, canClaimBaleGroupEvent, formatBaleGroupEvent, retryBaleGroupEvent } from "../lib/bale-group-notifications";
 import { isDefinitiveBaleApiRejection, sendMessage } from "../lib/bale-payment";
 
 const DEFAULT_BATCH_SIZE = 25;
@@ -79,7 +79,44 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
     return { type: "release", payload: payload as Parameters<typeof formatBaleGroupEvent>[0]["payload"] } as Parameters<typeof formatBaleGroupEvent>[0];
   }
 
+  const requestKeys: Record<string, string[]> = {
+    support_ticket: ["displayName", "subject", "submittedAt", "ticketId", "userId"],
+    support_user_message: ["displayName", "subject", "submittedAt", "ticketId", "messageId", "userId"],
+    course_application: ["displayName", "courseTitle", "submittedAt", "applicationId", "userId"],
+    payment_receipt: ["displayName", "courseTitle", "orderNumber", "submittedAt", "orderId", "userId"],
+    profile_review: ["displayName", "submittedAt", "userId"],
+    avatar_review: ["displayName", "submittedAt", "submissionId", "userId"],
+  };
+  const keys = requestKeys[candidate.type];
+  if (keys) {
+    if (!hasExactKeys(payload, keys) || !keys.every((key) => key === "submittedAt" ? isValidDate(payload[key]) : isSafeText(payload[key]))) return null;
+    return { type: candidate.type, payload } as Parameters<typeof formatBaleGroupEvent>[0];
+  }
+
   return null;
+}
+
+function actionButton(action: BaleGroupAction, origin: string) {
+  const url = new URL(origin);
+  url.pathname = action.action === "support_ticket" ? "/admin/support" : action.action === "course_application" ? "/admin/applications" : action.action === "payment_order" ? "/admin/payments" : "/admin/users";
+  url.search = "";
+  if (action.action === "support_ticket") url.searchParams.set("ticket", action.ticketId);
+  if (action.action === "course_application") url.searchParams.set("application", action.applicationId);
+  if (action.action === "payment_order") url.searchParams.set("order", action.orderId);
+  if (action.action === "user") url.searchParams.set("user", action.userId);
+  const text = action.action === "support_ticket" ? "بررسی تیکت" : action.action === "course_application" ? "بررسی درخواست" : action.action === "payment_order" ? "بررسی پرداخت" : "مشاهده کاربر";
+  return { text, url: url.toString() };
+}
+
+function sendOptions(event: Parameters<typeof formatBaleGroupEvent>[0]) {
+  const actions = baleGroupEventActions(event);
+  if (!actions.length) return undefined;
+  const configured = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  if (!configured) return null;
+  try {
+    const origin = new URL(configured).origin;
+    return { reply_markup: { inline_keyboard: [actions.map((action) => actionButton(action, origin))] } };
+  } catch { return null; }
 }
 
 export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: DispatchOptions = {}) {
@@ -150,6 +187,12 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
         continue;
       }
       const message = formatBaleGroupEvent(parsedEvent);
+      const messageOptions = sendOptions(parsedEvent);
+      if (messageOptions === null) {
+        await db.baleGroupEvent.updateMany({ where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null }, data: { status: "needs_review", lastError: "INVALID_PUBLIC_ORIGIN" } });
+        result.needsReview += 1;
+        continue;
+      }
 
       const started = await db.baleGroupEvent.updateMany({
         where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null },
@@ -159,7 +202,7 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
       const attempts = candidate.attempts + 1;
 
       try {
-        await (options.send ?? sendMessage)(chatId, message);
+        await (options.send ?? sendMessage)(chatId, message, messageOptions);
         const persisted = await db.baleGroupEvent.updateMany({
           where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: now },
           data: {

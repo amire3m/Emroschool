@@ -6,6 +6,7 @@ import { isValidIranianMobile, normalizeIranianMobile } from "@/lib/iranian-mobi
 import { ensureDiscountCodes, findActiveDiscountCode } from "@/lib/discount-codes";
 import { mergeRegistrationForm, parseRegistrationForm } from "@/lib/registration-form";
 import { sendInitialCourseRegistrationNotification } from "@/lib/registration-notification";
+import { queueCourseApplicationEvent } from "@/lib/bale-group-notifications";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), instagramId: body.instagramId?.trim() || null,
         virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null, nationalCode,
       } });
-      return tx.courseApplication.create({ data: {
+      const created = await tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
          birthDate: body.birthDate.trim(), gender: body.gender,
          province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
@@ -100,7 +101,9 @@ export async function POST(req: NextRequest) {
          discountCode: discount?.code || null, discountLabel: discount?.label || null, discountPercent: discount?.percent || 0,
          finalAmountTomans: Math.round(course.price * (100 - (discount?.percent || 0)) / 100),
         status: "pending", formSchema: JSON.stringify(formSchema), customResponses: JSON.stringify(customResponses),
-      } });
+      }, include: { course: { select: { title: true } } } });
+      await queueCourseApplicationEvent(tx, created, created.createdAt);
+      return created;
     });
     await sendInitialCourseRegistrationNotification({ ...existingUser, name: fullName, email, phone }, course);
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });

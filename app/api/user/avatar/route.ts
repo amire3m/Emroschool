@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { queueAvatarReviewEvent } from "@/lib/bale-group-notifications";
 
 export const runtime = "nodejs";
 
@@ -27,11 +28,12 @@ export async function POST(req: NextRequest) {
     const fileName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${extension}`;
     await writeFile(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));
     const url = `/uploads/users/profiles/${user.id}/avatar/${fileName}`;
-    await prisma.$transaction(async (tx) => {
+    const submission = await prisma.$transaction(async (tx) => {
       await tx.avatarSubmission.updateMany({ where: { userId: token.id, status: "pending" }, data: { status: "superseded" } });
-      return tx.avatarSubmission.create({ data: { userId: token.id, imageUrl: url } });
+      const created = await tx.avatarSubmission.create({ data: { userId: token.id, imageUrl: url }, include: { user: { select: { name: true } } } });
+      await queueAvatarReviewEvent(tx, created, created.submittedAt);
+      return created;
     });
-    const submission = await prisma.avatarSubmission.findFirst({ where: { userId: token.id, imageUrl: url }, orderBy: { submittedAt: "desc" } });
     return NextResponse.json({ url, submission, message: "تصویر برای بررسی ارسال شد" });
   } catch {
     return NextResponse.json({ error: "خطا در آپلود آواتار" }, { status: 500 });

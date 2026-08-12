@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { createSupportNotification, getAuthenticatedUser } from "@/lib/support";
 import { NextRequest, NextResponse } from "next/server";
+import { queueSupportUserMessageEvent } from "@/lib/bale-group-notifications";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser(req);
@@ -20,7 +21,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const ticket = await prisma.supportTicket.findFirst({ where: { id: params.id, userId: user.id } });
     if (!ticket) return NextResponse.json({ error: "تیکت پیدا نشد" }, { status: 404 });
     if (ticket.status === "closed") return NextResponse.json({ error: "تیکت بسته شده است" }, { status: 400 });
-    const updated = await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: "waiting_for_support", messages: { create: { body, authorId: user.id } } } });
+    const updated = await prisma.$transaction(async (tx) => {
+      const changed = await tx.supportTicket.update({ where: { id: ticket.id }, data: { status: "waiting_for_support" } });
+      const message = await tx.supportMessage.create({
+        data: { body, authorId: user.id, ticketId: ticket.id },
+        include: { author: { select: { name: true, role: true } }, ticket: { select: { subject: true, userId: true } } },
+      });
+      await queueSupportUserMessageEvent(tx, message, message.createdAt);
+      return changed;
+    });
     return NextResponse.json({ ticket: updated });
   } catch { return NextResponse.json({ error: "ارسال پیام ناموفق بود" }, { status: 500 }); }
 }

@@ -10,6 +10,12 @@ import {
   formatBaleGroupEvent,
   paymentDuplicateEventKey,
   paymentPaidEventKey,
+  queueAvatarReviewEvent,
+  queueCourseApplicationEvent,
+  queuePaymentReceiptEvent,
+  queueProfileReviewEvent,
+  queueSupportTicketEvent,
+  queueSupportUserMessageEvent,
   queuePaidPaymentEvent,
   retryAt,
   retryBaleGroupEvent,
@@ -49,6 +55,63 @@ test("formats a safe Persian release publication date", () => {
 
   assert.match(message, /تاریخ انتشار: ۲۱ مرداد ۱۴۰۵، ۱۱:۵۱/);
   assert.doesNotMatch(message, /2026|publishedAt/);
+});
+
+test("formats operational request cards with only labeled safe fields", () => {
+  const cases = [
+    {
+      event: { type: "support_ticket" as const, payload: { displayName: "علی رضایی", subject: "مشکل ورود", submittedAt: "2026-08-12T12:00:00.000Z", ticketId: "ticket-1", userId: "user-1" } },
+      expected: "🎫 تیکت پشتیبانی جدید\nدسته: پشتیبانی\nنام: علی رضایی\nموضوع: مشکل ورود\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+    {
+      event: { type: "support_user_message" as const, payload: { displayName: "علی رضایی", subject: "مشکل ورود", submittedAt: "2026-08-12T12:00:00.000Z", ticketId: "ticket-1", messageId: "message-1", userId: "user-1" } },
+      expected: "💬 پاسخ جدید هنرجو\nدسته: پشتیبانی\nنام: علی رضایی\nموضوع: مشکل ورود\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+    {
+      event: { type: "course_application" as const, payload: { displayName: "مریم احمدی", courseTitle: "تدوین", submittedAt: "2026-08-12T12:00:00.000Z", applicationId: "app-1", userId: "user-2" } },
+      expected: "📝 درخواست ثبت‌نام دوره\nدسته: ثبت‌نام\nنام: مریم احمدی\nدوره: تدوین\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+    {
+      event: { type: "payment_receipt" as const, payload: { displayName: "زهرا محمدی", courseTitle: "کارگردانی", orderNumber: "PAY-1", submittedAt: "2026-08-12T12:00:00.000Z", orderId: "order-1", userId: "user-3" } },
+      expected: "🧾 رسید پرداخت جدید\nدسته: پرداخت\nنام: زهرا محمدی\nدوره: کارگردانی\nشماره سفارش: PAY-1\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+    {
+      event: { type: "profile_review" as const, payload: { displayName: "رضا کریمی", submittedAt: "2026-08-12T12:00:00.000Z", userId: "user-4" } },
+      expected: "👤 بازبینی پروفایل\nدسته: پروفایل\nنام: رضا کریمی\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+    {
+      event: { type: "avatar_review" as const, payload: { displayName: "سارا اکبری", submittedAt: "2026-08-12T12:00:00.000Z", submissionId: "avatar-1", userId: "user-5" } },
+      expected: "🖼️ بازبینی تصویر پروفایل\nدسته: تصویر پروفایل\nنام: سارا اکبری\nزمان: ۲۱ مرداد ۱۴۰۵، ۱۵:۳۰",
+    },
+  ];
+  for (const item of cases) assert.equal(formatBaleGroupEvent(item.event), item.expected);
+
+  const serialized = cases.map((item) => formatBaleGroupEvent(item.event)).join("\n");
+  assert.doesNotMatch(serialized, /متن محرمانه|0912|example@|0013546789|خیابان|custom response|uploads|receipt|card|token/i);
+});
+
+test("queues one immutable safe event for every durable request submission", async () => {
+  const events = new Map<string, any>();
+  const tx = { baleGroupEvent: { upsert: async (args: any) => {
+    if (!events.has(args.where.eventKey)) events.set(args.where.eventKey, args.create);
+    return events.get(args.where.eventKey);
+  } } };
+  const submittedAt = new Date("2026-08-12T12:00:00.000Z");
+  await queueSupportTicketEvent(tx, { id: "ticket-1", subject: "ورود", userId: "user-1", user: { name: "علی" } }, submittedAt);
+  await queueSupportUserMessageEvent(tx, { id: "message-1", ticketId: "ticket-1", authorId: "user-1", ticket: { subject: "ورود", userId: "user-1" }, author: { name: "علی", role: "user" } }, submittedAt);
+  await queueSupportUserMessageEvent(tx, { id: "admin-message", ticketId: "ticket-1", authorId: "admin-1", ticket: { subject: "ورود", userId: "user-1" }, author: { name: "مدیر", role: "admin" } }, submittedAt);
+  await queueCourseApplicationEvent(tx, { id: "app-1", fullName: "مریم", userId: "user-2", course: { title: "تدوین" } }, submittedAt);
+  await queuePaymentReceiptEvent(tx, { id: "order-1", orderNumber: "PAY-1", userId: "user-3", user: { name: "زهرا" }, course: { title: "کارگردانی" } }, "receipt-revision-1", submittedAt);
+  await queueProfileReviewEvent(tx, { id: "user-4", name: "رضا" }, "profile-revision-1", submittedAt);
+  await queueAvatarReviewEvent(tx, { id: "avatar-1", userId: "user-5", user: { name: "سارا" } }, submittedAt);
+  await queuePaymentReceiptEvent(tx, { id: "order-1", orderNumber: "CHANGED", userId: "user-3", user: { name: "changed" }, course: { title: "changed" } }, "receipt-revision-1", new Date());
+
+  assert.deepEqual([...events.keys()], [
+    "support-ticket:ticket-1", "support-user-message:message-1", "course-application:app-1",
+    "payment-receipt:order-1:receipt-revision-1", "profile-review:user-4:profile-revision-1", "avatar-review:avatar-1",
+  ]);
+  assert.equal(JSON.parse(events.get("payment-receipt:order-1:receipt-revision-1").payload).orderNumber, "PAY-1");
+  assert.doesNotMatch(JSON.stringify([...events.values()]), /0912|example@|national|address|customResponses|receiptUrl|payerCard|token/i);
 });
 
 test("builds stable event keys and increasing retry times", () => {
