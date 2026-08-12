@@ -12,6 +12,7 @@
     "db:sync-categories": "npx tsx lib/sync-categories.ts",
     "db:ensure-categories": "npx tsx lib/ensure-course-categories.ts",
     "db:backfill-bale-payments": "npx tsx scripts/backfill-bale-payment-attempts.ts",
+    "db:backfill-enrollment-grants": "npx tsx scripts/backfill-enrollment-grants.ts",
     "bale:dispatch-group-events": "npx tsx scripts/dispatch-bale-group-events.ts",
     "bale:reconcile-releases": "npx tsx scripts/reconcile-bale-release-events.ts",
     "db:studio": "npx prisma studio"

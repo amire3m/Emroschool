@@ -6,6 +6,7 @@ import { getIranianCardInfo } from "@/lib/iranian-card";
 import { encryptPaymentCard } from "@/lib/payment-card-crypto";
 import { effectiveBaleExpiry, isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
+import { enrollmentGrantSources, ensureEnrollmentGrant } from "@/lib/payment-review";
 
 type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void; botUsername: () => string };
 
@@ -31,6 +32,7 @@ const checkoutOrderSelect = {
   amountTomans: true,
   method: true,
   status: true,
+  reviewVersion: true,
   rejectionReason: true,
   receiptUrl: true,
   expiresAt: true,
@@ -53,6 +55,7 @@ function safeCheckoutOrder(order: any) {
     amountTomans,
     method,
     status,
+    reviewVersion = 0,
     rejectionReason,
     receiptUrl,
     expiresAt,
@@ -66,6 +69,7 @@ function safeCheckoutOrder(order: any) {
     amountTomans,
     method,
     status,
+    reviewVersion,
     rejectionReason,
     receiptUrl,
     expiresAt,
@@ -128,7 +132,7 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     if (application.finalAmountTomans === 0) {
       await runPaymentTransaction(dependencies.db, async (tx) => {
         await tx.courseApplication.update({ where: { id: application.id }, data: { status: "approved" } });
-        await tx.enrollment.upsert({ where: { userId_courseId: { userId: id, courseId: course.id } }, update: {}, create: { userId: id, courseId: course.id } });
+        await ensureEnrollmentGrant(tx, { userId: id, courseId: course.id, sourceType: enrollmentGrantSources.freeCheckout, sourceId: application.id });
       });
       return NextResponse.json({ complete: true });
     }

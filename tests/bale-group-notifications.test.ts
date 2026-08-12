@@ -328,6 +328,7 @@ test("Bale finalization queues only the first paid transition and each distinct 
     paymentOrder: { update: async ({ data }: any) => Object.assign(order, data) },
     courseApplication: { update: async () => undefined },
     enrollment: { upsert: async () => undefined },
+    enrollmentGrant: { upsert: async () => undefined },
     baleGroupEvent: {
       upsert: async (args: any) => {
         if (!events.has(args.where.eventKey)) events.set(args.where.eventKey, args.create);
@@ -384,6 +385,7 @@ test("card approval queues a safe paid event once in the payment transaction", a
     amountTomans: 800_000,
     method: "card_to_card",
     status: "under_review",
+    reviewVersion: 0,
     activeAttemptId: "attempt-card",
     applicationId: "application-card",
     userId: "user-card",
@@ -396,11 +398,14 @@ test("card approval queues a safe paid event once in the payment transaction", a
     $transaction: async <T>(callback: (tx: any) => Promise<T>) => callback({
       paymentOrder: {
         findUnique: async () => order,
-        update: async ({ data }: any) => Object.assign(order, data),
+        updateMany: async ({ data }: any) => { Object.assign(order, data, { reviewVersion: order.reviewVersion + 1 }); return { count: 1 }; },
+        findUniqueOrThrow: async () => order,
       },
-      paymentAttempt: { update: async () => undefined },
+      paymentAttempt: { updateMany: async () => ({ count: 1 }) },
+      paymentReviewDecision: { create: async () => undefined },
       courseApplication: { update: async () => undefined },
       enrollment: { upsert: async () => undefined },
+      enrollmentGrant: { upsert: async () => undefined },
       baleGroupEvent: {
         upsert: async (args: any) => {
           if (!events.has(args.where.eventKey)) events.set(args.where.eventKey, args.create);
@@ -412,7 +417,7 @@ test("card approval queues a safe paid event once in the payment transaction", a
   const request = new NextRequest("http://localhost/api/admin/payments/order-card", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "approve" }),
+    body: JSON.stringify({ action: "approve", expectedReviewVersion: 0 }),
   });
 
   const response = await reviewPayment(request, { params: { id: order.id } }, {
@@ -425,7 +430,7 @@ test("card approval queues a safe paid event once in the payment transaction", a
   const repeated = await reviewPayment(new NextRequest(request.url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "approve" }),
+    body: JSON.stringify({ action: "approve", expectedReviewVersion: 0 }),
   }), { params: { id: order.id } }, {
     db,
     authorize: async () => ({ id: "admin-1" }),
@@ -475,6 +480,7 @@ test("manual paid creation queues one safe event once in the creation transactio
         },
       },
       enrollment: { upsert: async () => undefined },
+      enrollmentGrant: { upsert: async () => undefined },
       baleGroupEvent: {
         upsert: async (args: any) => {
           if (!events.has(args.where.eventKey)) events.set(args.where.eventKey, args.create);

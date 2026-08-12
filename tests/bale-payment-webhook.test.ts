@@ -179,6 +179,7 @@ function fixture() {
         enrollmentState.add(`${where.userId_courseId.userId}:${where.userId_courseId.courseId}`);
       },
     },
+    enrollmentGrant: { upsert: async () => undefined },
     baleGroupEvent: {
       upsert: async (args: any) => {
         if (groupEventWriteFailures.length > 0) throw groupEventWriteFailures.shift();

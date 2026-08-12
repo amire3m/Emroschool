@@ -11,6 +11,7 @@ import {
   queueDuplicatePaymentEvent,
   queuePaidPaymentEvent,
 } from "./bale-group-notifications";
+import { enrollmentGrantSources, ensureEnrollmentGrant } from "./payment-review";
 
 type BaleTransaction = BaleGroupEventTransaction & {
   paymentAttempt: {
@@ -22,6 +23,7 @@ type BaleTransaction = BaleGroupEventTransaction & {
   paymentOrder: { update: (...args: any[]) => Promise<any> };
   courseApplication: { update: (...args: any[]) => Promise<any> };
   enrollment: { upsert: (...args: any[]) => Promise<any> };
+  enrollmentGrant: { upsert: (...args: any[]) => Promise<any> };
 };
 
 type BaleDatabase = {
@@ -164,11 +166,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
   if (attempt.order.applicationId) {
     await tx.courseApplication.update({ where: { id: attempt.order.applicationId }, data: { status: "approved" } });
   }
-  await tx.enrollment.upsert({
-    where: { userId_courseId: { userId: attempt.order.userId, courseId: attempt.order.courseId } },
-    update: {},
-    create: { userId: attempt.order.userId, courseId: attempt.order.courseId },
-  });
+  await ensureEnrollmentGrant(tx, { userId: attempt.order.userId, courseId: attempt.order.courseId, sourceType: enrollmentGrantSources.balePayment, sourceId: attempt.order.id });
   await queuePaidPaymentEvent(tx, attempt.order, paidAt);
   return "paid";
 }

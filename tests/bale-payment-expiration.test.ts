@@ -113,7 +113,7 @@ function creationFixture(options: { failAttemptLookup?: boolean; createConflict?
   return { state, db };
 }
 
-const safeOrderKeys = ["amountTomans", "application", "course", "createdAt", "expiresAt", "id", "method", "orderNumber", "receiptUrl", "rejectionReason", "status", "attempts"];
+const safeOrderKeys = ["amountTomans", "application", "course", "createdAt", "expiresAt", "id", "method", "orderNumber", "receiptUrl", "rejectionReason", "reviewVersion", "status", "attempts"];
 const safeAttemptKeys = ["createdAt", "expiresAt", "id", "method", "sequence", "status"];
 
 function assertSafePaymentOrder(order: any) {

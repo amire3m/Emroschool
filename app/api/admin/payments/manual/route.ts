@@ -3,6 +3,7 @@ import { getUserFromToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { queuePaidPaymentEvent } from "@/lib/bale-group-notifications";
+import { enrollmentGrantSources, ensureEnrollmentGrant } from "@/lib/payment-review";
 
 async function paymentAdmin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -62,7 +63,7 @@ export async function POST(
         },
       });
       await tx.courseApplication.update({ where: { id: application.id }, data: { status: "approved" } });
-      await tx.enrollment.upsert({ where: { userId_courseId: { userId: application.userId, courseId: application.courseId } }, update: {}, create: { userId: application.userId, courseId: application.courseId } });
+      await ensureEnrollmentGrant(tx, { userId: application.userId, courseId: application.courseId, sourceType: enrollmentGrantSources.manualPayment, sourceId: created.id });
       await queuePaidPaymentEvent(tx, { ...created, user: application.user, course: application.course, application }, now);
       return created;
     });

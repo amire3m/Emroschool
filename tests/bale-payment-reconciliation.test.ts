@@ -169,6 +169,7 @@ function createState(input: {
       enrollment: {
         upsert: async () => { target.enrollments = 1; },
       },
+      enrollmentGrant: { upsert: async () => undefined },
       baleGroupEvent: {
         upsert: async (args: any) => {
           if (!target.groupEvents.has(args.where.eventKey)) target.groupEvents.set(args.where.eventKey, args.create);

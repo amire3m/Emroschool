@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserFromToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { enrollmentGrantSources, ensureEnrollmentGrant } from "@/lib/payment-review";
 
 async function getUsersAdmin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!user) return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     if (!course) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     const enrollment = await prisma.$transaction(async (tx) => {
-      const created = await tx.enrollment.create({ data: { userId: user.id, courseId: course.id }, include: { course: { select: { id: true, title: true } } } });
+      await ensureEnrollmentGrant(tx, { userId: user.id, courseId: course.id, sourceType: enrollmentGrantSources.adminEnrollment, sourceId: `${user.id}:${course.id}` });
+      const created = await tx.enrollment.findUniqueOrThrow({ where: { userId_courseId: { userId: user.id, courseId: course.id } }, include: { course: { select: { id: true, title: true } } } });
       await tx.userAuditLog.create({ data: { actorId: admin.id, targetUserId: user.id, action: "manual_enrollment", fields: JSON.stringify([course.id]) } });
       return created;
     });

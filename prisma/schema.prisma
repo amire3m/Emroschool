@@ -349,9 +349,44 @@ model PaymentOrder {
   createdById          String?
   createdBy            User?    @relation("PaymentOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
   attempts             PaymentAttempt[]
+  reviewVersion        Int      @default(0)
+  reviewDecisions      PaymentReviewDecision[]
 
   @@index([userId, createdAt])
   @@index([courseId, status])
+}
+
+model PaymentReviewDecision {
+  id            String   @id @default(cuid())
+  action        String
+  reason        String?
+  fromStatus    String
+  toStatus      String
+  reviewVersion Int
+  createdAt     DateTime @default(now())
+
+  orderId       String
+  order         PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewerId    String
+
+  @@unique([orderId, reviewVersion])
+  @@index([orderId, createdAt])
+}
+
+model EnrollmentGrant {
+  id         String   @id @default(cuid())
+  sourceType String
+  sourceId   String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  revokedAt  DateTime?
+
+  userId     String
+  courseId   String
+
+  @@unique([sourceType, sourceId])
+  @@index([userId, courseId, active])
 }
 
 model PaymentAttempt {
