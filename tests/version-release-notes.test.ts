@@ -155,10 +155,14 @@ test("retains the approved Tehran and Bale release facts", () => {
   const bale = releaseNotes.find((note) => note.id === "reliable-bale-payments");
   assert.ok(locations);
   assert.ok(bale);
+  assert.match(locations.summary, /داده محلی سامانه/);
+  assert.match(locations.summary, /انتخاب تهران پایدار/);
   assert.match(locations.summary, /محله تهران.*الزامی/);
   assert.match(bale.summary, /تلاش پرداخت.*سامانه/);
   assert.match(bale.summary, /شمارش معکوس/);
   assert.match(bale.summary, /انقضا/);
+  assert.match(bale.summary, /شروع دوباره امن/);
   assert.match(bale.summary, /وب.?هوک/);
   assert.match(bale.summary, /شواهد نامطمئن/);
+  assert.match(bale.summary, /بازیابی تراکنش.*مدیران پرداخت/);
 });
