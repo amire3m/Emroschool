@@ -110,12 +110,18 @@ BACKUP_DIR="$BACKUP_ROOT/$STAMP"
 
 RUNUSER_BIN="$(realpath -e -- "$(command -v runuser)")"
 FLOCK_BIN="$(realpath -e -- "$(command -v flock)")"
-for cron_value in "$RUNUSER_BIN" "$FLOCK_BIN"; do
+BASH_BIN="$(realpath -e -- "$(command -v bash)")"
+DEPLOY_SCRIPT="$(realpath -e -- "$0")"
+for cron_value in "$RUNUSER_BIN" "$FLOCK_BIN" "$BASH_BIN" "$DEPLOY_SCRIPT"; do
   [[ "$cron_value" = /* ]] && reject_cron_syntax "$cron_value" || {
     echo "Notification executable paths must be absolute and Cron-safe." >&2
     exit 1
   }
 done
+
+if [[ "${BALE_DEPLOY_LOCKED:-}" != "1" ]]; then
+  exec "$FLOCK_BIN" --close "$BALE_LOCK_FILE" env BALE_DEPLOY_LOCKED=1 "$BASH_BIN" "$DEPLOY_SCRIPT" "$@"
+fi
 
 restart_writer() {
   pm2 restart "$PM2_APP"
@@ -143,9 +149,6 @@ trap restart_on_exit EXIT
 
 cd "$APP_DIR"
 mkdir -p "$BACKUP_DIR"
-
-exec {BALE_LOCK_FD}>"$BALE_LOCK_FILE"
-"$FLOCK_BIN" "$BALE_LOCK_FD"
 
 if [ -d "public/uploads" ]; then
   cp -a "public/uploads" "$BACKUP_DIR/uploads"
@@ -208,6 +211,5 @@ if ! printf 'SHELL=/bin/sh\n\n* * * * * %s %s\n' "$APP_USER" "$CRON_COMMAND" > "
   rm -f "$CRON_TEMP"
   exit 1
 fi
-exec {BALE_LOCK_FD}>&-
 
 echo "Deployment completed. Backup: $BACKUP_DIR"

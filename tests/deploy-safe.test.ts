@@ -29,6 +29,8 @@ async function deploymentFixture({
   lockFile,
   lockDir,
   logDir,
+  realFlock = false,
+  longLivedPm2Child = false,
 }: {
   failingCopy?: boolean;
   failingCommand?: "npm-ci" | "db-push" | "build" | "pm2-restart" | "reconcile" | "dispatch" | "cron-install";
@@ -37,6 +39,8 @@ async function deploymentFixture({
   lockFile?: string;
   lockDir?: string;
   logDir?: string;
+  realFlock?: boolean;
+  longLivedPm2Child?: boolean;
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "deploy-safe-"));
   const app = appDir ?? path.join(root, "app");
@@ -66,13 +70,15 @@ async function deploymentFixture({
   await writeFile(scriptPath, script);
   await chmod(scriptPath, 0o755);
 
-  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"\n${failingCommand === "pm2-restart" ? '[[ "$1" == "restart" ]] && exit 35\n:' : ":"}`);
+  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"\n${longLivedPm2Child ? '[[ "$1" == "restart" ]] && (sleep 30 </dev/null >/dev/null 2>&1 &)' : ":"}\n${failingCommand === "pm2-restart" ? '[[ "$1" == "restart" ]] && exit 35\n:' : ":"}`);
   await executable(path.join(bin, "git"), `printf 'git %s\\n' "$*" >> "${log}"`);
   await executable(path.join(bin, "npm"), `printf 'npm %s\\n' "$*" >> "${log}"\n${failingCommand === "npm-ci" ? '[[ "$*" == "ci" ]] && exit 31' : failingCommand === "build" ? '[[ "$*" == "run build" ]] && exit 33' : ":"}`);
   await executable(path.join(bin, "npx"), `printf 'npx %s\\n' "$*" >> "${log}"\n${failingCommand === "db-push" ? '[[ "$*" == "prisma db push" ]] && exit 32' : ":"}`);
   await writeFile(path.join(bin, "node"), `#!/usr/bin/bash\nprintf 'node user=%s inherited=%s token=%s chat=%s args=%s\\n' "$TEST_EXEC_USER" "$DEPLOY_ONLY_SECRET" "$BALE_BOT_TOKEN" "$BALE_COORDINATION_CHAT_ID" "$*" >> "${log}"\n${failingCommand === "reconcile" ? '[[ "$*" == *"reconcile-bale-release-events.ts"* ]] && exit 36' : failingCommand === "dispatch" ? '[[ "$*" == *"dispatch-bale-group-events.ts"* ]] && exit 37' : ":"}\n`);
   await chmod(path.join(bin, "node"), 0o755);
-  await executable(path.join(bin, "flock"), `printf 'flock %s\\n' "$*" >> "${log}"\n[[ "$1" == "-n" ]] && shift\nlock="$1"\nshift\n[[ "$#" -eq 0 ]] && exit 0\nexec "$@"`);
+  if (!realFlock) {
+    await executable(path.join(bin, "flock"), `printf 'flock %s\\n' "$*" >> "${log}"\n[[ "$1" == "--close" || "$1" == "-n" ]] && shift\nlock="$1"\nshift\n[[ "$#" -eq 0 ]] && exit 0\nexec "$@"`);
+  }
   await executable(path.join(bin, "runuser"), `printf 'runuser %s\\n' "$*" >> "${log}"\n[[ "$1" == "-u" ]] || exit 41\nuser="$2"\nshift 3\nexport TEST_EXEC_USER="$user"\nexec "$@"`);
   await executable(path.join(bin, "id"), `[[ "$1" == "-u" && "$2" == "missing-user" ]] && exit 42\n[[ "$1" == "-gn" ]] && { printf 'deploy-group\\n'; exit; }\nprintf '1000\\n'`);
   await executable(path.join(bin, "stat"), `format="$2"\ntarget="\${*: -1}"\n[[ "$format" == "%U" ]] && { printf 'deploy-user\\n'; exit; }\nif [[ "$target" == *"unsafe-parent"* ]]; then printf 'root 777 directory\\n'; elif [[ -L "$target" ]]; then printf 'deploy-user 777 symbolic link\\n'; elif [[ -d "$target" ]]; then printf 'root 755 directory\\n'; else printf 'deploy-user 640 regular file\\n'; fi`);
@@ -195,6 +201,7 @@ test("deployment reconciles and dispatches only after a successful build and res
     const reconcile = commands.indexOf("reconcile-bale-release-events.ts");
     const dispatch = commands.indexOf("dispatch-bale-group-events.ts");
     assert.ok(build >= 0 && restart > build && reconcile > restart && dispatch > reconcile);
+    assert.match(commands, /flock --close .*notifications\.lock .*deploy-safe\.sh/);
     assert.match(commands, /runuser -u deploy-user -- .*node/);
     assert.match(commands, /runuser -u deploy-user -- .*env -i .*dispatch-bale-group-events\.ts/);
     assert.match(commands, /node user= inherited= token= chat= .*dispatch-bale-group-events\.ts/);
@@ -354,6 +361,34 @@ test("real flock excludes a contender until the holder exits", { skip: !existsSy
   } finally {
     holder.kill();
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("actual deploy releases its real lock despite a long-lived PM2 descendant", { skip: process.platform !== "linux" }, async (t) => {
+  const probe = await execFileAsync("/bin/sh", ["-c", "command -v flock || true"]);
+  const flock = probe.stdout.trim();
+  if (!flock) return t.skip("real flock is unavailable");
+
+  const fixture = await deploymentFixture({ realFlock: true, longLivedPm2Child: true });
+  try {
+    await runDeployment(fixture);
+    await execFileAsync(flock, ["-n", fixture.lockFile, "true"]);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("actual deploy releases its real lock after failure", { skip: process.platform !== "linux" }, async (t) => {
+  const probe = await execFileAsync("/bin/sh", ["-c", "command -v flock || true"]);
+  const flock = probe.stdout.trim();
+  if (!flock) return t.skip("real flock is unavailable");
+
+  const fixture = await deploymentFixture({ realFlock: true, failingCommand: "dispatch" });
+  try {
+    await assert.rejects(runDeployment(fixture));
+    await execFileAsync(flock, ["-n", fixture.lockFile, "true"]);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
   }
 });
 
