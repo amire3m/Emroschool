@@ -6,6 +6,11 @@ import {
   isExpired,
 } from "./bale-payment-domain";
 import { runPaymentTransaction } from "./payment-transaction";
+import {
+  type BaleGroupEventTransaction,
+  queueDuplicatePaymentEvent,
+  queuePaidPaymentEvent,
+} from "./bale-group-notifications";
 
 type BaleTransaction = {
   paymentAttempt: {
@@ -60,6 +65,11 @@ function validateSuccessfulPayment(attempt: any, input: BaleSuccessfulPaymentInp
   }
 }
 
+function hasBaleGroupEventDelegate(tx: BaleTransaction): tx is BaleTransaction & BaleGroupEventTransaction {
+  return "baleGroupEvent" in tx && typeof tx.baleGroupEvent === "object" && tx.baleGroupEvent !== null &&
+    "upsert" in tx.baleGroupEvent && typeof tx.baleGroupEvent.upsert === "function";
+}
+
 async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, input: BaleSuccessfulPaymentInput | FinalizeBalePaymentInput) {
   if (
     (attempt.balePaymentId && attempt.balePaymentId !== input.balePaymentId) ||
@@ -86,7 +96,10 @@ async function resolveIdentifierOwnership(tx: BaleTransaction, attempt: any, inp
 }
 
 export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBalePaymentInput): Promise<BaleFinalizationResult> {
-  const attempt = await tx.paymentAttempt.findUnique({ where: { id: input.attemptId }, include: { order: true } });
+  const attempt = await tx.paymentAttempt.findUnique({
+    where: { id: input.attemptId },
+    include: { order: { include: { user: { select: { name: true } }, course: { select: { title: true } }, application: { select: { fullName: true } } } } },
+  });
   validateSuccessfulPayment(attempt, input);
   if (await resolveIdentifierOwnership(tx, attempt, input) === "already_paid") return "already_paid";
 
@@ -109,6 +122,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
       },
     });
     if (duplicate.count !== 1) throw new Error("INVALID_BALE_PAYMENT");
+    if (hasBaleGroupEventDelegate(tx)) await queueDuplicatePaymentEvent(tx, attempt.order, attempt.id, paidAt);
     return "paid_duplicate";
   }
 
@@ -153,6 +167,7 @@ export async function finalizeBalePayment(tx: BaleTransaction, input: FinalizeBa
     update: {},
     create: { userId: attempt.order.userId, courseId: attempt.order.courseId },
   });
+  if (hasBaleGroupEventDelegate(tx)) await queuePaidPaymentEvent(tx, attempt.order, paidAt);
   return "paid";
 }
 

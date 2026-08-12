@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { getUserFromToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { queuePaidPaymentEvent } from "@/lib/bale-group-notifications";
 
 async function paymentAdmin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -16,8 +17,20 @@ async function paymentAdmin(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  const admin = await paymentAdmin(req);
+const defaultDependencies = {
+  db: prisma,
+  authorize: paymentAdmin,
+  now: () => new Date(),
+  orderNumber: () => `MAN-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`,
+};
+
+export async function POST(
+  req: NextRequest,
+  _context: unknown = {},
+  overrides: Partial<typeof defaultDependencies> = {},
+) {
+  const dependencies = { ...defaultDependencies, ...overrides };
+  const admin = await dependencies.authorize(req);
   if (!admin) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
 
   try {
@@ -26,14 +39,14 @@ export async function POST(req: NextRequest) {
     if (reference !== undefined && typeof reference !== "string") return NextResponse.json({ error: "شماره پیگیری نامعتبر است" }, { status: 400 });
     if (note !== undefined && typeof note !== "string") return NextResponse.json({ error: "یادداشت نامعتبر است" }, { status: 400 });
 
-    const order = await prisma.$transaction(async (tx) => {
-      const application = await tx.courseApplication.findUnique({ where: { id: applicationId }, select: { id: true, status: true, userId: true, courseId: true, finalAmountTomans: true, paymentOrder: { select: { id: true } } } });
+    const order = await dependencies.db.$transaction(async (tx) => {
+      const application = await tx.courseApplication.findUnique({ where: { id: applicationId }, select: { id: true, status: true, fullName: true, userId: true, courseId: true, finalAmountTomans: true, user: { select: { name: true } }, course: { select: { title: true } }, paymentOrder: { select: { id: true } } } });
       if (!application) throw new Error("NOT_FOUND");
       if (!["pending", "pending_payment"].includes(application.status) || application.paymentOrder) throw new Error("DUPLICATE");
-      const now = new Date();
+      const now = dependencies.now();
       const created = await tx.paymentOrder.create({
         data: {
-          orderNumber: `MAN-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`,
+          orderNumber: dependencies.orderNumber(),
           amountTomans: application.finalAmountTomans,
           amountRials: application.finalAmountTomans * 10,
           method: "manual",
@@ -50,6 +63,7 @@ export async function POST(req: NextRequest) {
       });
       await tx.courseApplication.update({ where: { id: application.id }, data: { status: "approved" } });
       await tx.enrollment.upsert({ where: { userId_courseId: { userId: application.userId, courseId: application.courseId } }, update: {}, create: { userId: application.userId, courseId: application.courseId } });
+      await queuePaidPaymentEvent(tx, { ...created, user: application.user, course: application.course, application }, now);
       return created;
     });
     return NextResponse.json({ order }, { status: 201 });

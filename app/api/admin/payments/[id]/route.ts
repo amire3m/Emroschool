@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { queuePaidPaymentEvent } from "@/lib/bale-group-notifications";
 
 async function admin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -12,23 +13,32 @@ async function admin(req: NextRequest) {
   return user;
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const reviewer = await admin(req);
+const defaultDependencies = { db: prisma, authorize: admin, now: () => new Date() };
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+  overrides: Partial<typeof defaultDependencies> = {},
+) {
+  const dependencies = { ...defaultDependencies, ...overrides };
+  const reviewer = await dependencies.authorize(req);
   if (!reviewer) return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   try {
      const { action, rejectionReason } = await req.json();
     if (!['approve', 'reject'].includes(action)) return NextResponse.json({ error: "عملیات نامعتبر است" }, { status: 400 });
-    const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.paymentOrder.findUnique({ where: { id: params.id } });
+    const result = await dependencies.db.$transaction(async (tx) => {
+       const order = await tx.paymentOrder.findUnique({ where: { id: params.id }, include: { user: { select: { name: true } }, course: { select: { title: true } }, application: { select: { fullName: true } } } });
       if (!order) return null;
        if (order.method !== "card_to_card" || order.status !== "under_review") throw new Error("INVALID_STATUS");
        const reason = typeof rejectionReason === "string" ? rejectionReason.trim() : "";
        if (action === "reject" && !reason) throw new Error("REASON_REQUIRED");
-       const updated = await tx.paymentOrder.update({ where: { id: order.id }, data: { status: action === "approve" ? "paid" : "rejected", rejectionReason: action === "reject" ? reason : null, reviewerId: reviewer.id, reviewedAt: new Date(), ...(action === "approve" ? { paidAt: new Date() } : {}) } });
+       const reviewedAt = dependencies.now();
+       const updated = await tx.paymentOrder.update({ where: { id: order.id }, data: { status: action === "approve" ? "paid" : "rejected", rejectionReason: action === "reject" ? reason : null, reviewerId: reviewer.id, reviewedAt, ...(action === "approve" ? { paidAt: reviewedAt } : {}) } });
        if (order.activeAttemptId) await tx.paymentAttempt.update({ where: { id: order.activeAttemptId }, data: { status: action === "approve" ? "paid" : "rejected", rejectionReason: action === "reject" ? reason : null } });
       if (action === "approve") {
         if (order.applicationId) await tx.courseApplication.update({ where: { id: order.applicationId }, data: { status: "approved" } });
-        await tx.enrollment.upsert({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } }, update: {}, create: { userId: order.userId, courseId: order.courseId } });
+         await tx.enrollment.upsert({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } }, update: {}, create: { userId: order.userId, courseId: order.courseId } });
+         await queuePaidPaymentEvent(tx, order, reviewedAt);
       }
       return updated;
     });

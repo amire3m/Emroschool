@@ -392,6 +392,25 @@ model PaymentSettings {
   updatedAt       DateTime @updatedAt
 }
 
+model BaleGroupEvent {
+  id                 String   @id @default(cuid())
+  eventKey           String   @unique
+  type               String
+  payload            String
+  status             String   @default("pending")
+  attempts           Int      @default(0)
+  nextAttemptAt      DateTime @default(now())
+  claimedAt          DateTime?
+  sendStartedAt      DateTime?
+  sentAt             DateTime?
+  providerResponseId String?
+  lastError          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+}
+
 model CourseApplication {
   id                   String   @id @default(cuid())
   status               String   @default("pending") // pending | approved | rejected
