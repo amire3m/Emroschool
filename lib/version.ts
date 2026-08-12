@@ -150,7 +150,7 @@ const unsortedReleaseNotes: ReleaseNote[] = [
     summary: "بخش «فرم ثبت‌نام» به مدیریت درخواست‌ها اضافه شد. فرم عمومی همه دوره‌ها یا نسخه اختصاصی هر دوره قابل مدیریت است؛ مراحل بعدی جابه‌جا می‌شوند، فیلد سفارشی و فایل تصویر یا PDF پذیرفته می‌شود و پاسخ‌ها در درخواست ثبت‌نام نگهداری می‌شوند.",
     publishedAt: "2026-08-03T04:30:00+03:30",
     version: "2.1.0",
-    type: "feature",
+    type: "release",
   },
   {
     id: "unified-course-registration-payment",

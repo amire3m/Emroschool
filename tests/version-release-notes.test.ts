@@ -142,12 +142,24 @@ test("keeps historical release versions independent from the current version", (
     .digest("hex");
   assert.equal(
     historicalHash,
-    "50c58b08804b5652725e176bbdfdef1aca7c267e5a859b7b5805ece28b9be7d6",
+    "a93383154f39caaff467ff22eb61d80fbe577050ea8d72754045eb56a2447e9d",
   );
 
   const historicalVersion = releaseNotes.find((note) => note.id === "version-2");
   assert.ok(historicalVersion);
   assert.equal(historicalVersion.version, "2.0.0");
+});
+
+test("classifies the preserved version 2.1 marker as a release", () => {
+  const release = releaseNotes.find((note) => note.id === "configurable-registration-forms");
+  assert.deepEqual(release, {
+    id: "configurable-registration-forms",
+    title: "مدیریت کامل فرم ثبت‌نام",
+    summary: "بخش «فرم ثبت‌نام» به مدیریت درخواست‌ها اضافه شد. فرم عمومی همه دوره‌ها یا نسخه اختصاصی هر دوره قابل مدیریت است؛ مراحل بعدی جابه‌جا می‌شوند، فیلد سفارشی و فایل تصویر یا PDF پذیرفته می‌شود و پاسخ‌ها در درخواست ثبت‌نام نگهداری می‌شوند.",
+    publishedAt: "2026-08-03T04:30:00+03:30",
+    version: "2.1.0",
+    type: "release",
+  });
 });
 
 test("retains the approved Tehran and Bale release facts", () => {

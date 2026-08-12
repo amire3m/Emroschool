@@ -473,12 +473,12 @@ test("repeated release reconciliation keeps one immutable event per release", as
   assert.equal(rows[0].payload, originalPayload);
 });
 
-test("release grouping ignores versioned non-release cards as boundaries", async () => {
+test("every release, including version 2.2, uses only the preceding release boundary", async () => {
   const { db, rows } = database();
   const notes = [
-    { id: "release-new", title: "New", summary: "", publishedAt: "2026-08-12T12:00:00.000Z", version: "3.0.0", type: "release" as const },
+    { id: "version-2-2", title: "New", summary: "", publishedAt: "2026-08-12T12:00:00.000Z", version: "3.0.0", type: "release" as const },
     { id: "cap-new", title: "New capability", summary: "", publishedAt: "2026-08-11T12:00:00.000Z", type: "feature" as const },
-    { id: "versioned-feature", title: "Versioned capability", summary: "", publishedAt: "2026-08-10T12:00:00.000Z", version: "2.5.0", type: "feature" as const },
+    { id: "configurable-registration-forms", title: "Versioned capability", summary: "", publishedAt: "2026-08-10T12:00:00.000Z", version: "2.5.0", type: "feature" as const },
     { id: "cap-old", title: "Older capability", summary: "", publishedAt: "2026-08-09T12:00:00.000Z", type: "improvement" as const },
     { id: "release-old", title: "Old", summary: "", publishedAt: "2026-08-08T12:00:00.000Z", version: "2.0.0", type: "release" as const },
   ];

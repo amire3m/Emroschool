@@ -23,12 +23,7 @@ export async function reconcileBaleReleaseEvents(
     const releaseIndex = releaseCards.indexOf(release);
     const precedingRelease = releaseCards[releaseIndex + 1];
     const upperBound = Date.parse(release.publishedAt);
-    // The initial 2.2 rollout follows the existing 2.1 version marker, which predates this release ledger.
-    const initialBoundary = release.id === "version-2-2"
-      ? notes.find((note) => note.id === "configurable-registration-forms")
-      : undefined;
-    const lowerBoundary = initialBoundary ?? precedingRelease;
-    const lowerBound = lowerBoundary ? Date.parse(lowerBoundary.publishedAt) : Number.NEGATIVE_INFINITY;
+    const lowerBound = precedingRelease ? Date.parse(precedingRelease.publishedAt) : Number.NEGATIVE_INFINITY;
     const capabilities = notes
       .filter((note) => note.type !== "release")
       .filter((note) => {
