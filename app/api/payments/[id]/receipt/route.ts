@@ -17,9 +17,11 @@ type ReceiptDependencies = {
   randomUUID: () => string;
   now: () => Date;
   onError: (error: unknown) => void;
+  afterRevisionRead: (tx: any) => Promise<void>;
+  onConcurrencyError: (error: unknown) => void;
 };
 
-const defaultDependencies: ReceiptDependencies = { db: prisma, mkdir, writeFile, randomUUID: crypto.randomUUID, now: () => new Date(), onError: (error) => console.error("Receipt upload error:", error) };
+const defaultDependencies: ReceiptDependencies = { db: prisma, mkdir, writeFile, randomUUID: crypto.randomUUID, now: () => new Date(), onError: (error) => console.error("Receipt upload error:", error), afterRevisionRead: async () => {}, onConcurrencyError: () => {} };
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }, overrides: Partial<ReceiptDependencies> = {}) {
   const dependencies = { ...defaultDependencies, ...overrides };
@@ -44,6 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const updated = await dependencies.db.$transaction(async (tx: any) => {
       const current = await tx.paymentOrder.findUnique({ where: { id: order.id }, include: { user: { select: { name: true } }, course: { select: { title: true } } } });
       if (!current || !["awaiting_receipt", "rejected"].includes(current.status)) throw new Error("RECEIPT_CONFLICT");
+      await dependencies.afterRevisionRead(tx);
       const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
       const submittedAt = dependencies.now();
       if (attempt) {
@@ -63,6 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch (error) {
     if (error instanceof Error && error.message === "RECEIPT_CONFLICT") return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     if (isRetryablePaymentTransactionError(error) && expectedRevision !== null) {
+      dependencies.onConcurrencyError(error);
       const current = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id }, select: { receiptSubmissionRevision: true, status: true } }).catch(() => null);
       if (current && (current.receiptSubmissionRevision !== expectedRevision || !["awaiting_receipt", "rejected"].includes(current.status))) return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     }
