@@ -87,7 +87,7 @@ async function deploymentFixture({
   }
   await executable(path.join(bin, "runuser"), `printf 'runuser %s\\n' "$*" >> "${log}"\n[[ "$1" == "-u" ]] || exit 41\nuser="$2"\nshift 3\nexport TEST_EXEC_USER="$user"\nexec "$@"`);
   await executable(path.join(bin, "id"), `[[ "$1" == "-u" && "$2" == "missing-user" ]] && exit 42\n[[ "$1" == "-gn" ]] && { printf 'deploy-group\\n'; exit; }\nprintf '1000\\n'`);
-  await executable(path.join(bin, "stat"), `format="$2"\ntarget="\${*: -1}"\n[[ "$format" == "%U" ]] && { printf 'deploy-user\\n'; exit; }\nif [[ "$target" == *"unsafe-parent"* ]]; then printf 'root 777 directory\\n'; elif [[ -L "$target" ]]; then printf 'deploy-user 777 symbolic link\\n'; elif [[ -d "$target" ]]; then printf 'root 755 directory\\n'; else printf 'deploy-user 640 regular file\\n'; fi`);
+  await executable(path.join(bin, "stat"), `format="$2"\ntarget="\${*: -1}"\n[[ "$format" == "%U" ]] && { printf 'deploy-user\\n'; exit; }\n[[ "$format" == "%U %a" ]] && { printf 'deploy-user 640\\n'; exit; }\nif [[ "$target" == *"unsafe-parent"* ]]; then printf 'root 777 directory\\n'; elif [[ -L "$target" ]]; then printf 'deploy-user 777 symbolic link\\n'; elif [[ -d "$target" ]]; then printf 'root 755 directory\\n'; else printf 'deploy-user 640 regular empty file\\n'; fi`);
   await executable(path.join(bin, "install"), `args=("$@")\nif [[ "$1" == "-d" ]]; then target="\${args[-1]}"; mkdir -p "$target"; exit; fi\ntarget="\${args[-1]}"; : > "$target"`);
   await executable(path.join(bin, "chown"), `printf 'chown %s\\n' "$*" >> "${log}"`);
   await executable(path.join(bin, "mv"), `printf 'mv %s\\n' "$*" >> "${log}"\n${failingCommand === "cron-install" ? `[[ "\${*: -1}" == "${bashPath(cronFile)}" ]] && exit 34` : ":"}\nexec /usr/bin/mv "$@"`);

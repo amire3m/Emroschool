@@ -61,9 +61,9 @@ prepare_state_file() {
   local file="$1"
   if [[ -e "$file" || -L "$file" ]]; then
     [[ ! -L "$file" && -f "$file" ]] || return 1
-    local owner mode type
-    read -r owner mode type < <(stat -c '%U %a %F' -- "$file")
-    [[ "$owner" = "$APP_USER" && "$mode" = "640" && "$type" = "regular file" ]]
+    local owner mode
+    read -r owner mode < <(stat -c '%U %a' -- "$file")
+    [[ "$owner" = "$APP_USER" && "$mode" = "640" ]]
   else
     install -o "$APP_USER" -g "$APP_GROUP" -m 0640 -- /dev/null "$file"
   fi
