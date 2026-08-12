@@ -3,22 +3,34 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { releaseEventKey } from "../lib/bale-group-notifications";
-import { APP_VERSION, releaseNotes } from "../lib/version";
+import { APP_VERSION, ReleaseNote, releaseNotes } from "../lib/version";
 
 type ReleaseEventDatabase = Pick<PrismaClient, "baleGroupEvent">;
 
-export async function reconcileBaleReleaseEvents(db: ReleaseEventDatabase, now = new Date()) {
-  const versionedCards = releaseNotes.filter((note) => Boolean(note.version));
-  const releases = versionedCards.filter((note) => note.type === "release" && note.version === APP_VERSION);
+export async function reconcileBaleReleaseEvents(
+  db: ReleaseEventDatabase,
+  now = new Date(),
+  options: { notes?: ReleaseNote[]; appVersion?: string } = {},
+) {
+  const notes = [...(options.notes ?? releaseNotes)].sort(
+    (left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt),
+  );
+  const releaseCards = notes.filter((note) => note.type === "release");
+  const releases = releaseCards.filter((note) => note.version === (options.appVersion ?? APP_VERSION));
   let queued = 0;
 
   for (const release of releases) {
-    const releaseIndex = versionedCards.indexOf(release);
-    const precedingRelease = versionedCards[releaseIndex + 1];
+    const releaseIndex = releaseCards.indexOf(release);
+    const precedingRelease = releaseCards[releaseIndex + 1];
     const upperBound = Date.parse(release.publishedAt);
-    const lowerBound = precedingRelease ? Date.parse(precedingRelease.publishedAt) : Number.NEGATIVE_INFINITY;
-    const capabilities = releaseNotes
-      .filter((note) => !note.version)
+    // The initial 2.2 rollout follows the existing 2.1 version marker, which predates this release ledger.
+    const initialBoundary = release.id === "version-2-2"
+      ? notes.find((note) => note.id === "configurable-registration-forms")
+      : undefined;
+    const lowerBoundary = initialBoundary ?? precedingRelease;
+    const lowerBound = lowerBoundary ? Date.parse(lowerBoundary.publishedAt) : Number.NEGATIVE_INFINITY;
+    const capabilities = notes
+      .filter((note) => note.type !== "release")
       .filter((note) => {
         const publishedAt = Date.parse(note.publishedAt);
         return publishedAt > lowerBound && publishedAt <= upperBound;
@@ -26,23 +38,24 @@ export async function reconcileBaleReleaseEvents(db: ReleaseEventDatabase, now =
       .map((note) => note.title);
 
     const eventKey = releaseEventKey(release.id);
-    const existing = await db.baleGroupEvent.findUnique({ where: { eventKey }, select: { id: true } });
-    await db.baleGroupEvent.upsert({
-      where: { eventKey },
-      update: {},
-      create: {
-        eventKey,
-        type: "release",
-        payload: JSON.stringify({
-          version: release.version!,
-          title: release.title,
-          publishedAt: release.publishedAt,
-          capabilities,
-        }),
-        nextAttemptAt: now,
-      },
-    });
-    if (!existing) queued += 1;
+    try {
+      await db.baleGroupEvent.create({
+        data: {
+          eventKey,
+          type: "release",
+          payload: JSON.stringify({
+            version: release.version!,
+            title: release.title,
+            publishedAt: release.publishedAt,
+            capabilities,
+          }),
+          nextAttemptAt: now,
+        },
+      });
+      queued += 1;
+    } catch (error) {
+      if (!(error && typeof error === "object" && "code" in error && error.code === "P2002")) throw error;
+    }
   }
 
   return { releases: releases.length, queued };

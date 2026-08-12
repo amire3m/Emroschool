@@ -7,7 +7,9 @@ import { isDefinitiveBaleApiRejection, sendMessage } from "../lib/bale-payment";
 
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BATCH_SIZE = 100;
-const STALE_CLAIM_MS = 5 * 60_000;
+const STALE_LEASE_MS = 5 * 60_000;
+const MAX_TEXT_LENGTH = 200;
+const MAX_RELEASE_CAPABILITIES = 50;
 
 type GroupEventDatabase = Pick<PrismaClient, "baleGroupEvent">;
 type DispatchOptions = {
@@ -29,30 +31,96 @@ function emptyResult(): DispatchResult {
   return { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 };
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: string[]) {
+  const actual = Object.keys(value).sort();
+  return actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index]);
+}
+
+function isSafeText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= MAX_TEXT_LENGTH && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
+function isValidDate(value: unknown) {
+  if (typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) ||
+    Number.isNaN(Date.parse(value))) return false;
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  return calendarDate.getUTCFullYear() === year && calendarDate.getUTCMonth() === month - 1 && calendarDate.getUTCDate() === day;
+}
+
+function parseEvent(candidate: { type: string; payload: string }): Parameters<typeof formatBaleGroupEvent>[0] | null {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(candidate.payload);
+  } catch {
+    return null;
+  }
+  if (!isPlainObject(payload)) return null;
+
+  if (candidate.type === "payment_paid" || candidate.type === "payment_duplicate") {
+    if (!hasExactKeys(payload, ["studentName", "courseTitle", "amountTomans", "method", "orderNumber", "paidAt"])) return null;
+    if (!isSafeText(payload.studentName) || !isSafeText(payload.courseTitle) || !isSafeText(payload.orderNumber)) return null;
+    if (!Number.isSafeInteger(payload.amountTomans) || (payload.amountTomans as number) <= 0) return null;
+    if (!(["bale_wallet", "card_to_card", "manual"] as unknown[]).includes(payload.method)) return null;
+    if (!isValidDate(payload.paidAt)) return null;
+    return { type: candidate.type, payload: payload as Parameters<typeof formatBaleGroupEvent>[0]["payload"] } as Parameters<typeof formatBaleGroupEvent>[0];
+  }
+
+  if (candidate.type === "release") {
+    if (!hasExactKeys(payload, ["version", "title", "publishedAt", "capabilities"])) return null;
+    if (!isSafeText(payload.version) || !isSafeText(payload.title) || !isValidDate(payload.publishedAt)) return null;
+    if (!Array.isArray(payload.capabilities) || payload.capabilities.length > MAX_RELEASE_CAPABILITIES) return null;
+    if (!payload.capabilities.every(isSafeText)) return null;
+    return { type: "release", payload: payload as Parameters<typeof formatBaleGroupEvent>[0]["payload"] } as Parameters<typeof formatBaleGroupEvent>[0];
+  }
+
+  return null;
+}
+
 export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: DispatchOptions = {}) {
   const chatId = options.chatId ?? process.env.BALE_COORDINATION_CHAT_ID ?? "";
   if (!chatId.trim()) return emptyResult();
+  if (!options.send && !process.env.BALE_BOT_TOKEN?.trim()) return emptyResult();
 
   const now = options.now ?? new Date();
   const batchSize = Math.min(MAX_BATCH_SIZE, Math.max(1, options.batchSize ?? DEFAULT_BATCH_SIZE));
-  const staleBefore = new Date(now.getTime() - STALE_CLAIM_MS);
+  const staleBefore = new Date(now.getTime() - STALE_LEASE_MS);
   const candidates = await db.baleGroupEvent.findMany({
     where: {
       OR: [
         { status: { in: ["pending", "retryable"] }, nextAttemptAt: { lte: now }, attempts: { lt: 10 } },
         { status: "processing", claimedAt: { lt: staleBefore }, sendStartedAt: null, attempts: { lt: 10 } },
+        { status: "processing", sendStartedAt: { lt: staleBefore } },
       ],
     },
     orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
     take: batchSize,
   });
-  const due = candidates
-    .filter((candidate) => canClaimBaleGroupEvent(candidate, now, staleBefore))
-    .slice(0, batchSize);
   const result = emptyResult();
 
-  for (const candidate of due) {
+  for (const candidate of candidates) {
     try {
+      if (candidate.status === "processing" && candidate.sendStartedAt && candidate.sendStartedAt < staleBefore) {
+        const recovered = await db.baleGroupEvent.updateMany({
+          where: {
+            id: candidate.id,
+            status: "processing",
+            attempts: candidate.attempts,
+            claimedAt: candidate.claimedAt,
+            sendStartedAt: candidate.sendStartedAt,
+          },
+          data: { status: "uncertain", nextAttemptAt: now, lastError: "BALE_STALE_SEND_UNCERTAIN" },
+        });
+        if (recovered.count === 1) result.uncertain += 1;
+        continue;
+      }
+      if (!canClaimBaleGroupEvent(candidate, now, staleBefore)) continue;
+
       const claim = await db.baleGroupEvent.updateMany({
         where: {
           id: candidate.id,
@@ -64,7 +132,6 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
         },
         data: {
           status: "processing",
-          attempts: { increment: 1 },
           claimedAt: now,
           sendStartedAt: null,
           lastError: null,
@@ -73,31 +140,27 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
       if (claim.count !== 1) continue;
       result.claimed += 1;
 
-      const attempts = candidate.attempts + 1;
-      let message: string;
-      try {
-        message = formatBaleGroupEvent({
-          type: candidate.type as "payment_paid" | "payment_duplicate" | "release",
-          payload: JSON.parse(candidate.payload),
-        } as Parameters<typeof formatBaleGroupEvent>[0]);
-      } catch {
-        await db.baleGroupEvent.updateMany({
-          where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: null },
+      const parsedEvent = parseEvent(candidate);
+      if (!parsedEvent) {
+        const quarantined = await db.baleGroupEvent.updateMany({
+          where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null },
           data: { status: "needs_review", lastError: "INVALID_EVENT_PAYLOAD" },
         });
-        result.needsReview += 1;
+        if (quarantined.count === 1) result.needsReview += 1;
         continue;
       }
+      const message = formatBaleGroupEvent(parsedEvent);
 
       const started = await db.baleGroupEvent.updateMany({
-        where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: null },
-        data: { sendStartedAt: now },
+        where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null },
+        data: { attempts: { increment: 1 }, sendStartedAt: now },
       });
       if (started.count !== 1) continue;
+      const attempts = candidate.attempts + 1;
 
       try {
         await (options.send ?? sendMessage)(chatId, message);
-        await db.baleGroupEvent.updateMany({
+        const persisted = await db.baleGroupEvent.updateMany({
           where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: now },
           data: {
             status: "sent",
@@ -107,11 +170,11 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
             providerResponseId: null,
           },
         });
-        result.sent += 1;
+        if (persisted.count === 1) result.sent += 1;
       } catch (error) {
         if (isDefinitiveBaleApiRejection(error)) {
           const retry = retryBaleGroupEvent(now, attempts);
-          await db.baleGroupEvent.updateMany({
+          const persisted = await db.baleGroupEvent.updateMany({
             where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: now },
             data: {
               status: retry.status,
@@ -120,14 +183,16 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
               lastError: "BALE_DEFINITIVE_REJECTION",
             },
           });
-          if (retry.status === "needs_review") result.needsReview += 1;
-          else result.retryable += 1;
+          if (persisted.count === 1) {
+            if (retry.status === "needs_review") result.needsReview += 1;
+            else result.retryable += 1;
+          }
         } else {
-          await db.baleGroupEvent.updateMany({
+          const persisted = await db.baleGroupEvent.updateMany({
             where: { id: candidate.id, status: "processing", attempts, claimedAt: now, sendStartedAt: now },
             data: { status: "uncertain", nextAttemptAt: now, lastError: "BALE_DELIVERY_UNCERTAIN" },
           });
-          result.uncertain += 1;
+          if (persisted.count === 1) result.uncertain += 1;
         }
       }
     } catch {

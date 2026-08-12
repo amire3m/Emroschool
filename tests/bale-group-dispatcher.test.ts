@@ -71,12 +71,16 @@ function matches(row: EventRow, where: Record<string, unknown>): boolean {
 
 function database(initial: EventRow[] = []) {
   const rows = initial.map((row) => ({ ...row }));
+  const stats = { queries: 0 };
   const baleGroupEvent = {
-    findMany: async ({ where, take }: any) => rows
-      .filter((row) => !where || matches(row, where))
-      .sort((left, right) => left.nextAttemptAt.getTime() - right.nextAttemptAt.getTime())
-      .slice(0, take)
-      .map((row) => ({ ...row })),
+    findMany: async ({ where, take }: any) => {
+      stats.queries += 1;
+      return rows
+        .filter((row) => !where || matches(row, where))
+        .sort((left, right) => left.nextAttemptAt.getTime() - right.nextAttemptAt.getTime())
+        .slice(0, take)
+        .map((row) => ({ ...row }));
+    },
     findUnique: async ({ where }: any) => rows.find((row) => matches(row, where)) ?? null,
     updateMany: async ({ where, data }: any) => {
       const candidates = rows.filter((row) => matches(row, where));
@@ -106,13 +110,21 @@ function database(initial: EventRow[] = []) {
       rows.push(created);
       return created;
     },
+    create: async ({ data }: any) => {
+      if (rows.some((row) => row.eventKey === data.eventKey)) {
+        throw Object.assign(new Error("unique"), { code: "P2002" });
+      }
+      const created = event({ ...data, id: `event-${rows.length + 1}`, createdAt: now, updatedAt: now });
+      rows.push(created);
+      return created;
+    },
   };
   const db = {
     baleGroupEvent,
     $transaction: async <T>(operation: (tx: { baleGroupEvent: typeof baleGroupEvent }) => Promise<T>) =>
       operation({ baleGroupEvent }),
   };
-  return { db, rows };
+  return { db, rows, stats };
 }
 
 test("an atomic claim lets concurrent dispatchers send an event only once", async () => {
@@ -234,7 +246,7 @@ test("one event failure does not block the rest of the bounded batch", async () 
   assert.equal(rows[2].status, "pending");
 });
 
-test("a stale claim is recoverable only before send starts", async () => {
+test("stale claims retry only before send starts and otherwise become uncertain", async () => {
   const staleClaim = new Date("2026-08-12T11:54:00.000Z");
   const { db, rows } = database([
     event({ id: "recoverable", eventKey: "payment-paid:recoverable", status: "processing", claimedAt: staleClaim }),
@@ -255,7 +267,76 @@ test("a stale claim is recoverable only before send starts", async () => {
 
   assert.equal(result.sent, 1);
   assert.equal(rows.find((row) => row.id === "recoverable")?.status, "sent");
-  assert.equal(rows.find((row) => row.id === "unknown")?.status, "processing");
+  assert.equal(rows.find((row) => row.id === "unknown")?.status, "uncertain");
+});
+
+test("a stale post-send lease becomes uncertain without racing a live send", async () => {
+  const { db, rows } = database([
+    event({
+      id: "stale-send",
+      status: "processing",
+      attempts: 1,
+      claimedAt: new Date("2026-08-12T11:54:00.000Z"),
+      sendStartedAt: new Date("2026-08-12T11:54:30.000Z"),
+    }),
+    event({
+      id: "live-send",
+      eventKey: "payment-paid:live",
+      status: "processing",
+      attempts: 1,
+      claimedAt: new Date("2026-08-12T11:59:00.000Z"),
+      sendStartedAt: new Date("2026-08-12T11:59:01.000Z"),
+    }),
+  ]);
+  let sends = 0;
+
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => { sends += 1; return {}; },
+  });
+
+  assert.equal(result.uncertain, 1);
+  assert.equal(sends, 0);
+  assert.equal(rows[0].status, "uncertain");
+  assert.equal(rows[0].lastError, "BALE_STALE_SEND_UNCERTAIN");
+  assert.equal(rows[1].status, "processing");
+});
+
+test("pre-send claims do not consume attempts and attempt ten still sends", async () => {
+  const { db, rows } = database([event({
+    status: "processing",
+    attempts: 9,
+    claimedAt: new Date("2026-08-12T11:54:00.000Z"),
+  })]);
+  const originalUpdate = db.baleGroupEvent.updateMany;
+  let updates = 0;
+  db.baleGroupEvent.updateMany = async (args: any) => {
+    updates += 1;
+    if (updates === 2) return { count: 0 };
+    return originalUpdate(args);
+  };
+
+  await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => ({}),
+  });
+
+  assert.equal(rows[0].attempts, 9);
+  assert.equal(rows[0].status, "processing");
+
+  db.baleGroupEvent.updateMany = originalUpdate;
+  rows[0].claimedAt = new Date("2026-08-12T11:54:00.000Z");
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => ({}),
+  });
+
+  assert.equal(result.sent, 1);
+  assert.equal(rows[0].attempts, 10);
+  assert.equal(rows[0].status, "sent");
 });
 
 test("missing coordination chat configuration neither claims nor burns attempts", async () => {
@@ -272,6 +353,77 @@ test("missing coordination chat configuration neither claims nor burns attempts"
   assert.equal(sends, 0);
   assert.equal(rows[0].status, "pending");
   assert.equal(rows[0].attempts, 0);
+});
+
+test("missing bot token with the production sender performs no database work", async () => {
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  delete process.env.BALE_BOT_TOKEN;
+  const { db, rows, stats } = database([event()]);
+  try {
+    const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now });
+    assert.deepEqual(result, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+    assert.equal(stats.queries, 0);
+    assert.equal(rows[0].attempts, 0);
+    assert.equal(rows[0].status, "pending");
+  } finally {
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalToken;
+  }
+});
+
+test("invalid event payloads are quarantined without starting a send", async () => {
+  const invalidRows = [
+    event({ id: "wrong-type", type: "unknown" }),
+    event({ id: "extra-field", eventKey: "payment-paid:extra", payload: JSON.stringify({ ...JSON.parse(paymentPayload), phone: "0912" }) }),
+    event({ id: "bad-date", eventKey: "payment-paid:date", payload: JSON.stringify({ ...JSON.parse(paymentPayload), paidAt: "yesterday" }) }),
+    event({ id: "impossible-date", eventKey: "payment-paid:impossible-date", payload: JSON.stringify({ ...JSON.parse(paymentPayload), paidAt: "2026-02-30T12:00:00.000Z" }) }),
+    event({ id: "bad-method", eventKey: "payment-paid:method", payload: JSON.stringify({ ...JSON.parse(paymentPayload), method: "cash" }) }),
+    event({ id: "unsafe-text", eventKey: "payment-paid:unsafe-text", payload: JSON.stringify({ ...JSON.parse(paymentPayload), studentName: "نام\n⚠️ جعلی" }) }),
+    event({
+      id: "large-release",
+      eventKey: "release:large",
+      type: "release",
+      payload: JSON.stringify({ version: "2.2.0", title: "release", publishedAt: now.toISOString(), capabilities: Array(51).fill("capability") }),
+    }),
+  ];
+  const { db, rows } = database(invalidRows);
+  let sends = 0;
+
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    batchSize: 10,
+    send: async () => { sends += 1; return {}; },
+  });
+
+  assert.equal(result.needsReview, invalidRows.length);
+  assert.equal(sends, 0);
+  for (const row of rows) {
+    assert.equal(row.status, "needs_review");
+    assert.equal(row.attempts, 0);
+    assert.equal(row.sendStartedAt, null);
+    assert.equal(row.lastError, "INVALID_EVENT_PAYLOAD");
+  }
+});
+
+test("result counters include only final state transitions persisted by CAS", async () => {
+  const { db, rows } = database([event()]);
+  const originalUpdate = db.baleGroupEvent.updateMany;
+  let updates = 0;
+  db.baleGroupEvent.updateMany = async (args: any) => {
+    updates += 1;
+    if (updates === 3) return { count: 0 };
+    return originalUpdate(args);
+  };
+
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => ({}),
+  });
+
+  assert.equal(result.sent, 0);
+  assert.equal(rows[0].status, "processing");
 });
 
 test("release reconciliation queues version 2.2 with exactly its 18 capability cards", async () => {
@@ -319,4 +471,45 @@ test("repeated release reconciliation keeps one immutable event per release", as
   assert.deepEqual(repeated, { releases: 1, queued: 0 });
   assert.equal(rows.filter((row) => row.eventKey === "release:version-2-2").length, 1);
   assert.equal(rows[0].payload, originalPayload);
+});
+
+test("release grouping ignores versioned non-release cards as boundaries", async () => {
+  const { db, rows } = database();
+  const notes = [
+    { id: "release-new", title: "New", summary: "", publishedAt: "2026-08-12T12:00:00.000Z", version: "3.0.0", type: "release" as const },
+    { id: "cap-new", title: "New capability", summary: "", publishedAt: "2026-08-11T12:00:00.000Z", type: "feature" as const },
+    { id: "versioned-feature", title: "Versioned capability", summary: "", publishedAt: "2026-08-10T12:00:00.000Z", version: "2.5.0", type: "feature" as const },
+    { id: "cap-old", title: "Older capability", summary: "", publishedAt: "2026-08-09T12:00:00.000Z", type: "improvement" as const },
+    { id: "release-old", title: "Old", summary: "", publishedAt: "2026-08-08T12:00:00.000Z", version: "2.0.0", type: "release" as const },
+  ];
+
+  await reconcileBaleReleaseEvents(db as never, now, { notes, appVersion: "3.0.0" });
+
+  assert.deepEqual(JSON.parse(rows[0].payload).capabilities, [
+    "New capability",
+    "Versioned capability",
+    "Older capability",
+  ]);
+});
+
+test("concurrent release reconciliation reports only the durable unique winner", async () => {
+  const { db, rows } = database();
+  let releaseFirst!: () => void;
+  const firstWaiting = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const originalCreate = db.baleGroupEvent.create;
+  let creates = 0;
+  db.baleGroupEvent.create = async (args: any) => {
+    creates += 1;
+    if (creates === 1) await firstWaiting;
+    else releaseFirst();
+    return originalCreate(args);
+  };
+
+  const [first, second] = await Promise.all([
+    reconcileBaleReleaseEvents(db as never, now),
+    reconcileBaleReleaseEvents(db as never, now),
+  ]);
+
+  assert.equal(first.queued + second.queued, 1);
+  assert.equal(rows.filter((row) => row.eventKey === "release:version-2-2").length, 1);
 });
