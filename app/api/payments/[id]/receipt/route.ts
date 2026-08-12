@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { isRetryablePaymentTransactionError } from "@/lib/payment-transaction";
 
 export const runtime = "nodejs";
 const allowed = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"]]);
@@ -22,12 +23,14 @@ const defaultDependencies: ReceiptDependencies = { db: prisma, mkdir, writeFile,
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }, overrides: Partial<ReceiptDependencies> = {}) {
   const dependencies = { ...defaultDependencies, ...overrides };
+  let expectedRevision: number | null = null;
   const header = req.headers.get("authorization");
   const user = header?.startsWith("Bearer ") ? verifyToken(header.slice(7)) : null;
   if (!user) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
   try {
     const order = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
     if (!order) return NextResponse.json({ error: "سفارش پیدا نشد" }, { status: 404 });
+    expectedRevision = order.receiptSubmissionRevision;
     if (order.method !== "card_to_card" || !["awaiting_receipt", "rejected"].includes(order.status)) return NextResponse.json({ error: "این سفارش آماده دریافت رسید نیست" }, { status: 409 });
     const file = (await req.formData()).get("file");
     if (!(file instanceof File) || !allowed.has(file.type)) return NextResponse.json({ error: "فقط تصویر JPG، PNG یا WebP مجاز است" }, { status: 400 });
@@ -59,6 +62,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ order: updated });
   } catch (error) {
     if (error instanceof Error && error.message === "RECEIPT_CONFLICT") return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
+    if (isRetryablePaymentTransactionError(error) && expectedRevision !== null) {
+      const current = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id }, select: { receiptSubmissionRevision: true, status: true } }).catch(() => null);
+      if (current && (current.receiptSubmissionRevision !== expectedRevision || !["awaiting_receipt", "rejected"].includes(current.status))) return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
+    }
     dependencies.onError(error);
     return NextResponse.json({ error: "بارگذاری رسید انجام نشد" }, { status: 500 });
   }

@@ -3,6 +3,7 @@ import { verifyToken, hashPassword } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { queueProfileReviewEvent } from "@/lib/bale-group-notifications";
 import type { Prisma } from "@prisma/client";
+import { isRetryablePaymentTransactionError } from "@/lib/payment-transaction";
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,16 +65,20 @@ const defaultPutDependencies = { db: prisma, authenticate: (req: NextRequest) =>
 
 export async function PUT(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultPutDependencies> = {}) {
   const dependencies = { ...defaultPutDependencies, ...overrides };
+  let expectedRevision: number | null = null;
+  let userId: string | null = null;
   try {
     const payload = dependencies.authenticate(req);
     if (!payload) {
       return NextResponse.json({ error: "توکن منقضی یا نامعتبر است" }, { status: 401 });
     }
+    userId = payload.id;
 
     const existing = await dependencies.db.user.findUnique({ where: { id: payload.id } });
     if (!existing) {
       return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     }
+    expectedRevision = existing.profileReviewRevision;
 
     const body = await req.json();
     const { name, birthDate, province, city, district, neighborhood, address, postalCode, workHistory, artHistory, educationLevel, educationField, university, universityField, instagramId, virtualPhone, landline, password, avatar, bio, expertise, socialLinks, profileVisible, newsletterSubscribed, notificationEmailEnabled, notificationSmsEnabled, notificationBaleEnabled } = body;
@@ -180,6 +185,10 @@ export async function PUT(req: NextRequest, _context: { params?: Record<string, 
     return NextResponse.json({ user });
   } catch (error) {
     if (error instanceof Error && error.message === "PROFILE_REVISION_CONFLICT") return NextResponse.json({ error: "پروفایل هم‌زمان دیگری ثبت شده است" }, { status: 409 });
+    if (isRetryablePaymentTransactionError(error) && userId && expectedRevision !== null) {
+      const current = await dependencies.db.user.findUnique({ where: { id: userId }, select: { profileReviewRevision: true } }).catch(() => null);
+      if (current && current.profileReviewRevision !== expectedRevision) return NextResponse.json({ error: "پروفایل هم‌زمان دیگری ثبت شده است" }, { status: 409 });
+    }
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این ایمیل قبلاً برای حساب دیگری ثبت شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در بروزرسانی پروفایل" }, { status: 500 });
   }

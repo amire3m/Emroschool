@@ -52,7 +52,7 @@ test("support reply route queues user messages once and excludes admin authors",
       supportTicket: { findFirst: async () => ({ id: "ticket-1", status: "waiting_for_user" }) },
       $transaction: async (operation: any) => operation({
         supportTicket: { update: async () => ({ id: "ticket-1" }) },
-        supportMessage: { create: async () => ({ id: `message-${role}`, ticketId: "ticket-1", authorId: actor.id, createdAt: new Date("2026-08-12T12:00:00Z"), author: { name: actor.name, role }, ticket: { subject: "ورود", userId: user.id } }) },
+        supportMessage: { create: async () => ({ id: `message-${role}`, ticketId: "ticket-1", authorId: actor.id, createdAt: new Date("2026-08-12T12:00:00Z"), author: { name: actor.name, role }, ticket: { subject: "ورود", userId: actor.id } }) },
         baleGroupEvent: box.delegate,
       }),
     };
@@ -62,20 +62,50 @@ test("support reply route queues user messages once and excludes admin authors",
   }
 });
 
+test("transient lock maps to conflict only after authoritative revision changed", async () => {
+  const locked = Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+  const profileState: any = { ...user, password: "x", bio: null, profileReviewRevision: 0, notificationSmsEnabled: true, notificationBaleEnabled: false, phone: "0912" };
+  let concurrentWinner = true;
+  const profileDb = { user: { findUnique: async () => ({ ...profileState }) }, $transaction: async () => { if (concurrentWinner) profileState.profileReviewRevision = 1; throw locked; } };
+  const response = await updateProfile(new NextRequest("http://test/api/user/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio: "new" }) }), {}, { db: profileDb, authenticate: () => ({ id: user.id }) } as never);
+  assert.equal(response.status, 409);
+  profileState.profileReviewRevision = 0; concurrentWinner = false;
+  const unchanged = await updateProfile(new NextRequest("http://test/api/user/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio: "new" }) }), {}, { db: profileDb, authenticate: () => ({ id: user.id }) } as never);
+  assert.equal(unchanged.status, 500);
+
+  const order: any = { id: "order-lock", userId: user.id, method: "card_to_card", status: "awaiting_receipt", receiptSubmissionRevision: 0 };
+  let transactionRan = false;
+  const receiptDb = { paymentOrder: { findFirst: async () => transactionRan ? { receiptSubmissionRevision: 1, status: "under_review" } : ({ ...order }) }, $transaction: async () => { transactionRan = true; throw locked; } };
+  const form = new FormData(); form.set("file", new File([new Uint8Array([1])], "receipt.png", { type: "image/png" }));
+  const receipt = await submitReceipt(new NextRequest("http://test/api/payments/order-lock/receipt", { method: "POST", headers: auth, body: form }), { params: { id: order.id } }, { db: receiptDb, mkdir: async () => undefined, writeFile: async () => undefined, randomUUID: () => "file", onError: () => undefined });
+  assert.equal(receipt.status, 409);
+});
+
 test("course application route queues one immutable pending event", async () => {
   const box = outbox();
   const course = { id: "course-1", title: "تدوین", published: true, scheduleStatus: "upcoming", price: 800_000, registrationFormOverride: null };
   const existingUser = { ...user, phone: "09121234567", nationalCode: "1000000001" };
   const application = { id: "app-1", fullName: "علی رضایی", userId: user.id, course: { title: course.title }, status: "pending", finalAmountTomans: 800_000, createdAt: new Date("2026-08-12T12:00:00Z") };
+  let existingApplication: typeof application | null = null;
   const db = {
-    course: { findUnique: async () => course }, courseApplication: { findUnique: async () => null }, registrationForm: { findUnique: async () => null }, user: { findUnique: async () => existingUser },
-    $transaction: async (operation: any) => operation({ user: { update: async () => existingUser }, courseApplication: { create: async () => application }, baleGroupEvent: box.delegate }),
+    course: { findUnique: async () => course }, courseApplication: { findUnique: async () => existingApplication }, registrationForm: { findUnique: async () => null }, user: { findUnique: async () => existingUser },
+    $transaction: async (operation: any) => operation({ user: { update: async () => existingUser }, courseApplication: { create: async () => { existingApplication = application; return application; } }, baleGroupEvent: box.delegate }),
   };
   const body = { courseId: course.id, fullName: "علی رضایی", email: user.email, phone: "09121234567", nationalCode: "1000000001", birthDate: "1380/01/01", gender: "male", province: "قم", city: "قم", address: "آدرس", educationLevel: "کارشناسی", educationField: "هنر", university: "دانشگاه", universityField: "هنر", reason: "یادگیری", workHistory: "ندارد", artHistory: "ندارد", instagramId: "ali", virtualPhone: "09121234567", customResponses: {} };
   const response = await createApplication(new NextRequest("http://test/api/course-applications", { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(body) }), {}, { db, ensureDiscounts: async () => undefined, findDiscount: async () => null, notify: async () => undefined } as never);
   assert.equal(response.status, 201);
   assert.equal(box.events.size, 1);
   assert.equal(JSON.parse([...box.events.values()][0].payload).reviewState, "pending");
+  const repeated = await createApplication(new NextRequest("http://test/api/course-applications", { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(body) }), {}, { db, ensureDiscounts: async () => undefined, findDiscount: async () => null, notify: async () => undefined } as never);
+  assert.equal(repeated.status, 200); assert.equal(box.events.size, 1);
+
+  const failedBox = outbox(true); let committed = false;
+  existingApplication = null;
+  const failingDb = { ...db, $transaction: async (operation: any) => {
+    const result = await operation({ user: { update: async () => existingUser }, courseApplication: { create: async () => application }, baleGroupEvent: failedBox.delegate }); committed = true; return result;
+  } };
+  const failed = await createApplication(new NextRequest("http://test/api/course-applications", { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(body) }), {}, { db: failingDb, ensureDiscounts: async () => undefined, findDiscount: async () => null, notify: async () => undefined } as never);
+  assert.equal(failed.status, 500); assert.equal(committed, false);
 });
 
 function receiptRequest() {
@@ -133,4 +163,37 @@ test("avatar route queues one event and outbox failure prevents transaction comm
   const form = new FormData(); form.set("file", new File([new Uint8Array([1])], "avatar.png", { type: "image/png" }));
   const response = await submitAvatar(new NextRequest("http://test/api/user/avatar", { method: "POST", body: form }), {}, { db, authenticate: () => ({ id: user.id }), mkdir: async () => undefined, writeFile: async () => undefined, fileName: () => "avatar.png" } as never);
   assert.equal(response.status, 500); assert.equal(committed, false);
+});
+
+test("avatar route successfully commits one event", async () => {
+  const box = outbox(); let committed = false;
+  const db = { user: { findUnique: async () => ({ id: user.id }) }, $transaction: async (operation: any) => {
+    const result = await operation({ avatarSubmission: { updateMany: async () => ({ count: 0 }), create: async () => ({ id: "avatar-ok", userId: user.id, imageUrl: "/safe", submittedAt: new Date("2026-08-12T12:00:00.000Z"), user: { name: user.name } }) }, baleGroupEvent: box.delegate }); committed = true; return result;
+  } };
+  const form = new FormData(); form.set("file", new File([new Uint8Array([1])], "avatar.png", { type: "image/png" }));
+  const response = await submitAvatar(new NextRequest("http://test/api/user/avatar", { method: "POST", body: form }), {}, { db, authenticate: () => ({ id: user.id }), mkdir: async () => undefined, writeFile: async () => undefined, fileName: () => "avatar.png" } as never);
+  assert.equal(response.status, 200); assert.equal(committed, true); assert.deepEqual([...box.events.keys()], ["avatar-review:avatar-ok"]);
+});
+
+test("support reply outbox failure prevents transaction commit", async () => {
+  const box = outbox(true); let committed = false;
+  const db = { supportTicket: { findFirst: async () => ({ id: "ticket-1", status: "waiting_for_user" }) }, $transaction: async (operation: any) => {
+    const result = await operation({ supportTicket: { update: async () => ({ id: "ticket-1" }) }, supportMessage: { create: async () => ({ id: "message-fail", ticketId: "ticket-1", authorId: user.id, createdAt: new Date(), author: { name: user.name, role: "user" }, ticket: { subject: "ورود", userId: user.id } }) }, baleGroupEvent: box.delegate }); committed = true; return result;
+  } };
+  const response = await replyTicket(new NextRequest("http://test/api/support/tickets/ticket-1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "secret" }) }), { params: { id: "ticket-1" } }, { db, authenticate: async () => user } as never);
+  assert.equal(response.status, 500); assert.equal(committed, false);
+});
+
+test("receipt and profile outbox failures do not commit authoritative revisions", async () => {
+  const box = outbox(true);
+  const order: any = { id: "order-fail", orderNumber: "PAY-F", amountTomans: 800_000, userId: user.id, method: "card_to_card", status: "awaiting_receipt", activeAttemptId: null, receiptSubmissionRevision: 0, user: { name: user.name }, course: { title: "تدوین" } };
+  const receiptDb = { paymentOrder: { findFirst: async () => ({ ...order }) }, $transaction: async (operation: any) => operation({ paymentOrder: { findUnique: async () => ({ ...order }), updateMany: async () => ({ count: 1 }), findUniqueOrThrow: async () => ({ ...order, receiptSubmissionRevision: 1 }) }, paymentAttempt: { findFirst: async () => null }, baleGroupEvent: box.delegate }) };
+  const form = new FormData(); form.set("file", new File([new Uint8Array([1])], "receipt.png", { type: "image/png" }));
+  const receipt = await submitReceipt(new NextRequest("http://test/api/payments/order-fail/receipt", { method: "POST", headers: auth, body: form }), { params: { id: order.id } }, { db: receiptDb, mkdir: async () => undefined, writeFile: async () => undefined, randomUUID: () => "file", onError: () => undefined });
+  assert.equal(receipt.status, 500); assert.equal(order.receiptSubmissionRevision, 0);
+
+  const state: any = { ...user, password: "x", bio: null, profileReviewRevision: 0, notificationSmsEnabled: true, notificationBaleEnabled: false, phone: "0912" };
+  const profileDb = { user: { findUnique: async () => ({ ...state }) }, $transaction: async (operation: any) => operation({ user: { updateMany: async () => ({ count: 1 }), findUniqueOrThrow: async () => ({ ...state, profileReviewRevision: 1 }) }, baleGroupEvent: box.delegate }) };
+  const profile = await updateProfile(new NextRequest("http://test/api/user/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio: "new" }) }), {}, { db: profileDb, authenticate: () => ({ id: user.id }) } as never);
+  assert.equal(profile.status, 500); assert.equal(state.profileReviewRevision, 0);
 });

@@ -44,7 +44,7 @@ function isSafeText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 && value.length <= MAX_TEXT_LENGTH && !/[\u0000-\u001f\u007f]/.test(value);
 }
 
-function isValidDate(value: unknown) {
+function isValidHistoricalInstant(value: unknown) {
   if (typeof value !== "string") return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
   if (!match) return false;
@@ -56,6 +56,12 @@ function isValidDate(value: unknown) {
   const offset = zone === "Z" ? 0 : (sign === "+" ? 1 : -1) * (offsetHour * 60 + offsetMinute) * 60_000;
   const instant = calendar.getTime() - offset;
   return Number.isFinite(instant) && instant >= Date.UTC(2000, 0, 1) && instant <= Date.UTC(2100, 11, 31, 23, 59, 59, 999);
+}
+
+function isCanonicalIsoInstant(value: unknown) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return false;
+  const instant = new Date(value);
+  return !Number.isNaN(instant.getTime()) && instant.toISOString() === value && instant.getUTCFullYear() >= 2000 && instant.getUTCFullYear() <= 2100;
 }
 
 function parseEvent(candidate: { type: string; payload: string }): Parameters<typeof formatBaleGroupEvent>[0] | null {
@@ -72,13 +78,13 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
     if (!isSafeText(payload.studentName) || !isSafeText(payload.courseTitle) || !isSafeText(payload.orderNumber)) return null;
     if (!Number.isSafeInteger(payload.amountTomans) || (payload.amountTomans as number) <= 0) return null;
     if (!(["bale_wallet", "card_to_card", "manual"] as unknown[]).includes(payload.method)) return null;
-    if (!isValidDate(payload.paidAt)) return null;
+    if (!isValidHistoricalInstant(payload.paidAt)) return null;
     return { type: candidate.type, payload: payload as Parameters<typeof formatBaleGroupEvent>[0]["payload"] } as Parameters<typeof formatBaleGroupEvent>[0];
   }
 
   if (candidate.type === "release") {
     if (!hasExactKeys(payload, ["version", "title", "publishedAt", "capabilities"])) return null;
-    if (!isSafeText(payload.version) || !isSafeText(payload.title) || !isValidDate(payload.publishedAt)) return null;
+    if (!isSafeText(payload.version) || !isSafeText(payload.title) || !isValidHistoricalInstant(payload.publishedAt)) return null;
     if (!Array.isArray(payload.capabilities) || payload.capabilities.length > MAX_RELEASE_CAPABILITIES) return null;
     if (!payload.capabilities.every(isSafeText)) return null;
     return { type: "release", payload: payload as Parameters<typeof formatBaleGroupEvent>[0]["payload"] } as Parameters<typeof formatBaleGroupEvent>[0];
@@ -93,9 +99,9 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
     avatar_review: ["displayName", "submittedAt", "submissionId", "userId", "actions"],
   };
   const keys = requestKeys[candidate.type];
-  if (keys) {
-    if (!hasExactKeys(payload, keys) || !keys.filter((key) => !["submittedAt", "actions", "amountTomans"].includes(key)).every((key) => isSafeText(payload[key]))) return null;
-    if (!isValidDate(payload.submittedAt)) return null;
+  if (keys && hasExactKeys(payload, keys)) {
+    if (!keys.filter((key) => !["submittedAt", "actions", "amountTomans"].includes(key)).every((key) => isSafeText(payload[key]))) return null;
+    if (!isCanonicalIsoInstant(payload.submittedAt)) return null;
     const expectedActions: Record<string, string[]> = { support_ticket: ["support_ticket", "user"], support_user_message: ["support_ticket", "user"], course_application: ["course_application", "user"], payment_receipt: ["payment_order", "user"], profile_review: ["user"], avatar_review: ["user"] };
     if (!Array.isArray(payload.actions) || JSON.stringify(payload.actions) !== JSON.stringify(expectedActions[candidate.type])) return null;
     if (candidate.type === "course_application" && payload.reviewState !== "pending") return null;
@@ -103,6 +109,19 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
     return { type: candidate.type, payload } as Parameters<typeof formatBaleGroupEvent>[0];
   }
 
+  const legacyKeys: Record<string, string[]> = {
+    support_ticket: ["displayName", "subject", "submittedAt", "ticketId", "userId"],
+    support_user_message: ["displayName", "subject", "submittedAt", "ticketId", "messageId", "userId"],
+    course_application: ["displayName", "courseTitle", "submittedAt", "applicationId", "userId"],
+    payment_receipt: ["displayName", "courseTitle", "orderNumber", "submittedAt", "orderId", "userId"],
+    profile_review: ["displayName", "submittedAt", "userId"],
+    avatar_review: ["displayName", "submittedAt", "submissionId", "userId"],
+  };
+  const legacy = legacyKeys[candidate.type];
+  if (legacy && hasExactKeys(payload, legacy) && legacy.filter((key) => key !== "submittedAt").every((key) => isSafeText(payload[key])) && isCanonicalIsoInstant(payload.submittedAt)) {
+    const actions: Record<string, string[]> = { support_ticket: ["support_ticket", "user"], support_user_message: ["support_ticket", "user"], course_application: ["course_application", "user"], payment_receipt: ["payment_order", "user"], profile_review: ["user"], avatar_review: ["user"] };
+    return { type: candidate.type, payload: { ...payload, ...(candidate.type === "course_application" ? { reviewState: "pending" } : {}), actions: actions[candidate.type] } } as unknown as Parameters<typeof formatBaleGroupEvent>[0];
+  }
   return null;
 }
 

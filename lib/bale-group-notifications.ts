@@ -26,7 +26,7 @@ type BaseRequestPayload = { displayName: string; submittedAt: string; userId: st
 export type SupportTicketPayload = BaseRequestPayload & { subject: string; ticketId: string };
 export type SupportUserMessagePayload = SupportTicketPayload & { messageId: string };
 export type CourseApplicationPayload = BaseRequestPayload & { applicationId: string; courseTitle: string; reviewState: "pending" };
-export type PaymentReceiptPayload = BaseRequestPayload & { orderId: string; orderNumber: string; courseTitle: string; amountTomans: number };
+export type PaymentReceiptPayload = BaseRequestPayload & { orderId: string; orderNumber: string; courseTitle: string; amountTomans?: number };
 export type ProfileReviewPayload = BaseRequestPayload;
 export type AvatarReviewPayload = BaseRequestPayload & { submissionId: string };
 
@@ -128,7 +128,7 @@ export function formatBaleGroupEvent(event: GroupEvent) {
   }
   if (event.type === "payment_receipt") {
     return ["🧾 رسید پرداخت جدید", "دسته: پرداخت", `نام: ${event.payload.displayName}`,
-      `دوره: ${event.payload.courseTitle}`, `مبلغ: ${event.payload.amountTomans.toLocaleString("fa-IR")} تومان`,
+      `دوره: ${event.payload.courseTitle}`, ...(event.payload.amountTomans ? [`مبلغ: ${event.payload.amountTomans.toLocaleString("fa-IR")} تومان`] : []),
       `شماره سفارش: ${event.payload.orderNumber}`, `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
   }
   if (event.type === "profile_review" || event.type === "avatar_review") {

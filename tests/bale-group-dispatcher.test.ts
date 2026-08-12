@@ -232,6 +232,32 @@ test("dispatcher rejects malformed instants and mismatched immutable actions", a
   assert.ok(fixture.rows.every((row) => row.status === "needs_review"));
 });
 
+test("dispatcher accepts only canonical producer ISO instants", async () => {
+  const base = { displayName: "علی", submittedAt: "2026-08-12T12:00:00.000Z", userId: "user-1", actions: ["user"] };
+  const rows = [
+    event({ id: "canonical", type: "profile_review", eventKey: "profile:canonical", payload: JSON.stringify(base) }),
+    event({ id: "offset", type: "profile_review", eventKey: "profile:offset", payload: JSON.stringify({ ...base, submittedAt: "2026-08-12T15:30:00+03:30" }) }),
+    event({ id: "no-ms", type: "profile_review", eventKey: "profile:no-ms", payload: JSON.stringify({ ...base, submittedAt: "2026-08-12T12:00:00Z" }) }),
+  ];
+  const fixture = database(rows); const sent: string[] = [];
+  const result = await dispatchBaleGroupEvents(fixture.db as never, { chatId: "group", now, batchSize: 10, send: async (_id, text) => { sent.push(text); return { message_id: 1 }; } });
+  assert.equal(result.sent, 1); assert.equal(result.needsReview, 2); assert.equal(sent.length, 1);
+});
+
+test("exact legacy request rows are normalized without accepting extra fields", async () => {
+  const legacy = [
+    event({ id: "ticket-legacy", type: "support_ticket", eventKey: "support-ticket:t", payload: JSON.stringify({ displayName: "علی", subject: "ورود", submittedAt: now.toISOString(), ticketId: "t", userId: "u" }) }),
+    event({ id: "course-legacy", type: "course_application", eventKey: "course-application:a", payload: JSON.stringify({ displayName: "علی", courseTitle: "تدوین", submittedAt: now.toISOString(), applicationId: "a", userId: "u" }) }),
+    event({ id: "receipt-legacy", type: "payment_receipt", eventKey: "payment-receipt:o:1", payload: JSON.stringify({ displayName: "علی", courseTitle: "تدوین", orderNumber: "PAY-1", submittedAt: now.toISOString(), orderId: "o", userId: "u" }) }),
+    event({ id: "extra-legacy", type: "profile_review", eventKey: "profile-review:u:1", payload: JSON.stringify({ displayName: "علی", submittedAt: now.toISOString(), userId: "u", url: "https://evil.test" }) }),
+  ];
+  const fixture = database(legacy); const messages: string[] = [];
+  const result = await dispatchBaleGroupEvents(fixture.db as never, { chatId: "group", now, batchSize: 10, send: async (_id, text) => { messages.push(text); return { message_id: 1 }; } });
+  assert.equal(result.sent, 3); assert.equal(result.needsReview, 1);
+  assert.match(messages.join("\n"), /در انتظار بررسی/); assert.match(messages.join("\n"), /رسید پرداخت جدید/);
+  assert.doesNotMatch(messages.join("\n"), /مبلغ:/);
+});
+
 test("sendMessage requires a positive safe message identifier", async () => {
   const originalFetch = global.fetch;
   const originalToken = process.env.BALE_BOT_TOKEN;
