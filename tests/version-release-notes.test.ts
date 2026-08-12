@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { APP_VERSION, releaseNotes } from "../lib/version";
@@ -133,6 +134,17 @@ test("keeps historical release versions independent from the current version", (
     .sort();
   assert.deepEqual(exportedHistoricalIds, [...historicalIds].sort());
 
+  const historicalCards = releaseNotes
+    .filter((note) => !approvedIds.has(note.id))
+    .sort((left, right) => left.id.localeCompare(right.id, "en"));
+  const historicalHash = createHash("sha256")
+    .update(JSON.stringify(historicalCards))
+    .digest("hex");
+  assert.equal(
+    historicalHash,
+    "50c58b08804b5652725e176bbdfdef1aca7c267e5a859b7b5805ece28b9be7d6",
+  );
+
   const historicalVersion = releaseNotes.find((note) => note.id === "version-2");
   assert.ok(historicalVersion);
   assert.equal(historicalVersion.version, "2.0.0");
@@ -145,5 +157,8 @@ test("retains the approved Tehran and Bale release facts", () => {
   assert.ok(bale);
   assert.match(locations.summary, /محله تهران.*الزامی/);
   assert.match(bale.summary, /تلاش پرداخت.*سامانه/);
+  assert.match(bale.summary, /شمارش معکوس/);
+  assert.match(bale.summary, /انقضا/);
+  assert.match(bale.summary, /وب.?هوک/);
   assert.match(bale.summary, /شواهد نامطمئن/);
 });
