@@ -221,6 +221,41 @@ test("an uncertain send outcome is retained and never blindly retried", async ()
   assert.equal(rows[0].lastError, "BALE_DELIVERY_UNCERTAIN");
 });
 
+test("a malformed sendMessage success becomes uncertain and is never sent or retried", async () => {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  process.env.BALE_BOT_TOKEN = "bot-token";
+  const { db, rows } = database([event()]);
+  let sends = 0;
+  global.fetch = (async () => {
+    sends += 1;
+    return new Response(JSON.stringify({ ok: true, result: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const first = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now });
+    const repeated = await dispatchBaleGroupEvents(db as never, {
+      chatId: "group-test",
+      now: new Date("2026-08-13T12:00:00.000Z"),
+    });
+
+    assert.deepEqual(first, { claimed: 1, sent: 0, retryable: 0, uncertain: 1, needsReview: 0 });
+    assert.deepEqual(repeated, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+    assert.equal(sends, 1);
+    assert.equal(rows[0].status, "uncertain");
+    assert.equal(rows[0].sentAt, null);
+    assert.equal(rows[0].attempts, 1);
+    assert.equal(rows[0].lastError, "BALE_DELIVERY_UNCERTAIN");
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN;
+    else process.env.BALE_BOT_TOKEN = originalToken;
+  }
+});
+
 test("one event failure does not block the rest of the bounded batch", async () => {
   const { db, rows } = database([
     event({ id: "event-1", eventKey: "payment-paid:order-1" }),

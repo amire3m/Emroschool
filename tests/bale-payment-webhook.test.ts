@@ -7,7 +7,7 @@ import {
   processBalePreCheckout,
   processBaleSuccessfulPayment,
 } from "../lib/bale-payment-finalization";
-import { isDefinitiveBaleApiRejection, sendMessage } from "../lib/bale-payment";
+import { BaleApiError, isDefinitiveBaleApiRejection, sendMessage } from "../lib/bale-payment";
 import { POST as handleBaleWebhook } from "../app/api/bale/webhook/[secret]/route";
 
 type Attempt = {
@@ -687,7 +687,7 @@ test("Bale HTTP 400 releases the invoice claim and permits retry", async () => {
         status: 400,
         headers: { "Content-Type": "application/json" },
       })
-      : new Response(JSON.stringify({ ok: true, result: {} }), {
+      : new Response(JSON.stringify({ ok: true, result: { message_id: 42 } }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -885,7 +885,7 @@ test("uses a Bale HTTP timeout below ten seconds", async () => {
   }) as typeof AbortSignal.timeout;
   global.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
     requestSignal = init?.signal || undefined;
-    return new Response(JSON.stringify({ ok: true, result: {} }), {
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 42 } }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -984,9 +984,26 @@ test("rejects a Bale envelope with result but no explicit success flag", async (
   await withBaleResponse({ result: true }, () => assert.rejects(sendMessage("chat-1", "hello"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/));
 });
 
-test("preserves valid Bale boolean, string, and object result values", async () => {
-  assert.equal(await withBaleResponse({ ok: true, result: false }, () => sendMessage("chat-1", "hello")), false);
-  assert.equal(await withBaleResponse({ ok: true, result: true }, () => sendMessage("chat-1", "hello")), true);
-  assert.equal(await withBaleResponse({ ok: true, result: "invoice-link" }, () => sendMessage("chat-1", "hello")), "invoice-link");
+test("sendMessage accepts a Bale message result", async () => {
   assert.deepEqual(await withBaleResponse({ ok: true, result: { message_id: 42 } }, () => sendMessage("chat-1", "hello")), { message_id: 42 });
 });
+
+for (const [name, result] of [
+  ["false", false],
+  ["null", null],
+  ["a string", "invoice-link"],
+  ["an object without message_id", {}],
+  ["a non-integer message_id", { message_id: "42" }],
+] as const) {
+  test(`sendMessage classifies ${name} in an ok envelope as delivery uncertain`, async () => {
+    await withBaleResponse({ ok: true, result }, () => assert.rejects(
+      sendMessage("chat-1", "hello"),
+      (error: unknown) => {
+        assert.ok(error instanceof BaleApiError);
+        assert.equal(error.baleDeliveryStatus, "delivery_uncertain");
+        assert.match(error.message, /BALE_SENDMESSAGE_PROTOCOL_ERROR/);
+        return true;
+      },
+    ));
+  });
+}

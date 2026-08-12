@@ -71,7 +71,7 @@ export function canClaimBaleGroupEvent(
     event.claimedAt !== null && event.claimedAt < staleBefore;
 }
 
-function formatPersianPaidAt(paidAt: string) {
+function formatPersianDateTime(value: string) {
   const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
     timeZone: "Asia/Tehran",
     year: "numeric",
@@ -80,7 +80,7 @@ function formatPersianPaidAt(paidAt: string) {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(new Date(paidAt));
+  }).formatToParts(new Date(value));
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || "";
   return `${part("day")} ${part("month")} ${part("year")}، ${part("hour")}:${part("minute")}`;
 }
@@ -88,7 +88,13 @@ function formatPersianPaidAt(paidAt: string) {
 export function formatBaleGroupEvent(event: GroupEvent) {
   if (event.type === "release") {
     const payload = event.payload;
-    return [`🚀 ${payload.title}`, `نسخه: ${payload.version}`, "", ...payload.capabilities.map((title) => `• ${title}`)].join("\n");
+    return [
+      `🚀 ${payload.title}`,
+      `نسخه: ${payload.version}`,
+      `تاریخ انتشار: ${formatPersianDateTime(payload.publishedAt)}`,
+      "",
+      ...payload.capabilities.map((title) => `• ${title}`),
+    ].join("\n");
   }
   const payload = event.payload;
   const heading = event.type === "payment_duplicate" ? "⚠️ پرداخت تکراری؛ نیازمند پیگیری" : "✅ پرداخت موفق";
@@ -99,7 +105,7 @@ export function formatBaleGroupEvent(event: GroupEvent) {
     `مبلغ: ${payload.amountTomans.toLocaleString("fa-IR")} تومان`,
     `روش پرداخت: ${methodLabels[payload.method] || payload.method}`,
     `شماره سفارش: ${payload.orderNumber}`,
-    `تاریخ پرداخت: ${formatPersianPaidAt(payload.paidAt)}`,
+    `تاریخ پرداخت: ${formatPersianDateTime(payload.paidAt)}`,
   ].join("\n");
 }
 

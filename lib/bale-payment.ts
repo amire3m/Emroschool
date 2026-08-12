@@ -83,8 +83,13 @@ export async function createInvoiceLink(input: { title: string; description: str
   }) as Promise<string>;
 }
 
-export async function sendMessage(chatId: string, text: string) {
-  return baleCall("sendMessage", { chat_id: chatId, text });
+export async function sendMessage(chatId: string, text: string): Promise<unknown> {
+  const result = await baleCall("sendMessage", { chat_id: chatId, text });
+  if (!result || typeof result !== "object" || Array.isArray(result) ||
+    !Number.isSafeInteger((result as Record<string, unknown>).message_id)) {
+    throw new BaleApiError("BALE_SENDMESSAGE_PROTOCOL_ERROR", "delivery_uncertain");
+  }
+  return result;
 }
 
 export async function sendInvoice(chatId: string, input: { title: string; description: string; payload: string; amountRials: number }) {

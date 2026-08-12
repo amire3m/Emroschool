@@ -36,6 +36,21 @@ test("formats safe successful and duplicate payment messages", () => {
   assert.doesNotMatch(paid + duplicate, /phone|card|payload|tracking|token/i);
 });
 
+test("formats a safe Persian release publication date", () => {
+  const message = formatBaleGroupEvent({
+    type: "release",
+    payload: {
+      version: "2.2.0",
+      title: "انتشار نسخه ۲.۲ سامانه",
+      publishedAt: "2026-08-12T11:51:01+03:30",
+      capabilities: ["قابلیت امن"],
+    },
+  });
+
+  assert.match(message, /تاریخ انتشار: ۲۱ مرداد ۱۴۰۵، ۱۱:۵۱/);
+  assert.doesNotMatch(message, /2026|publishedAt/);
+});
+
 test("builds stable event keys and increasing retry times", () => {
   assert.equal(paymentPaidEventKey("order-1"), "payment-paid:order-1");
   assert.equal(paymentDuplicateEventKey("attempt-2"), "payment-duplicate:attempt-2");
