@@ -45,12 +45,17 @@ function isSafeText(value: unknown) {
 }
 
 function isValidDate(value: unknown) {
-  if (typeof value !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) ||
-    Number.isNaN(Date.parse(value))) return false;
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
-  const calendarDate = new Date(Date.UTC(year, month - 1, day));
-  return calendarDate.getUTCFullYear() === year && calendarDate.getUTCMonth() === month - 1 && calendarDate.getUTCDate() === day;
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return false;
+  const [, y, mo, d, h, mi, s, ms = "000", zone, sign, oh = "00", om = "00"] = match;
+  const [year, month, day, hour, minute, second, millis, offsetHour, offsetMinute] = [y, mo, d, h, mi, s, ms, oh, om].map(Number);
+  if (year < 2000 || year > 2100 || hour > 23 || minute > 59 || second > 59 || offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
+  const calendar = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millis));
+  if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day) return false;
+  const offset = zone === "Z" ? 0 : (sign === "+" ? 1 : -1) * (offsetHour * 60 + offsetMinute) * 60_000;
+  const instant = calendar.getTime() - offset;
+  return Number.isFinite(instant) && instant >= Date.UTC(2000, 0, 1) && instant <= Date.UTC(2100, 11, 31, 23, 59, 59, 999);
 }
 
 function parseEvent(candidate: { type: string; payload: string }): Parameters<typeof formatBaleGroupEvent>[0] | null {
@@ -80,43 +85,31 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
   }
 
   const requestKeys: Record<string, string[]> = {
-    support_ticket: ["displayName", "subject", "submittedAt", "ticketId", "userId"],
-    support_user_message: ["displayName", "subject", "submittedAt", "ticketId", "messageId", "userId"],
-    course_application: ["displayName", "courseTitle", "submittedAt", "applicationId", "userId"],
-    payment_receipt: ["displayName", "courseTitle", "orderNumber", "submittedAt", "orderId", "userId"],
-    profile_review: ["displayName", "submittedAt", "userId"],
-    avatar_review: ["displayName", "submittedAt", "submissionId", "userId"],
+    support_ticket: ["displayName", "subject", "submittedAt", "ticketId", "userId", "actions"],
+    support_user_message: ["displayName", "subject", "submittedAt", "ticketId", "messageId", "userId", "actions"],
+    course_application: ["displayName", "courseTitle", "reviewState", "submittedAt", "applicationId", "userId", "actions"],
+    payment_receipt: ["displayName", "courseTitle", "orderNumber", "amountTomans", "submittedAt", "orderId", "userId", "actions"],
+    profile_review: ["displayName", "submittedAt", "userId", "actions"],
+    avatar_review: ["displayName", "submittedAt", "submissionId", "userId", "actions"],
   };
   const keys = requestKeys[candidate.type];
   if (keys) {
-    if (!hasExactKeys(payload, keys) || !keys.every((key) => key === "submittedAt" ? isValidDate(payload[key]) : isSafeText(payload[key]))) return null;
+    if (!hasExactKeys(payload, keys) || !keys.filter((key) => !["submittedAt", "actions", "amountTomans"].includes(key)).every((key) => isSafeText(payload[key]))) return null;
+    if (!isValidDate(payload.submittedAt)) return null;
+    const expectedActions: Record<string, string[]> = { support_ticket: ["support_ticket", "user"], support_user_message: ["support_ticket", "user"], course_application: ["course_application", "user"], payment_receipt: ["payment_order", "user"], profile_review: ["user"], avatar_review: ["user"] };
+    if (!Array.isArray(payload.actions) || JSON.stringify(payload.actions) !== JSON.stringify(expectedActions[candidate.type])) return null;
+    if (candidate.type === "course_application" && payload.reviewState !== "pending") return null;
+    if (candidate.type === "payment_receipt" && (!Number.isSafeInteger(payload.amountTomans) || (payload.amountTomans as number) <= 0)) return null;
     return { type: candidate.type, payload } as Parameters<typeof formatBaleGroupEvent>[0];
   }
 
   return null;
 }
 
-function actionButton(action: BaleGroupAction, origin: string) {
-  const url = new URL(origin);
-  url.pathname = action.action === "support_ticket" ? "/admin/support" : action.action === "course_application" ? "/admin/applications" : action.action === "payment_order" ? "/admin/payments" : "/admin/users";
-  url.search = "";
-  if (action.action === "support_ticket") url.searchParams.set("ticket", action.ticketId);
-  if (action.action === "course_application") url.searchParams.set("application", action.applicationId);
-  if (action.action === "payment_order") url.searchParams.set("order", action.orderId);
-  if (action.action === "user") url.searchParams.set("user", action.userId);
-  const text = action.action === "support_ticket" ? "بررسی تیکت" : action.action === "course_application" ? "بررسی درخواست" : action.action === "payment_order" ? "بررسی پرداخت" : "مشاهده کاربر";
-  return { text, url: url.toString() };
-}
-
 function sendOptions(event: Parameters<typeof formatBaleGroupEvent>[0]) {
   const actions = baleGroupEventActions(event);
   if (!actions.length) return undefined;
-  const configured = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
-  if (!configured) return null;
-  try {
-    const origin = new URL(configured).origin;
-    return { reply_markup: { inline_keyboard: [actions.map((action) => actionButton(action, origin))] } };
-  } catch { return null; }
+  return { actions };
 }
 
 export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: DispatchOptions = {}) {
@@ -188,11 +181,6 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
       }
       const message = formatBaleGroupEvent(parsedEvent);
       const messageOptions = sendOptions(parsedEvent);
-      if (messageOptions === null) {
-        await db.baleGroupEvent.updateMany({ where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null }, data: { status: "needs_review", lastError: "INVALID_PUBLIC_ORIGIN" } });
-        result.needsReview += 1;
-        continue;
-      }
 
       const started = await db.baleGroupEvent.updateMany({
         where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null },

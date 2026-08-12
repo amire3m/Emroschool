@@ -1,7 +1,6 @@
 import prisma from "@/lib/prisma";
 import { verifyToken, hashPassword } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
-import crypto from "node:crypto";
 import { queueProfileReviewEvent } from "@/lib/bale-group-notifications";
 import type { Prisma } from "@prisma/client";
 
@@ -58,19 +57,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "توکن معتبر نیست" }, { status: 401 });
-    }
+const defaultPutDependencies = { db: prisma, authenticate: (req: NextRequest) => {
+  const header = req.headers.get("authorization");
+  return header?.startsWith("Bearer ") ? verifyToken(header.slice(7)) : null;
+}, now: () => new Date() };
 
-    const payload = verifyToken(authHeader.slice(7));
+export async function PUT(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultPutDependencies> = {}) {
+  const dependencies = { ...defaultPutDependencies, ...overrides };
+  try {
+    const payload = dependencies.authenticate(req);
     if (!payload) {
       return NextResponse.json({ error: "توکن منقضی یا نامعتبر است" }, { status: 401 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { id: payload.id } });
+    const existing = await dependencies.db.user.findUnique({ where: { id: payload.id } });
     if (!existing) {
       return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
     }
@@ -165,14 +165,21 @@ export async function PUT(req: NextRequest) {
          avatarSubmissions: { orderBy: { submittedAt: "desc" }, take: 1, select: { id: true, imageUrl: true, status: true, rejectionReason: true, submittedAt: true } },
         permissions: true,
       } satisfies Prisma.UserSelect;
-    const user = profileContentChanged ? await prisma.$transaction(async (tx) => {
-      const changed = await tx.user.update({ where: { id: payload.id }, data, select });
-      await queueProfileReviewEvent(tx, changed, crypto.randomUUID(), new Date());
-      return changed;
-    }) : await prisma.user.update({ where: { id: payload.id }, data, select });
+    const user = profileContentChanged ? await dependencies.db.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: { id: payload.id, profileReviewRevision: existing.profileReviewRevision },
+        data: { ...data, profileReviewRevision: { increment: 1 } },
+      });
+      if (changed.count !== 1) throw new Error("PROFILE_REVISION_CONFLICT");
+      const revision = existing.profileReviewRevision + 1;
+      const current = await tx.user.findUniqueOrThrow({ where: { id: payload.id }, select });
+      await queueProfileReviewEvent(tx, current, revision, dependencies.now());
+      return current;
+    }) : await dependencies.db.user.update({ where: { id: payload.id }, data, select });
 
     return NextResponse.json({ user });
   } catch (error) {
+    if (error instanceof Error && error.message === "PROFILE_REVISION_CONFLICT") return NextResponse.json({ error: "پروفایل هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "این ایمیل قبلاً برای حساب دیگری ثبت شده است" }, { status: 409 });
     return NextResponse.json({ error: "خطا در بروزرسانی پروفایل" }, { status: 500 });
   }

@@ -39,21 +39,29 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+const defaultPostDependencies = {
+  db: prisma,
+  ensureDiscounts: ensureDiscountCodes,
+  findDiscount: findActiveDiscountCode,
+  notify: sendInitialCourseRegistrationNotification,
+};
+
+export async function POST(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultPostDependencies> = {}) {
+  const dependencies = { ...defaultPostDependencies, ...overrides };
   const token = tokenUser(req);
   if (!token) return NextResponse.json({ error: "برای ثبت‌نام ابتدا وارد حساب کاربری شوید" }, { status: 401 });
   try {
     const body = await req.json();
     if (typeof body.courseId !== "string" || !body.courseId) return NextResponse.json({ error: "شناسه دوره الزامی است" }, { status: 400 });
-    const course = await prisma.course.findUnique({ where: { id: body.courseId } });
+    const course = await dependencies.db.course.findUnique({ where: { id: body.courseId } });
     if (!course || !course.published) return NextResponse.json({ error: "دوره پیدا نشد" }, { status: 404 });
     if (course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این دوره در حال حاضر پذیرش فرم ثبت‌نام ندارد" }, { status: 400 });
-    const existingApplication = await prisma.courseApplication.findUnique({ where: { userId_courseId: { userId: token.id, courseId: body.courseId } } });
+    const existingApplication = await dependencies.db.courseApplication.findUnique({ where: { userId_courseId: { userId: token.id, courseId: body.courseId } } });
     if (existingApplication) {
       if (existingApplication.status === "pending" || existingApplication.status === "pending_payment") return NextResponse.json({ application: existingApplication, profileUpdated: false, finalAmountTomans: existingApplication.finalAmountTomans });
       return NextResponse.json({ error: "قبلاً برای این دوره درخواست ثبت‌نام ارسال کرده‌اید" }, { status: 409 });
     }
-    const savedForm = await prisma.registrationForm.findUnique({ where: { id: 1 } });
+    const savedForm = await dependencies.db.registrationForm.findUnique({ where: { id: 1 } });
     const formSchema = mergeRegistrationForm(parseRegistrationForm(savedForm?.schema), course.registrationFormOverride);
     const customResponses = body.customResponses && typeof body.customResponses === "object" && !Array.isArray(body.customResponses) ? body.customResponses as Record<string, string> : {};
     const customFields = formSchema.steps.flatMap((step) => step.fields).filter((field) => !field.system);
@@ -70,20 +78,20 @@ export async function POST(req: NextRequest) {
     if (!["male", "female"].includes(body.gender)) return NextResponse.json({ error: "جنسیت انتخاب‌شده معتبر نیست" }, { status: 400 });
     const isTehran = body.province.trim() === "تهران" && body.city.trim() === "تهران";
     if (isTehran && (typeof body.district !== "string" || !body.district.trim() || typeof body.neighborhood !== "string" || !body.neighborhood.trim())) return NextResponse.json({ error: "منطقه و محله محل سکونت در تهران را انتخاب کنید" }, { status: 400 });
-    await ensureDiscountCodes();
+    await dependencies.ensureDiscounts();
     const discountGroup = typeof body.discountGroup === "string" ? body.discountGroup.trim() : "";
     const enteredDiscountCode = typeof body.discountCode === "string" ? body.discountCode.trim() : "";
     if (discountGroup && !enteredDiscountCode) return NextResponse.json({ error: "برای تأیید گروه تخفیف، کد تخفیف را وارد کنید" }, { status: 400 });
-    const discount = enteredDiscountCode ? await findActiveDiscountCode(enteredDiscountCode, true) : null;
+    const discount = enteredDiscountCode ? await dependencies.findDiscount(enteredDiscountCode, true) : null;
     if (enteredDiscountCode && !discount) return NextResponse.json({ error: "کد تخفیف معتبر نیست" }, { status: 400 });
     if (discountGroup && discount?.label !== discountGroup) return NextResponse.json({ error: "این کد تخفیف متعلق به گروه انتخاب‌شده نیست" }, { status: 400 });
-    const existingUser = await prisma.user.findUnique({ where: { id: token.id } });
+    const existingUser = await dependencies.db.user.findUnique({ where: { id: token.id } });
     if (!existingUser) return NextResponse.json({ error: "حساب کاربری پیدا نشد" }, { status: 404 });
     const email = body.email.trim().toLowerCase();
     const phone = normalizedPhone;
     const profileUpdated = existingUser.name !== fullName || existingUser.email !== email || existingUser.phone !== phone || existingUser.nationalCode !== nationalCode;
 
-    const application = await prisma.$transaction(async (tx) => {
+    const application = await dependencies.db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
          name: fullName, email, phone, birthDate: body.birthDate.trim(), gender: body.gender, province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
@@ -105,7 +113,7 @@ export async function POST(req: NextRequest) {
       await queueCourseApplicationEvent(tx, created, created.createdAt);
       return created;
     });
-    await sendInitialCourseRegistrationNotification({ ...existingUser, name: fullName, email, phone }, course);
+    await dependencies.notify({ ...existingUser, name: fullName, email, phone }, course);
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {

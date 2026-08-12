@@ -83,25 +83,52 @@ export async function createInvoiceLink(input: { title: string; description: str
   }) as Promise<string>;
 }
 
-export type BaleSendMessageOptions = { reply_markup: { inline_keyboard: Array<Array<{ text: string; url: string }>> } };
+export type BaleMessageAction =
+  | { action: "support_ticket"; ticketId: string }
+  | { action: "course_application"; applicationId: string }
+  | { action: "payment_order"; orderId: string }
+  | { action: "user"; userId: string };
+export type BaleSendMessageOptions = { actions: BaleMessageAction[] };
+
+function publicOrigin() {
+  const configured = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  if (!configured) return null;
+  try {
+    const url = new URL(configured);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) return null;
+    return url.origin;
+  } catch { return null; }
+}
+
+function inlineKeyboard(options: BaleSendMessageOptions) {
+  const origin = publicOrigin();
+  if (!origin || !options || Object.keys(options).length !== 1 || !Array.isArray(options.actions) || options.actions.length < 1 || options.actions.length > 2) return null;
+  const buttons = options.actions.map((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+    const action = candidate as unknown as Record<string, unknown>;
+    const specs = {
+      support_ticket: { key: "ticketId", path: "/admin/support", query: "ticket", text: "بررسی تیکت" },
+      course_application: { key: "applicationId", path: "/admin/applications", query: "application", text: "بررسی درخواست" },
+      payment_order: { key: "orderId", path: "/admin/payments", query: "order", text: "بررسی پرداخت" },
+      user: { key: "userId", path: "/admin/users", query: "user", text: "مشاهده کاربر" },
+    } as const;
+    const spec = specs[action.action as keyof typeof specs];
+    if (!spec || Object.keys(action).sort().join(",") !== ["action", spec.key].sort().join(",") || typeof action[spec.key] !== "string" || !(action[spec.key] as string).trim() || (action[spec.key] as string).length > 200) return null;
+    const url = new URL(spec.path, origin);
+    url.searchParams.set(spec.query, action[spec.key] as string);
+    return { text: spec.text, url: url.toString() };
+  });
+  return buttons.every(Boolean) ? { inline_keyboard: [buttons] } : null;
+}
 
 export async function sendMessage(chatId: string, text: string, options?: BaleSendMessageOptions): Promise<unknown> {
-  const publicOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
-  const allowedPaths = new Set(["/admin/support", "/admin/applications", "/admin/payments", "/admin/users"]);
-  if (options && (!Array.isArray(options.reply_markup?.inline_keyboard) || options.reply_markup.inline_keyboard.some((row) =>
-    !Array.isArray(row) || row.length === 0 || row.some((button) => {
-      if (typeof button.text !== "string" || !publicOrigin) return true;
-      try {
-        const url = new URL(button.url);
-        const expectedOrigin = new URL(publicOrigin).origin;
-        return url.origin !== expectedOrigin || !allowedPaths.has(url.pathname) || url.hash !== "";
-      } catch { return true; }
-    })))) {
+  const replyMarkup = options ? inlineKeyboard(options) : undefined;
+  if (options && !replyMarkup) {
     throw new BaleApiError("BALE_INVALID_INLINE_KEYBOARD", "definitive_rejection");
   }
-  const result = await baleCall("sendMessage", { chat_id: chatId, text, ...(options || {}) });
+  const result = await baleCall("sendMessage", { chat_id: chatId, text, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) });
   if (!result || typeof result !== "object" || Array.isArray(result) ||
-    !Number.isSafeInteger((result as Record<string, unknown>).message_id)) {
+    !Number.isSafeInteger((result as Record<string, unknown>).message_id) || ((result as Record<string, unknown>).message_id as number) <= 0) {
     throw new BaleApiError("BALE_SENDMESSAGE_PROTOCOL_ERROR", "delivery_uncertain");
   }
   return result;

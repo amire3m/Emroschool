@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN "profileReviewRevision" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "PaymentOrder" ADD COLUMN "receiptSubmissionRevision" INTEGER NOT NULL DEFAULT 0;

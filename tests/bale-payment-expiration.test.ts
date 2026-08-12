@@ -549,7 +549,7 @@ test("customer GET selects and returns only checkout-safe attempt fields", async
 });
 
 test("receipt submission never mutates an active attempt owned by another order", async () => {
-  const order = { id: "order-1", orderNumber: "PAY-1", userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign", user: { name: "هنرجو" }, course: { title: "دوره" } };
+  const order = { id: "order-1", orderNumber: "PAY-1", amountTomans: 800_000, userId: "user-1", method: "card_to_card", status: "awaiting_receipt", activeAttemptId: "attempt-foreign", receiptSubmissionRevision: 0, user: { name: "هنرجو" }, course: { title: "دوره" } };
   const foreign = { id: "attempt-foreign", orderId: "order-foreign", status: "awaiting_receipt" };
   const form = new FormData();
   form.set("file", new File([new Uint8Array([1, 2, 3])], "receipt.png", { type: "image/png" }));
@@ -560,7 +560,8 @@ test("receipt submission never mutates an active attempt owned by another order"
     $transaction: async (callback: (tx: any) => Promise<any>) => callback({
       paymentOrder: {
         findUnique: async () => ({ ...order }),
-        update: async ({ data }: any) => ({ ...order, ...data }),
+        updateMany: async () => ({ count: 1 }),
+        findUniqueOrThrow: async () => ({ ...order, status: "under_review", receiptSubmissionRevision: 1 }),
       },
       paymentAttempt: {
         findFirst: async ({ where }: any) => {

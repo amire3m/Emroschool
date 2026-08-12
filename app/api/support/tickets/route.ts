@@ -14,15 +14,18 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ tickets });
 }
 
-export async function POST(req: NextRequest) {
-  const user = await getAuthenticatedUser(req);
+const defaultDependencies = { db: prisma, authenticate: getAuthenticatedUser };
+
+export async function POST(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultDependencies> = {}) {
+  const dependencies = { ...defaultDependencies, ...overrides };
+  const user = await dependencies.authenticate(req);
   if (!user) return NextResponse.json({ error: "نیازمند احراز هویت" }, { status: 401 });
   try {
     const { subject, message } = await req.json();
     const cleanSubject = typeof subject === "string" ? subject.trim() : "";
     const cleanMessage = typeof message === "string" ? message.trim() : "";
     if (!cleanSubject || cleanSubject.length > 150 || !cleanMessage || cleanMessage.length > 5000) return NextResponse.json({ error: "عنوان و متن تیکت الزامی است" }, { status: 400 });
-    const ticket = await prisma.$transaction(async (tx) => {
+    const ticket = await dependencies.db.$transaction(async (tx) => {
       const created = await tx.supportTicket.create({
         data: { subject: cleanSubject, status: "waiting_for_support", userId: user.id },
         include: { user: { select: { name: true } } },

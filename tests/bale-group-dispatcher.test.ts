@@ -166,16 +166,16 @@ test("successful delivery marks the event sent without persisting a provider ide
 test("request events send URL-only allowlisted admin buttons from the canonical origin", async () => {
   const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
   process.env.NEXT_PUBLIC_MAIN_SITE_URL = "https://example.test/base";
-  const payload = JSON.stringify({ displayName: "علی رضایی", subject: "مشکل ورود", submittedAt: "2026-08-12T11:00:00.000Z", ticketId: "ticket/1", userId: "user 1" });
+  const payload = JSON.stringify({ displayName: "علی رضایی", subject: "مشکل ورود", submittedAt: "2026-08-12T11:00:00.000Z", ticketId: "ticket/1", userId: "user 1", actions: ["support_ticket", "user"] });
   const { db } = database([event({ type: "support_ticket", eventKey: "support-ticket:ticket-1", payload })]);
   const deliveries: any[] = [];
   try {
     const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now, send: async (...args: any[]) => { deliveries.push(args); return { message_id: 1 }; } });
     assert.equal(result.sent, 1);
-    assert.deepEqual(deliveries[0][2], { reply_markup: { inline_keyboard: [[
-      { text: "بررسی تیکت", url: "https://example.test/admin/support?ticket=ticket%2F1" },
-      { text: "مشاهده کاربر", url: "https://example.test/admin/users?user=user+1" },
-    ]] } });
+    assert.deepEqual(deliveries[0][2], { actions: [
+      { action: "support_ticket", ticketId: "ticket/1" },
+      { action: "user", userId: "user 1" },
+    ] });
     assert.doesNotMatch(JSON.stringify(deliveries[0][2]), /callback_data|javascript:|token/);
   } finally {
     if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL;
@@ -196,24 +196,71 @@ test("request payloads with private or arbitrary action fields are quarantined",
   assert.ok(rows.every((row) => row.status === "needs_review"));
 });
 
-test("sendMessage rejects non-allowlisted inline URLs before contacting Bale", async () => {
+test("sendMessage accepts only bounded allowlisted action identifiers", async () => {
   const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
   const originalFetch = global.fetch;
   process.env.NEXT_PUBLIC_MAIN_SITE_URL = "https://example.test";
   let requests = 0;
   global.fetch = (async () => { requests += 1; return new Response(); }) as typeof fetch;
   try {
-    await assert.rejects(sendMessage("group", "message", { reply_markup: { inline_keyboard: [[
-      { text: "unsafe", url: "https://evil.test/admin/users" },
-    ]] } }), /BALE_INVALID_INLINE_KEYBOARD/);
-    await assert.rejects(sendMessage("group", "message", { reply_markup: { inline_keyboard: [[
-      { text: "unsafe", url: "https://example.test/api/admin/users" },
-    ]] } }), /BALE_INVALID_INLINE_KEYBOARD/);
+    const invalid = [
+      { actions: [{ action: "user", userId: "user-1", url: "https://evil.test" }] },
+      { actions: [{ action: "user", userId: "user-1", callback_data: "approve" }] },
+      { actions: [{ action: "unknown", userId: "user-1" }] },
+      { actions: Array(3).fill({ action: "user", userId: "user-1" }) },
+    ];
+    for (const options of invalid) await assert.rejects(sendMessage("group", "message", options as never), /BALE_INVALID_INLINE_KEYBOARD/);
     assert.equal(requests, 0);
   } finally {
     global.fetch = originalFetch;
     if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL;
     else process.env.NEXT_PUBLIC_MAIN_SITE_URL = originalOrigin;
+  }
+});
+
+test("dispatcher rejects malformed instants and mismatched immutable actions", async () => {
+  const base = { displayName: "علی", subject: "ورود", ticketId: "ticket-1", userId: "user-1", actions: ["support_ticket", "user"] };
+  const invalidDates = [
+    "2026-08-12T24:00:00Z", "2026-08-12T12:00:00+24:00", "2026-08-12T12:00:00+03:60",
+    "2026-02-29T12:00:00Z", "0000-01-01T00:00:00Z", "9999-12-31T23:59:59Z",
+  ];
+  const rows = invalidDates.map((submittedAt, index) => event({ id: `date-${index}`, type: "support_ticket", eventKey: `support:${index}`, payload: JSON.stringify({ ...base, submittedAt }) }));
+  rows.push(event({ id: "actions", type: "support_ticket", eventKey: "support:actions", payload: JSON.stringify({ ...base, submittedAt: now.toISOString(), actions: ["user"] }) }));
+  const fixture = database(rows);
+  const result = await dispatchBaleGroupEvents(fixture.db as never, { chatId: "group", now, batchSize: 20, send: async () => ({ message_id: 1 }) });
+  assert.equal(result.needsReview, rows.length);
+  assert.ok(fixture.rows.every((row) => row.status === "needs_review"));
+});
+
+test("sendMessage requires a positive safe message identifier", async () => {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.BALE_BOT_TOKEN;
+  process.env.BALE_BOT_TOKEN = "token";
+  try {
+    for (const message_id of [0, -1]) {
+      global.fetch = (async () => new Response(JSON.stringify({ ok: true, result: { message_id } }), { status: 200 })) as typeof fetch;
+      await assert.rejects(sendMessage("group", "message"), /BALE_SENDMESSAGE_PROTOCOL_ERROR/);
+    }
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.BALE_BOT_TOKEN; else process.env.BALE_BOT_TOKEN = originalToken;
+  }
+});
+
+test("configured public origin must be an exact credential-free HTTP(S) origin", async () => {
+  const original = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  const originalFetch = global.fetch;
+  let requests = 0;
+  global.fetch = (async () => { requests += 1; return new Response(); }) as typeof fetch;
+  try {
+    for (const origin of ["ftp://example.test", "https://user:pass@example.test", "https://example.test/path", "https://example.test?q=1", "https://example.test/#x"]) {
+      process.env.NEXT_PUBLIC_MAIN_SITE_URL = origin;
+      await assert.rejects(sendMessage("group", "message", { actions: [{ action: "user", userId: "user-1" }] } as never), /BALE_INVALID_INLINE_KEYBOARD/);
+    }
+    assert.equal(requests, 0);
+  } finally {
+    global.fetch = originalFetch;
+    if (original === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL; else process.env.NEXT_PUBLIC_MAIN_SITE_URL = original;
   }
 });
 

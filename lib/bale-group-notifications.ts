@@ -21,11 +21,12 @@ type GroupEvent =
   | { type: "profile_review"; payload: ProfileReviewPayload }
   | { type: "avatar_review"; payload: AvatarReviewPayload };
 
-type BaseRequestPayload = { displayName: string; submittedAt: string; userId: string };
+export type BaleGroupActionName = "support_ticket" | "course_application" | "payment_order" | "user";
+type BaseRequestPayload = { displayName: string; submittedAt: string; userId: string; actions: readonly BaleGroupActionName[] };
 export type SupportTicketPayload = BaseRequestPayload & { subject: string; ticketId: string };
 export type SupportUserMessagePayload = SupportTicketPayload & { messageId: string };
-export type CourseApplicationPayload = BaseRequestPayload & { applicationId: string; courseTitle: string };
-export type PaymentReceiptPayload = BaseRequestPayload & { orderId: string; orderNumber: string; courseTitle: string };
+export type CourseApplicationPayload = BaseRequestPayload & { applicationId: string; courseTitle: string; reviewState: "pending" };
+export type PaymentReceiptPayload = BaseRequestPayload & { orderId: string; orderNumber: string; courseTitle: string; amountTomans: number };
 export type ProfileReviewPayload = BaseRequestPayload;
 export type AvatarReviewPayload = BaseRequestPayload & { submissionId: string };
 
@@ -123,11 +124,12 @@ export function formatBaleGroupEvent(event: GroupEvent) {
   }
   if (event.type === "course_application") {
     return ["📝 درخواست ثبت‌نام دوره", "دسته: ثبت‌نام", `نام: ${event.payload.displayName}`,
-      `دوره: ${event.payload.courseTitle}`, `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
+      `دوره: ${event.payload.courseTitle}`, "وضعیت: در انتظار بررسی", `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
   }
   if (event.type === "payment_receipt") {
     return ["🧾 رسید پرداخت جدید", "دسته: پرداخت", `نام: ${event.payload.displayName}`,
-      `دوره: ${event.payload.courseTitle}`, `شماره سفارش: ${event.payload.orderNumber}`, `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
+      `دوره: ${event.payload.courseTitle}`, `مبلغ: ${event.payload.amountTomans.toLocaleString("fa-IR")} تومان`,
+      `شماره سفارش: ${event.payload.orderNumber}`, `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
   }
   if (event.type === "profile_review" || event.type === "avatar_review") {
     return [event.type === "profile_review" ? "👤 بازبینی پروفایل" : "🖼️ بازبینی تصویر پروفایل",
@@ -148,15 +150,14 @@ export function formatBaleGroupEvent(event: GroupEvent) {
 }
 
 export function baleGroupEventActions(event: GroupEvent): BaleGroupAction[] {
-  switch (event.type) {
-    case "support_ticket":
-    case "support_user_message": return [{ action: "support_ticket", ticketId: event.payload.ticketId }, { action: "user", userId: event.payload.userId }];
-    case "course_application": return [{ action: "course_application", applicationId: event.payload.applicationId }, { action: "user", userId: event.payload.userId }];
-    case "payment_receipt": return [{ action: "payment_order", orderId: event.payload.orderId }, { action: "user", userId: event.payload.userId }];
-    case "profile_review":
-    case "avatar_review": return [{ action: "user", userId: event.payload.userId }];
-    default: return [];
-  }
+  const payload = event.payload as BaseRequestPayload;
+  if (!("actions" in payload)) return [];
+  return payload.actions.map((action) => {
+    if (action === "support_ticket" && "ticketId" in event.payload) return { action, ticketId: event.payload.ticketId };
+    if (action === "course_application" && "applicationId" in event.payload) return { action, applicationId: event.payload.applicationId };
+    if (action === "payment_order" && "orderId" in event.payload) return { action, orderId: event.payload.orderId };
+    return { action: "user", userId: payload.userId };
+  });
 }
 
 async function queueRequestEvent(tx: BaleGroupEventTransaction, eventKey: string, type: BaleGroupEventType, payload: object) {
@@ -164,23 +165,23 @@ async function queueRequestEvent(tx: BaleGroupEventTransaction, eventKey: string
 }
 
 export function queueSupportTicketEvent(tx: BaleGroupEventTransaction, ticket: { id: string; subject: string; userId: string; user: { name?: string | null } }, submittedAt: Date) {
-  return queueRequestEvent(tx, `support-ticket:${ticket.id}`, "support_ticket", { displayName: ticket.user.name || "نامشخص", subject: ticket.subject, submittedAt: submittedAt.toISOString(), ticketId: ticket.id, userId: ticket.userId });
+  return queueRequestEvent(tx, `support-ticket:${ticket.id}`, "support_ticket", { displayName: ticket.user.name || "نامشخص", subject: ticket.subject, submittedAt: submittedAt.toISOString(), ticketId: ticket.id, userId: ticket.userId, actions: ["support_ticket", "user"] });
 }
 export function queueSupportUserMessageEvent(tx: BaleGroupEventTransaction, message: { id: string; ticketId: string; authorId: string; ticket: { subject: string; userId: string }; author: { name?: string | null; role: string } }, submittedAt: Date) {
   if (message.author.role !== "user" || message.authorId !== message.ticket.userId) return Promise.resolve(null);
-  return queueRequestEvent(tx, `support-user-message:${message.id}`, "support_user_message", { displayName: message.author.name || "نامشخص", subject: message.ticket.subject, submittedAt: submittedAt.toISOString(), ticketId: message.ticketId, messageId: message.id, userId: message.ticket.userId });
+  return queueRequestEvent(tx, `support-user-message:${message.id}`, "support_user_message", { displayName: message.author.name || "نامشخص", subject: message.ticket.subject, submittedAt: submittedAt.toISOString(), ticketId: message.ticketId, messageId: message.id, userId: message.ticket.userId, actions: ["support_ticket", "user"] });
 }
 export function queueCourseApplicationEvent(tx: BaleGroupEventTransaction, application: { id: string; fullName: string; userId: string; course: { title?: string | null } }, submittedAt: Date) {
-  return queueRequestEvent(tx, `course-application:${application.id}`, "course_application", { displayName: application.fullName, courseTitle: application.course.title || "نامشخص", submittedAt: submittedAt.toISOString(), applicationId: application.id, userId: application.userId });
+  return queueRequestEvent(tx, `course-application:${application.id}`, "course_application", { displayName: application.fullName, courseTitle: application.course.title || "نامشخص", reviewState: "pending", submittedAt: submittedAt.toISOString(), applicationId: application.id, userId: application.userId, actions: ["course_application", "user"] });
 }
-export function queuePaymentReceiptEvent(tx: BaleGroupEventTransaction, order: { id: string; orderNumber: string; userId: string; user: { name?: string | null }; course: { title?: string | null } }, revisionId: string, submittedAt: Date) {
-  return queueRequestEvent(tx, `payment-receipt:${order.id}:${revisionId}`, "payment_receipt", { displayName: order.user.name || "نامشخص", courseTitle: order.course.title || "نامشخص", orderNumber: order.orderNumber, submittedAt: submittedAt.toISOString(), orderId: order.id, userId: order.userId });
+export function queuePaymentReceiptEvent(tx: BaleGroupEventTransaction, order: { id: string; orderNumber: string; amountTomans: number; userId: string; user: { name?: string | null }; course: { title?: string | null } }, revision: number, submittedAt: Date) {
+  return queueRequestEvent(tx, `payment-receipt:${order.id}:${revision}`, "payment_receipt", { displayName: order.user.name || "نامشخص", courseTitle: order.course.title || "نامشخص", orderNumber: order.orderNumber, amountTomans: order.amountTomans, submittedAt: submittedAt.toISOString(), orderId: order.id, userId: order.userId, actions: ["payment_order", "user"] });
 }
-export function queueProfileReviewEvent(tx: BaleGroupEventTransaction, user: { id: string; name?: string | null }, revisionId: string, submittedAt: Date) {
-  return queueRequestEvent(tx, `profile-review:${user.id}:${revisionId}`, "profile_review", { displayName: user.name || "نامشخص", submittedAt: submittedAt.toISOString(), userId: user.id });
+export function queueProfileReviewEvent(tx: BaleGroupEventTransaction, user: { id: string; name?: string | null }, revision: number, submittedAt: Date) {
+  return queueRequestEvent(tx, `profile-review:${user.id}:${revision}`, "profile_review", { displayName: user.name || "نامشخص", submittedAt: submittedAt.toISOString(), userId: user.id, actions: ["user"] });
 }
 export function queueAvatarReviewEvent(tx: BaleGroupEventTransaction, submission: { id: string; userId: string; user: { name?: string | null } }, submittedAt: Date) {
-  return queueRequestEvent(tx, `avatar-review:${submission.id}`, "avatar_review", { displayName: submission.user.name || "نامشخص", submittedAt: submittedAt.toISOString(), submissionId: submission.id, userId: submission.userId });
+  return queueRequestEvent(tx, `avatar-review:${submission.id}`, "avatar_review", { displayName: submission.user.name || "نامشخص", submittedAt: submittedAt.toISOString(), submissionId: submission.id, userId: submission.userId, actions: ["user"] });
 }
 
 async function queuePaymentEvent(
