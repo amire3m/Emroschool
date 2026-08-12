@@ -24,6 +24,65 @@ const approvedCapabilities = {
   "pending-application-review": ["2026-08-03T14:51:33+03:30", "improvement"],
 } as const;
 
+const historicalIds = [
+  "configurable-registration-forms",
+  "unified-course-registration-payment",
+  "course-management-selection-improvements",
+  "course-management-and-student-controls",
+  "safe-user-deletion-controls",
+  "public-privacy-policy-page",
+  "remove-temporary-oauth-branding-pages",
+  "unique-google-oauth-brand-identity",
+  "public-privacy-policy-for-google-oauth",
+  "root-home-english-oauth-branding",
+  "english-google-oauth-branding-page",
+  "google-oauth-purpose-disclosure",
+  "oauth-branding-home-purpose",
+  "google-oauth-login",
+  "google-indexing-sitemap-and-robots",
+  "attach-existing-courses-to-collection",
+  "add-child-courses-from-parent",
+  "comprehensive-course-collection-experience",
+  "two-line-admin-content-urls",
+  "admin-content-link-controls",
+  "content-permalink-copy-controls",
+  "animated-global-error-pages",
+  "restore-newsletter-section-order",
+  "interactive-home-course-button",
+  "welcome-newsletter-admin-email-tools",
+  "about-contact-page-and-footer-address",
+  "footer-social-icons-and-font-weights",
+  "registration-form-fields-and-course-price-visibility",
+  "instant-auth-navbar-and-dashboard-spacing",
+  "local-postfix-email-relay",
+  "optional-email-verification",
+  "email-verification-and-admin-passwords",
+  "gallery-metadata-simplification",
+  "gallery-seo-persian-dates-and-site-polish",
+  "partners-navigation-and-footer-map",
+  "course-hierarchy-and-registration-applications",
+  "topbar-typography-logo-crop",
+  "new-font-library-and-ravagh",
+  "magazine-font-setting",
+  "independent-magazine-platform",
+  "academy-magazine-publishing-flow",
+  "news-site-editor-and-interactions",
+  "news-magazine-and-global-search",
+  "animated-header-search",
+  "safe-file-renaming-and-header-logo",
+  "upload-errors-and-formats",
+  "file-upload-progress",
+  "admin-navigation-groups",
+  "department-glow-readability",
+  "department-glow-effect",
+  "version-2",
+  "image-editor",
+  "homepage-carousels",
+  "file-manager",
+  "course-categories",
+  "profiles-and-settings",
+] as const;
+
 test("publishes the complete version 2.2 update set", () => {
   assert.equal(APP_VERSION, "2.2.0");
 
@@ -67,7 +126,24 @@ test("keeps release notes valid, unique, and sorted newest first", () => {
 });
 
 test("keeps historical release versions independent from the current version", () => {
+  const approvedIds = new Set(["version-2-2", ...Object.keys(approvedCapabilities)]);
+  const exportedHistoricalIds = releaseNotes
+    .map((note) => note.id)
+    .filter((id) => !approvedIds.has(id))
+    .sort();
+  assert.deepEqual(exportedHistoricalIds, [...historicalIds].sort());
+
   const historicalVersion = releaseNotes.find((note) => note.id === "version-2");
   assert.ok(historicalVersion);
   assert.equal(historicalVersion.version, "2.0.0");
+});
+
+test("retains the approved Tehran and Bale release facts", () => {
+  const locations = releaseNotes.find((note) => note.id === "local-iran-location-data");
+  const bale = releaseNotes.find((note) => note.id === "reliable-bale-payments");
+  assert.ok(locations);
+  assert.ok(bale);
+  assert.match(locations.summary, /محله تهران.*الزامی/);
+  assert.match(bale.summary, /تلاش پرداخت.*سامانه/);
+  assert.match(bale.summary, /شواهد نامطمئن/);
 });
