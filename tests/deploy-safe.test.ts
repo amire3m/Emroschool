@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -27,12 +27,16 @@ async function deploymentFixture({
   appUser = "deploy-user",
   appDir,
   lockFile,
+  lockDir,
+  logDir,
 }: {
   failingCopy?: boolean;
-  failingCommand?: "npm-ci" | "db-push" | "build" | "cron-install";
+  failingCommand?: "npm-ci" | "db-push" | "build" | "pm2-restart" | "reconcile" | "dispatch" | "cron-install";
   appUser?: string;
   appDir?: string;
   lockFile?: string;
+  lockDir?: string;
+  logDir?: string;
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "deploy-safe-"));
   const app = appDir ?? path.join(root, "app");
@@ -49,24 +53,30 @@ async function deploymentFixture({
   await writeFile(path.join(app, ".env"), "BALE_BOT_TOKEN=fixture-secret\nBALE_COORDINATION_CHAT_ID=fixture-chat\n");
   const log = path.join(root, "commands.log").replace(/\\/g, "/");
   const cronFile = path.join(root, "cron.d", "emroschool-bale-notifications");
-  const resolvedLockFile = lockFile ?? path.join(root, "bale-notifications.lock");
-  const notificationLog = path.join(root, "bale-notifications.log");
+  const resolvedLockDir = lockDir ?? path.join(root, "lock");
+  const resolvedLogDir = logDir ?? path.join(root, "log");
+  const resolvedLockFile = lockFile ?? path.join(resolvedLockDir, "notifications.lock");
+  const notificationLog = path.join(resolvedLogDir, "notifications.log");
   await mkdir(path.dirname(cronFile), { recursive: true });
+  await mkdir(resolvedLockDir, { recursive: true });
+  await mkdir(resolvedLogDir, { recursive: true });
   const original = await readFile(path.join(process.cwd(), "deploy-safe.sh"), "utf8");
   const script = original.replace(/^APP_DIR=.*$/m, 'APP_DIR="${APP_DIR:-/var/www/Emroschool}"');
   const scriptPath = path.join(root, "deploy-safe.sh");
   await writeFile(scriptPath, script);
   await chmod(scriptPath, 0o755);
 
-  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"`);
+  await executable(path.join(bin, "pm2"), `printf 'pm2 %s\\n' "$*" >> "${log}"\n${failingCommand === "pm2-restart" ? '[[ "$1" == "restart" ]] && exit 35\n:' : ":"}`);
   await executable(path.join(bin, "git"), `printf 'git %s\\n' "$*" >> "${log}"`);
   await executable(path.join(bin, "npm"), `printf 'npm %s\\n' "$*" >> "${log}"\n${failingCommand === "npm-ci" ? '[[ "$*" == "ci" ]] && exit 31' : failingCommand === "build" ? '[[ "$*" == "run build" ]] && exit 33' : ":"}`);
   await executable(path.join(bin, "npx"), `printf 'npx %s\\n' "$*" >> "${log}"\n${failingCommand === "db-push" ? '[[ "$*" == "prisma db push" ]] && exit 32' : ":"}`);
-  await writeFile(path.join(bin, "node"), `#!/usr/bin/bash\nprintf 'node user=%s inherited=%s token=%s chat=%s args=%s\\n' "$TEST_EXEC_USER" "$DEPLOY_ONLY_SECRET" "$BALE_BOT_TOKEN" "$BALE_COORDINATION_CHAT_ID" "$*" >> "${log}"\n`);
+  await writeFile(path.join(bin, "node"), `#!/usr/bin/bash\nprintf 'node user=%s inherited=%s token=%s chat=%s args=%s\\n' "$TEST_EXEC_USER" "$DEPLOY_ONLY_SECRET" "$BALE_BOT_TOKEN" "$BALE_COORDINATION_CHAT_ID" "$*" >> "${log}"\n${failingCommand === "reconcile" ? '[[ "$*" == *"reconcile-bale-release-events.ts"* ]] && exit 36' : failingCommand === "dispatch" ? '[[ "$*" == *"dispatch-bale-group-events.ts"* ]] && exit 37' : ":"}\n`);
   await chmod(path.join(bin, "node"), 0o755);
   await executable(path.join(bin, "flock"), `printf 'flock %s\\n' "$*" >> "${log}"\n[[ "$1" == "-n" ]] && shift\nlock="$1"\nshift\n[[ "$#" -eq 0 ]] && exit 0\nexec "$@"`);
   await executable(path.join(bin, "runuser"), `printf 'runuser %s\\n' "$*" >> "${log}"\n[[ "$1" == "-u" ]] || exit 41\nuser="$2"\nshift 3\nexport TEST_EXEC_USER="$user"\nexec "$@"`);
-  await executable(path.join(bin, "id"), `[[ "$1" == "-u" && "$2" == "missing-user" ]] && exit 42\nprintf '1000\\n'`);
+  await executable(path.join(bin, "id"), `[[ "$1" == "-u" && "$2" == "missing-user" ]] && exit 42\n[[ "$1" == "-gn" ]] && { printf 'deploy-group\\n'; exit; }\nprintf '1000\\n'`);
+  await executable(path.join(bin, "stat"), `format="$2"\ntarget="\${*: -1}"\n[[ "$format" == "%U" ]] && { printf 'deploy-user\\n'; exit; }\nif [[ "$target" == *"unsafe-parent"* ]]; then printf 'root 777 directory\\n'; elif [[ -L "$target" ]]; then printf 'deploy-user 777 symbolic link\\n'; elif [[ -d "$target" ]]; then printf 'root 755 directory\\n'; else printf 'deploy-user 640 regular file\\n'; fi`);
+  await executable(path.join(bin, "install"), `args=("$@")\nif [[ "$1" == "-d" ]]; then target="\${args[-1]}"; mkdir -p "$target"; exit; fi\ntarget="\${args[-1]}"; : > "$target"`);
   await executable(path.join(bin, "chown"), `printf 'chown %s\\n' "$*" >> "${log}"`);
   await executable(path.join(bin, "mv"), `printf 'mv %s\\n' "$*" >> "${log}"\n${failingCommand === "cron-install" ? `[[ "\${*: -1}" == "${bashPath(cronFile)}" ]] && exit 34` : ":"}\nexec /usr/bin/mv "$@"`);
   await executable(path.join(bin, "sqlite3"), `printf 'sqlite3 %s\\n' "$*" >> "${log}"`);
@@ -81,6 +91,8 @@ async function deploymentFixture({
     log,
     cronFile,
     lockFile: resolvedLockFile,
+    lockDir: resolvedLockDir,
+    logDir: resolvedLogDir,
     notificationLog,
     scriptPath,
     appForBash: bashPath(app),
@@ -93,14 +105,14 @@ function runDeployment(fixture: Awaited<ReturnType<typeof deploymentFixture>>, o
   const exports = Object.entries(overrides).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(" ");
   return execFileAsync(gitBash, [
     "-c",
-    `export PATH="$1:/usr/bin:/bin" APP_DIR="$2" CRON_FILE="$4" BALE_LOCK_FILE="$5" BALE_LOG_FILE="$6" APP_USER="$7" ${exports}; exec "$3"`,
+    `export PATH="$1:/usr/bin:/bin" APP_DIR="$2" CRON_FILE="$4" BALE_LOCK_DIR="$5" BALE_LOG_DIR="$6" APP_USER="$7" ${exports}; exec "$3"`,
     "deploy-test",
     fixture.binForBash,
     fixture.appForBash,
     bashPath(fixture.scriptPath),
     bashPath(fixture.cronFile),
-    bashPath(fixture.lockFile),
-    bashPath(fixture.notificationLog),
+    bashPath(fixture.lockDir),
+    bashPath(fixture.logDir),
     fixture.appUser,
   ]);
 }
@@ -204,13 +216,13 @@ test("deployment installs an idempotent secret-free root cron using absolute pat
     assert.match(firstCron, /\/flock -n /);
     assert.doesNotMatch(firstCron, /\/bash|\/npm|\.env/);
     assert.match(firstCron, /\/node .*tsx.*dispatch-bale-group-events\.ts/);
-    assert.match(firstCron, />\/dev\/null 2>>.*bale-notifications\.log/);
+    assert.match(firstCron, />\/dev\/null 2>>.*notifications\.log/);
     assert.match(firstCron, new RegExp(bashPath(fixture.lockFile).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.doesNotMatch(firstCron, /fixture-secret|fixture-chat/);
 
     await runInstalledCron(fixture);
     const commands = await readFile(fixture.log, "utf8");
-    assert.match(commands, /flock -n .*bale-notifications\.lock .*node/);
+    assert.match(commands, /flock -n .*notifications\.lock .*node/);
     assert.match(commands, /node user=deploy-user inherited= token= chat= .*dispatch-bale-group-events\.ts/);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -247,8 +259,11 @@ test("deployment rejects unsafe Cron users and injected path syntax before stopp
     { APP_USER: "deploy-user root" },
     { APP_USER: "deploy-user\n* * * * * root evil" },
     { APP_USER: "missing-user" },
-    { BALE_LOCK_FILE: "/tmp/lock%0a" },
-    { BALE_LOG_FILE: "relative.log" },
+    { BALE_LOCK_DIR: "/tmp/lock%0a" },
+    { BALE_LOG_DIR: "relative" },
+    { BALE_LOCK_BASENAME: "." },
+    { BALE_LOG_BASENAME: ".." },
+    { BALE_LOCK_BASENAME: "nested/file" },
   ];
   for (const overrides of unsafeOverrides) {
     const fixture = await deploymentFixture();
@@ -259,6 +274,86 @@ test("deployment rejects unsafe Cron users and injected path syntax before stopp
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
     }
+  }
+});
+
+test("deployment rejects a writable Cron parent before stopping PM2", { skip: !existsSync(gitBash) }, async () => {
+  const fixture = await deploymentFixture();
+  const unsafeParent = path.join(fixture.root, "unsafe-parent");
+  try {
+    await mkdir(unsafeParent);
+    await assert.rejects(runDeployment(fixture, { CRON_FILE: bashPath(path.join(unsafeParent, "cron")) }));
+    const commands = existsSync(fixture.log) ? await readFile(fixture.log, "utf8") : "";
+    assert.doesNotMatch(commands, /pm2 stop/);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("deployment rejects symlink lock and log targets without changing their victims", { skip: !existsSync(gitBash) || process.platform === "win32" }, async () => {
+  for (const target of ["lock", "log"] as const) {
+    const fixture = await deploymentFixture();
+    const victim = path.join(fixture.root, `${target}-victim`);
+    const link = target === "lock" ? fixture.lockFile : fixture.notificationLog;
+    try {
+      await writeFile(victim, "protected");
+      await symlink(victim, link);
+      await assert.rejects(runDeployment(fixture));
+      assert.equal(await readFile(victim, "utf8"), "protected");
+      const commands = existsSync(fixture.log) ? await readFile(fixture.log, "utf8") : "";
+      assert.doesNotMatch(commands, /pm2 stop/);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("all restart-unsafe and post-restart failures leave the old Cron disabled", { skip: !existsSync(gitBash) }, async () => {
+  const failures = ["npm-ci", "db-push", "build", "pm2-restart", "reconcile", "dispatch", "cron-install"] as const;
+  for (const failingCommand of failures) {
+    const fixture = await deploymentFixture({ failingCommand });
+    try {
+      await writeFile(fixture.cronFile, "old cron\n");
+      await assert.rejects(runDeployment(fixture));
+      const commands = existsSync(fixture.log) ? await readFile(fixture.log, "utf8") : "";
+      assert.equal(existsSync(fixture.cronFile), false, `${failingCommand}\n${commands}`);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("a successful deployment replaces an old Cron", { skip: !existsSync(gitBash) }, async () => {
+  const fixture = await deploymentFixture();
+  try {
+    await writeFile(fixture.cronFile, "old cron\n");
+    await runDeployment(fixture);
+    const cron = await readFile(fixture.cronFile, "utf8");
+    assert.notEqual(cron, "old cron\n");
+    assert.match(cron, /dispatch-bale-group-events\.ts/);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("real flock excludes a contender until the holder exits", { skip: !existsSync(gitBash) }, async (t) => {
+  const probe = await execFileAsync(gitBash, ["-lc", "command -v flock || true"]);
+  const flock = probe.stdout.trim();
+  if (!flock) return t.skip("real flock is unavailable in this environment");
+
+  const root = await mkdtemp(path.join(tmpdir(), "real-flock-"));
+  const lock = bashPath(path.join(root, "lock"));
+  const ready = path.join(root, "ready");
+  const holder = spawn(gitBash, ["-c", `exec 9>"${lock}"; "${flock}" 9; printf ready >"${bashPath(ready)}"; sleep 30`]);
+  try {
+    while (!existsSync(ready)) await new Promise((resolve) => setTimeout(resolve, 10));
+    await assert.rejects(execFileAsync(gitBash, ["-c", `"${flock}" -n "${lock}" true`]));
+    holder.kill();
+    await new Promise((resolve) => holder.once("exit", resolve));
+    await execFileAsync(gitBash, ["-c", `"${flock}" -n "${lock}" true`]);
+  } finally {
+    holder.kill();
+    await rm(root, { recursive: true, force: true });
   }
 });
 

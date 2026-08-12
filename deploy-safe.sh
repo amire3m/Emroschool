@@ -4,8 +4,10 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/Emroschool}"
 PM2_APP="${PM2_APP:-emroschool}"
 CRON_FILE="${CRON_FILE:-/etc/cron.d/emroschool-bale-notifications}"
-BALE_LOCK_FILE="${BALE_LOCK_FILE:-/var/lock/emroschool-bale-notifications.lock}"
-BALE_LOG_FILE="${BALE_LOG_FILE:-/var/log/emroschool-bale-notifications.log}"
+BALE_LOCK_DIR="${BALE_LOCK_DIR:-/run/emroschool}"
+BALE_LOG_DIR="${BALE_LOG_DIR:-/var/log/emroschool}"
+BALE_LOCK_BASENAME="${BALE_LOCK_BASENAME:-notifications.lock}"
+BALE_LOG_BASENAME="${BALE_LOG_BASENAME:-notifications.log}"
 APP_USER="${APP_USER:-$(stat -c %U "$APP_DIR")}"
 APP_STOPPED=0
 RESTART_SAFE=1
@@ -25,6 +27,48 @@ canonical_target() {
   printf '%s/%s\n' "$parent" "$(basename -- "$target")"
 }
 
+validate_basename() {
+  [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] && [[ "$1" != "." && "$1" != ".." ]]
+}
+
+validate_root_parent() {
+  local directory="$1"
+  [[ "$directory" = /* ]] && reject_cron_syntax "$directory" || return 1
+  local parent
+  parent="$(dirname -- "$directory")"
+  [[ ! -L "$parent" && -d "$parent" ]] || return 1
+  [[ "$(realpath -e -- "$parent")" = "$parent" ]] || return 1
+  local owner mode type
+  read -r owner mode type < <(stat -c '%U %a %F' -- "$parent")
+  [[ "$owner" = "root" && "$type" = "directory" && $((8#$mode & 8#022)) -eq 0 ]]
+}
+
+prepare_state_directory() {
+  local directory="$1"
+  validate_root_parent "$directory" || return 1
+  if [[ -e "$directory" || -L "$directory" ]]; then
+    [[ ! -L "$directory" && -d "$directory" ]] || return 1
+  else
+    install -d -o root -g root -m 0755 -- "$directory"
+  fi
+  [[ "$(realpath -e -- "$directory")" = "$directory" ]] || return 1
+  local owner mode type
+  read -r owner mode type < <(stat -c '%U %a %F' -- "$directory")
+  [[ "$owner" = "root" && "$mode" = "755" && "$type" = "directory" ]]
+}
+
+prepare_state_file() {
+  local file="$1"
+  if [[ -e "$file" || -L "$file" ]]; then
+    [[ ! -L "$file" && -f "$file" ]] || return 1
+    local owner mode type
+    read -r owner mode type < <(stat -c '%U %a %F' -- "$file")
+    [[ "$owner" = "$APP_USER" && "$mode" = "640" && "$type" = "regular file" ]]
+  else
+    install -o "$APP_USER" -g "$APP_GROUP" -m 0640 -- /dev/null "$file"
+  fi
+}
+
 [[ "$APP_USER" =~ ^[a-z_][a-z0-9_-]{0,31}\$?$ ]] || {
   echo "Invalid APP_USER for root Cron." >&2
   exit 1
@@ -38,9 +82,28 @@ id -u "$APP_USER" >/dev/null 2>&1 || {
   exit 1
 }
 APP_DIR="$(realpath -e -- "$APP_DIR")"
+validate_root_parent "$CRON_FILE" || {
+  echo "Cron parent directory is unsafe." >&2
+  exit 1
+}
 CRON_FILE="$(canonical_target "$CRON_FILE")"
-BALE_LOCK_FILE="$(canonical_target "$BALE_LOCK_FILE")"
-BALE_LOG_FILE="$(canonical_target "$BALE_LOG_FILE")"
+validate_basename "$BALE_LOCK_BASENAME" && validate_basename "$BALE_LOG_BASENAME" || {
+  echo "Notification state basenames are invalid." >&2
+  exit 1
+}
+BALE_LOCK_DIR="${BALE_LOCK_DIR%/}"
+BALE_LOG_DIR="${BALE_LOG_DIR%/}"
+prepare_state_directory "$BALE_LOCK_DIR" && prepare_state_directory "$BALE_LOG_DIR" || {
+  echo "Notification state directories are unsafe." >&2
+  exit 1
+}
+BALE_LOCK_FILE="$BALE_LOCK_DIR/$BALE_LOCK_BASENAME"
+BALE_LOG_FILE="$BALE_LOG_DIR/$BALE_LOG_BASENAME"
+APP_GROUP="$(id -gn "$APP_USER")"
+prepare_state_file "$BALE_LOCK_FILE" && prepare_state_file "$BALE_LOG_FILE" || {
+  echo "Notification state files are unsafe." >&2
+  exit 1
+}
 BACKUP_ROOT="$APP_DIR/backups"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP"
@@ -81,9 +144,6 @@ trap restart_on_exit EXIT
 cd "$APP_DIR"
 mkdir -p "$BACKUP_DIR"
 
-touch "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
-chown "$APP_USER" "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
-chmod 0640 "$BALE_LOCK_FILE" "$BALE_LOG_FILE"
 exec {BALE_LOCK_FD}>"$BALE_LOCK_FILE"
 "$FLOCK_BIN" "$BALE_LOCK_FD"
 

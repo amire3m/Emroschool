@@ -23,14 +23,16 @@ test("the Bale CLI loader parses dotenv values without evaluating shell syntax",
       "--require",
       loader,
       "-e",
-      "console.log(JSON.stringify({ token: process.env.BALE_BOT_TOKEN, chat: process.env.BALE_COORDINATION_CHAT_ID, multiline: process.env.MULTILINE }))",
+      "console.log(JSON.stringify({ token: process.env.BALE_BOT_TOKEN, chat: process.env.BALE_COORDINATION_CHAT_ID, multiline: process.env.MULTILINE, deployOnly: process.env.DEPLOY_ONLY_SECRET }))",
     ], { cwd: appDir, env: { NODE_ENV: "production", PATH: process.env.PATH } });
 
-    assert.deepEqual(JSON.parse(stdout), {
+    const loaded = JSON.parse(stdout);
+    assert.deepEqual(loaded, {
       token: "literal token $(touch executed)",
       chat: "chat #42",
       multiline: "first\\nsecond",
     });
+    assert.equal("deployOnly" in loaded, false);
     await assert.rejects(readFile(marker), { code: "ENOENT" });
   } finally {
     await rm(appDir, { recursive: true, force: true });
