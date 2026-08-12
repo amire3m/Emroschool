@@ -481,4 +481,4 @@ exit 0; Windows LF-to-CRLF warnings only
 
 ### Fix Commit
 
-Pending.
+`64c4663` (`fix: tighten request contention recovery`)
