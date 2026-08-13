@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const order = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id } });
     if (!order) return NextResponse.json({ error: "سفارش پیدا نشد" }, { status: 404 });
     expectedRevision = order.receiptSubmissionRevision;
-    if (order.method !== "card_to_card" || !["awaiting_receipt", "rejected"].includes(order.status)) return NextResponse.json({ error: "این سفارش آماده دریافت رسید نیست" }, { status: 409 });
+    if (order.method !== "card_to_card" || !["awaiting_receipt", "rejected", "review_reopened"].includes(order.status)) return NextResponse.json({ error: "این سفارش آماده دریافت رسید نیست" }, { status: 409 });
     const file = (await req.formData()).get("file");
     if (!(file instanceof File) || !allowed.has(file.type)) return NextResponse.json({ error: "فقط تصویر JPG، PNG یا WebP مجاز است" }, { status: 400 });
     if (!file.size || file.size > 5 * 1024 * 1024) return NextResponse.json({ error: "حداکثر حجم رسید ۵ مگابایت است" }, { status: 413 });
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const receiptUrl = `/uploads/users/receipts/${user.id}/${order.id}/${name}`;
     const updated = await dependencies.db.$transaction(async (tx: any) => {
       const current = await tx.paymentOrder.findUnique({ where: { id: order.id }, include: { user: { select: { name: true } }, course: { select: { title: true } } } });
-      if (!current || !["awaiting_receipt", "rejected"].includes(current.status)) throw new Error("RECEIPT_CONFLICT");
+      if (!current || !["awaiting_receipt", "rejected", "review_reopened"].includes(current.status)) throw new Error("RECEIPT_CONFLICT");
       const attempt = current.activeAttemptId ? await tx.paymentAttempt.findFirst({ where: { id: current.activeAttemptId, orderId: current.id } }) : null;
       const submittedAt = dependencies.now();
       if (attempt) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (result.count !== 1) throw new Error("INVALID_ATTEMPT");
       }
       const changed = await tx.paymentOrder.updateMany({
-        where: { id: order.id, receiptSubmissionRevision: current.receiptSubmissionRevision, status: { in: ["awaiting_receipt", "rejected"] } },
+        where: { id: order.id, receiptSubmissionRevision: current.receiptSubmissionRevision, status: { in: ["awaiting_receipt", "rejected", "review_reopened"] } },
         data: { receiptUrl, status: "under_review", receiptSubmittedAt: submittedAt, receiptSubmissionRevision: { increment: 1 }, rejectionReason: null },
       });
       if (changed.count !== 1) throw new Error("RECEIPT_CONFLICT");
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (error instanceof Error && error.message === "RECEIPT_CONFLICT") return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     if (isSqliteContentionError(error) && expectedRevision !== null) {
       const current = await dependencies.db.paymentOrder.findFirst({ where: { id: params.id, userId: user.id }, select: { receiptSubmissionRevision: true, status: true } }).catch(() => null);
-      if (current && (current.receiptSubmissionRevision !== expectedRevision || !["awaiting_receipt", "rejected"].includes(current.status))) return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
+      if (current && (current.receiptSubmissionRevision !== expectedRevision || !["awaiting_receipt", "rejected", "review_reopened"].includes(current.status))) return NextResponse.json({ error: "رسید هم‌زمان دیگری ثبت شده است" }, { status: 409 });
     }
     dependencies.onError(error);
     return NextResponse.json({ error: "بارگذاری رسید انجام نشد" }, { status: 500 });

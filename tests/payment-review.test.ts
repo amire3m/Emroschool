@@ -82,7 +82,7 @@ function reviewTransaction(order: any, options: { extraGrant?: boolean } = {}) {
     paymentOrder: {
       updateMany: async ({ where, data }: any) => {
         if (where.id !== order.id || where.reviewVersion !== order.reviewVersion || where.status !== order.status) return { count: 0 };
-        Object.assign(order, data, { reviewVersion: order.reviewVersion + 1 });
+        Object.assign(order, data, { reviewVersion: order.reviewVersion + 1, ...(data.status ? { status: data.status } : {}) });
         return { count: 1 };
       },
       findUniqueOrThrow: async () => ({ ...order }),
@@ -131,7 +131,7 @@ test("reversal preserves financial evidence and progress, and reapproval restore
   fixture.grants.push({ sourceType: "payment_card", sourceId: order.id, userId: order.userId, courseId: order.courseId, active: true });
 
   await applyCardPaymentReview(fixture.tx, { order, reviewerId: "admin", action: "reverse_approval", reason: "wrong receipt", expectedReviewVersion: 1, now: new Date("2026-08-13T08:00:00.000Z") });
-  assert.equal(order.status, "under_review");
+  assert.equal(order.status, "review_reopened");
   assert.equal(order.paidAt, paidAt);
   assert.equal(order.receiptUrl, "/receipt.webp");
   assert.equal(order.receiptSubmissionRevision, 2);

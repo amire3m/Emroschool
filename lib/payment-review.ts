@@ -42,12 +42,15 @@ export async function hasActiveEnrollmentGrant(tx: any, userId: string, courseId
 
 export type PaymentReviewAction = "approve" | "reject" | "reopen_rejection" | "reverse_approval";
 
-const transitions: Record<PaymentReviewAction, { from: string; to: string; reason: boolean }> = {
-  approve: { from: "under_review", to: "paid", reason: false },
-  reject: { from: "under_review", to: "rejected", reason: true },
-  reopen_rejection: { from: "rejected", to: "under_review", reason: true },
-  reverse_approval: { from: "paid", to: "under_review", reason: true },
+type Transition = { to: string; reason: boolean };
+const transitions: Partial<Record<PaymentReviewAction, Transition>> = {
+  approve: { to: "paid", reason: false },
+  reject: { to: "rejected", reason: true },
+  reopen_rejection: { to: "under_review", reason: true },
+  reverse_approval: { to: "review_reopened", reason: true },
 };
+const approvalSourceStatuses = new Set(["under_review", "review_reopened"]);
+const rejectionSourceStatuses = new Set(["under_review", "review_reopened"]);
 
 export async function applyCardPaymentReview(tx: any, input: {
   order: any;
@@ -58,12 +61,18 @@ export async function applyCardPaymentReview(tx: any, input: {
   now: Date;
 }) {
   const transition = transitions[input.action];
-  if (input.order.method !== "card_to_card" || input.order.status !== transition.from) throw new Error("INVALID_STATUS");
+  if (!transition) throw new Error("INVALID_STATUS");
+  const currentStatus = input.order.status;
+  if (input.order.method !== "card_to_card") throw new Error("INVALID_STATUS");
+  if (input.action === "approve" && !approvalSourceStatuses.has(currentStatus)) throw new Error("INVALID_STATUS");
+  if (input.action === "reject" && !rejectionSourceStatuses.has(currentStatus)) throw new Error("INVALID_STATUS");
+  if (input.action === "reopen_rejection" && currentStatus !== "rejected") throw new Error("INVALID_STATUS");
+  if (input.action === "reverse_approval" && currentStatus !== "paid") throw new Error("INVALID_STATUS");
   if (transition.reason && !input.reason) throw new Error("REASON_REQUIRED");
   if (input.expectedReviewVersion !== input.order.reviewVersion) throw new Error("STALE_REVIEW_VERSION");
 
   const changed = await tx.paymentOrder.updateMany({
-    where: { id: input.order.id, method: "card_to_card", status: transition.from, reviewVersion: input.expectedReviewVersion },
+    where: { id: input.order.id, method: "card_to_card", status: currentStatus, reviewVersion: input.expectedReviewVersion },
     data: {
       status: transition.to,
       reviewVersion: { increment: 1 },
@@ -88,7 +97,7 @@ export async function applyCardPaymentReview(tx: any, input: {
     reviewerId: input.reviewerId,
     action: input.action,
     reason: input.reason || null,
-    fromStatus: transition.from,
+    fromStatus: currentStatus,
     toStatus: transition.to,
     reviewVersion: input.expectedReviewVersion + 1,
     createdAt: input.now,
