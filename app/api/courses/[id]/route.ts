@@ -63,20 +63,21 @@ export async function GET(
     }
 
     const enrollment = !admin && authenticatedUser
-      ? await prisma.enrollment.findUnique({
+      ? await prisma.enrollmentGrant.count({
           where: {
-            userId_courseId: { userId: authenticatedUser.id, courseId: params.id },
+            userId: authenticatedUser.id,
+            courseId: params.id,
+            active: true,
           },
-          select: { id: true },
         })
-      : null;
+      : 0;
     const { chapters, ...courseDetails } = course;
 
     return NextResponse.json({
       course: {
         ...courseDetails,
         children: sortCoursesBySchedule(course.children),
-        ...serializeCurriculum({ chapters, canReadTitles: Boolean(admin || enrollment) }),
+        ...serializeCurriculum({ chapters, canReadTitles: Boolean(admin || enrollment > 0) }),
       },
     });
   } catch (error) {

@@ -45,8 +45,12 @@ type Order = {
   payerCardNumber?: string | null;
   payerCardMasked?: string | null;
   payerBankName?: string | null;
+  payerBankSlug?: string | null;
   createdAt: string;
   updatedAt: string;
+  reviewVersion: number;
+  reviewDecisions?: PaymentReviewDecision[];
+  paymentGrant?: PaymentGrant | null;
   receiptSubmittedAt?: string | null;
   reviewedAt?: string | null;
   paidAt?: string | null;
@@ -106,6 +110,21 @@ type PaymentAttempt = {
   submittedAt?: string | null;
   invalidatedAt?: string | null;
 };
+type PaymentReviewDecision = {
+  id: string;
+  action: string;
+  reason?: string | null;
+  fromStatus: string;
+  toStatus: string;
+  reviewVersion: number;
+  createdAt: string;
+  reviewer?: { id: string; name: string; email: string } | null;
+};
+type PaymentGrant = {
+  sourceId: string;
+  active: boolean;
+  revokedAt?: string | null;
+};
 type Settings = {
   cardNumber?: string | null;
   cardHolder?: string | null;
@@ -135,6 +154,13 @@ const labels: Record<string, string> = {
   expired: "منقضی",
   invalidated: "باطل شده",
   paid_duplicate: "پرداخت تکراری",
+  review_reopened: "بازبینی مجدد",
+};
+const reviewActionLabels: Record<string, string> = {
+  approve: "تأیید رسید",
+  reject: "رد رسید",
+  reopen_rejection: "بازگشایی رد",
+  reverse_approval: "بازگشت تأیید",
 };
 const verificationLabels: Record<string, string> = {
   unverified: "تأیید نشده",
@@ -245,25 +271,43 @@ function PaymentsAdminPage() {
       setSaving(false);
     }
   }
-  async function review(id: string, action: "approve" | "reject") {
-    const rejectionReason =
-      action === "reject"
-        ? window.prompt("دلیل رد رسید را وارد کنید:")?.trim()
-        : undefined;
-    if (action === "reject" && !rejectionReason) return;
+  async function review(
+    id: string,
+    action: "approve" | "reject" | "reopen_rejection" | "reverse_approval",
+    expectedReviewVersion: number,
+    requireReason: boolean,
+  ) {
+    const reason = requireReason
+      ? window.prompt("دلیل این اصلاح را وارد کنید (الزامی):")?.trim()
+      : undefined;
+    if (requireReason && !reason) return;
     const response = await fetch(`/api/admin/payments/${id}`, {
       method: "PATCH",
       headers: { ...auth(), "Content-Type": "application/json" },
-      body: JSON.stringify({ action, rejectionReason }),
+      body: JSON.stringify({ action, reason, expectedReviewVersion }),
     });
     const data = await response.json();
     if (!response.ok) {
       toast.error(data.error || "عملیات ناموفق بود");
+      if (response.status === 409) {
+        const refreshed = await load();
+        const updated = refreshed?.find((order) => order.id === id);
+        if (updated) setDetail(updated);
+      }
       return;
     }
-    toast.success(action === "approve" ? "پرداخت تأیید شد" : "پرداخت رد شد");
-    setDetail(null);
-    load();
+    toast.success(
+      action === "approve"
+        ? "پرداخت تأیید شد"
+        : action === "reject"
+          ? "پرداخت رد شد"
+          : action === "reopen_rejection"
+            ? "رد پرداخت بازگشایی شد"
+            : "تأیید پرداخت بازگردانده شد",
+    );
+    const refreshed = await load();
+    const updated = refreshed?.find((order) => order.id === id);
+    if (updated) setDetail(updated);
   }
   function resetDiscount() {
     setDiscountForm(emptyDiscount);
@@ -760,7 +804,12 @@ function PaymentDetail({
 }: {
   order: Order;
   onClose: () => void;
-  onReview: (id: string, action: "approve" | "reject") => void;
+  onReview: (
+    id: string,
+    action: "approve" | "reject" | "reopen_rejection" | "reverse_approval",
+    expectedReviewVersion: number,
+    requireReason: boolean,
+  ) => void;
   onReconciled: (id: string) => Promise<void>;
 }) {
   const app = order.application;
@@ -890,6 +939,11 @@ function PaymentDetail({
           </div>
           <div className="space-y-2">
             <h3 className="font-bold text-primary">زمان‌ها و بررسی</h3>
+            <Row label="وضعیت" value={labels[order.status] || order.status} />
+            <Row
+              label="نسخه بررسی"
+              value={order.reviewVersion.toLocaleString("fa-IR")}
+            />
             <Row label="ایجاد سفارش" value={f(order.createdAt)} />
             <Row label="ارسال رسید" value={f(order.receiptSubmittedAt)} />
             <Row label="بازبینی" value={f(order.reviewedAt)} />
@@ -905,6 +959,53 @@ function PaymentDetail({
             />
           </div>
         </div>
+        {order.method === "card_to_card" && order.paymentGrant && (
+          <div
+            role="status"
+            className={`mt-2 rounded-2xl border px-4 py-3 text-sm font-bold leading-7 ${order.paymentGrant.active ? "border-[#cfe8d8] bg-[#e8f7ee] text-green-700" : "border-[#f3cfc4] bg-error-container text-error"}`}
+          >
+            {order.paymentGrant.active
+              ? "دسترسی دوره فعال است (دسترسی پرداخت کارت‌به‌کارت فعال است)."
+              : `دسترسی ناشی از این پرداخت معلق شده است${order.paymentGrant.revokedAt ? ` از ${f(order.paymentGrant.revokedAt)}` : ""}. دسترسی‌های مستقل (رایگان، دستی، ادمین و ...) همچنان پابرجا هستند.`}
+          </div>
+        )}
+        {(order.reviewDecisions || []).length > 0 && (
+          <div className="border-t border-outline-variant/30 py-5">
+            <h3 className="mb-3 font-bold text-primary">تاریخچه تصمیم‌های بازبینی</h3>
+            <ol className="space-y-3">
+              {order.reviewDecisions?.map((decision) => (
+                <li
+                  key={decision.id}
+                  className="rounded-2xl border border-outline-variant/40 bg-surface-low p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-white">
+                      {reviewActionLabels[decision.action] || decision.action}
+                    </span>
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-outline">
+                      {labels[decision.fromStatus] || decision.fromStatus}
+                      <span className="mx-1">←</span>
+                      {labels[decision.toStatus] || decision.toStatus}
+                    </span>
+                    <span className="text-xs text-outline">
+                      {f(decision.createdAt)}
+                    </span>
+                    {decision.reviewer && (
+                      <span className="text-xs text-outline">
+                        {decision.reviewer.name}
+                      </span>
+                    )}
+                  </div>
+                  {decision.reason && (
+                    <p className="mt-2 text-sm leading-6 text-primary">
+                      {decision.reason}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
         <div className="border-t border-outline-variant/30 py-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -1131,23 +1232,48 @@ function PaymentDetail({
             </a>
           )}
           {order.method === "card_to_card" &&
-            order.status === "under_review" && (
+            ["under_review", "review_reopened"].includes(order.status) && (
               <>
                 <button
-                  onClick={() => onReview(order.id, "approve")}
+                  onClick={() =>
+                    onReview(order.id, "approve", order.reviewVersion, false)
+                  }
                   className="flex items-center gap-1 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white"
                 >
                   <Check size={16} />
                   تأیید
                 </button>
                 <button
-                  onClick={() => onReview(order.id, "reject")}
+                  onClick={() =>
+                    onReview(order.id, "reject", order.reviewVersion, true)
+                  }
                   className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-white"
                 >
                   رد پرداخت
                 </button>
               </>
             )}
+          {order.method === "card_to_card" && order.status === "rejected" && (
+            <button
+              onClick={() =>
+                onReview(order.id, "reopen_rejection", order.reviewVersion, true)
+              }
+              className="flex items-center gap-1 rounded-xl bg-secondary px-4 py-2 text-sm font-bold text-white"
+            >
+              <RefreshCcw size={16} />
+              بازگشایی رد پرداخت
+            </button>
+          )}
+          {order.method === "card_to_card" && order.status === "paid" && (
+            <button
+              onClick={() =>
+                onReview(order.id, "reverse_approval", order.reviewVersion, true)
+              }
+              className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-white"
+            >
+              بازگرداندن تأیید پرداخت
+            </button>
+          )}
         </div>
       </section>
     </div>

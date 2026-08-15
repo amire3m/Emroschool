@@ -240,7 +240,8 @@ test("deployment checkpoints SQLite, preserves journals, and backfills after db 
     assert.ok(existsSync(path.join(fixture.app, "backups")));
     assert.ok(existsSync(path.join(fixture.app, "backups", "test-stamp", "dev.db-wal")));
     assert.ok(commands.indexOf("npx prisma db push") < commands.indexOf("npm run db:backfill-bale-payments"));
-    assert.ok(commands.indexOf("npm run db:backfill-bale-payments") < commands.indexOf("npm run build"));
+    assert.ok(commands.indexOf("npm run db:backfill-bale-payments") < commands.indexOf("npm run db:backfill-enrollment-grants"));
+    assert.ok(commands.indexOf("npm run db:backfill-enrollment-grants") < commands.indexOf("npm run build"));
     const stop = commands.indexOf("pm2 stop emroschool");
     const dbPush = commands.indexOf("npx prisma db push");
     const restart = commands.indexOf("pm2 restart emroschool");
@@ -271,6 +272,7 @@ test("deployment never restarts incompatible code when schema push fails", { ski
     const commands = await readFile(fixture.log, "utf8");
     assert.match(commands, /npx prisma db push/);
     assert.doesNotMatch(commands, /npm run db:backfill-bale-payments/);
+    assert.doesNotMatch(commands, /npm run db:backfill-enrollment-grants/);
     assert.doesNotMatch(commands, /pm2 restart emroschool/);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });

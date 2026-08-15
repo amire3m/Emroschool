@@ -196,6 +196,48 @@ test("request payloads with private or arbitrary action fields are quarantined",
   assert.ok(rows.every((row) => row.status === "needs_review"));
 });
 
+test("payment review decision events dispatch with safe correction details and buttons", async () => {
+  const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+  process.env.NEXT_PUBLIC_MAIN_SITE_URL = "https://example.test/base";
+  const decisionPayload = JSON.stringify({
+    displayName: "علی رضایی",
+    submittedAt: "2026-08-12T11:00:00.000Z",
+    userId: "user-1",
+    orderId: "order-1",
+    orderNumber: "PAY-123",
+    courseTitle: "کارگردانی",
+    amountTomans: 1_250_000,
+    action: "reverse_approval",
+    fromStatus: "paid",
+    toStatus: "review_reopened",
+    reason: "اشتباه در تأیید",
+    actions: ["payment_order", "user"],
+  });
+  const invalid = [
+    event({ id: "decision-bad-action", type: "payment_review_decision", eventKey: "payment-review-decision:bad-action", payload: JSON.stringify({ ...JSON.parse(decisionPayload), action: "hack", actions: ["payment_order", "user"] }) }),
+    event({ id: "decision-no-reason", type: "payment_review_decision", eventKey: "payment-review-decision:no-reason", payload: JSON.stringify({ ...JSON.parse(decisionPayload), reason: "", actions: ["payment_order", "user"] }) }),
+    event({ id: "decision-bad-buttons", type: "payment_review_decision", eventKey: "payment-review-decision:bad-buttons", payload: JSON.stringify({ ...JSON.parse(decisionPayload), actions: ["user", "support_ticket"] }) }),
+    event({ id: "decision-bad-amount", type: "payment_review_decision", eventKey: "payment-review-decision:bad-amount", payload: JSON.stringify({ ...JSON.parse(decisionPayload), amountTomans: 0, actions: ["payment_order", "user"] }) }),
+  ];
+  const { db, rows } = database([
+    event({ id: "decision", type: "payment_review_decision", eventKey: "payment-review-decision:1", payload: decisionPayload }),
+    ...invalid,
+  ]);
+  const messages: string[] = [];
+  try {
+    const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now, send: async (_id, text) => { messages.push(text); return { message_id: 1 }; } });
+    assert.equal(result.sent, 1);
+    assert.equal(result.needsReview, 4);
+    assert.equal(messages.length, 1);
+    assert.match(messages[0], /اصلاح رسید پرداخت/);
+    assert.match(messages[0], /اشتباه در تأیید/);
+    assert.doesNotMatch(messages[0], /callback_data|javascript:|token|user-1/);
+  } finally {
+    if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_MAIN_SITE_URL;
+    else process.env.NEXT_PUBLIC_MAIN_SITE_URL = originalOrigin;
+  }
+});
+
 test("sendMessage accepts only bounded allowlisted action identifiers", async () => {
   const originalOrigin = process.env.NEXT_PUBLIC_MAIN_SITE_URL;
   const originalFetch = global.fetch;

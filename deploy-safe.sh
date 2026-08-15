@@ -177,6 +177,7 @@ git pull --ff-only
 npm ci
 npx prisma db push
 npm run db:backfill-bale-payments
+npm run db:backfill-enrollment-grants
 rm -rf .next
 npm run build
 restart_writer

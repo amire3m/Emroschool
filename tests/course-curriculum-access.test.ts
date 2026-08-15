@@ -82,28 +82,28 @@ const expectedCurriculum = [
 ];
 
 async function withCourseApiFixture(
-  enrollmentForUserId: string | null,
-  run: (enrollmentLookups: unknown[]) => Promise<void>,
+  grantCountForUserId: number | null,
+  run: (grantLookups: unknown[]) => Promise<void>,
 ) {
   const courseDelegate = prisma.course as unknown as {
     findUnique: (args: unknown) => Promise<unknown>;
   };
-  const enrollmentDelegate = prisma.enrollment as unknown as {
-    findUnique: (args: unknown) => Promise<unknown>;
+  const grantDelegate = prisma.enrollmentGrant as unknown as {
+    count: (args: unknown) => Promise<number>;
   };
   const originalCourseFindUnique = courseDelegate.findUnique;
-  const originalEnrollmentFindUnique = enrollmentDelegate.findUnique;
-  const enrollmentLookups: unknown[] = [];
+  const originalGrantCount = grantDelegate.count;
+  const grantLookups: unknown[] = [];
   courseDelegate.findUnique = async () => courseFixture();
-  enrollmentDelegate.findUnique = async (args) => {
-    enrollmentLookups.push(args);
-    return enrollmentForUserId ? { id: `enrollment-${enrollmentForUserId}` } : null;
+  grantDelegate.count = async (args) => {
+    grantLookups.push(args);
+    return grantCountForUserId ?? 0;
   };
   try {
-    await run(enrollmentLookups);
+    await run(grantLookups);
   } finally {
     courseDelegate.findUnique = originalCourseFindUnique;
-    enrollmentDelegate.findUnique = originalEnrollmentFindUnique;
+    grantDelegate.count = originalGrantCount;
   }
 }
 
@@ -117,7 +117,7 @@ function assertLockedCourse(course: Record<string, unknown>) {
 }
 
 test("trusted admins receive the ordered allowlisted curriculum without enrollment", async () => {
-  await withCourseApiFixture(null, async (enrollmentLookups) => {
+  await withCourseApiFixture(0, async (grantLookups) => {
     const response = await getCourse(request({ id: "admin-1", role: "admin" }), {
       params: { id: "course-1" },
     });
@@ -127,12 +127,12 @@ test("trusted admins receive the ordered allowlisted curriculum without enrollme
     assert.equal(body.course.curriculumLocked, false);
     assert.deepEqual(body.course.curriculumSummary, expectedSummary);
     assert.deepEqual(body.course.curriculum, expectedCurriculum);
-    assert.deepEqual(enrollmentLookups, []);
+    assert.deepEqual(grantLookups, []);
   });
 });
 
-test("an exact enrollment grants the authenticated user curriculum titles", async () => {
-  await withCourseApiFixture("user-enrolled", async (enrollmentLookups) => {
+test("an exact active enrollment grant grants the authenticated user curriculum titles", async () => {
+  await withCourseApiFixture(1, async (grantLookups) => {
     const response = await getCourse(request({ id: "user-enrolled", role: "user" }), {
       params: { id: "course-1" },
     });
@@ -142,19 +142,20 @@ test("an exact enrollment grants the authenticated user curriculum titles", asyn
     assert.equal(body.course.curriculumLocked, false);
     assert.deepEqual(body.course.curriculumSummary, expectedSummary);
     assert.deepEqual(body.course.curriculum, expectedCurriculum);
-    assert.deepEqual(enrollmentLookups, [
+    assert.deepEqual(grantLookups, [
       {
         where: {
-          userId_courseId: { userId: "user-enrolled", courseId: "course-1" },
+          userId: "user-enrolled",
+          courseId: "course-1",
+          active: true,
         },
-        select: { id: true },
       },
     ]);
   });
 });
 
-test("authentication without enrollment keeps the item response locked and title-free", async () => {
-  await withCourseApiFixture(null, async () => {
+test("authentication without an active enrollment grant keeps the item response locked and title-free", async () => {
+  await withCourseApiFixture(0, async () => {
     const response = await getCourse(request({ id: "user-other", role: "user" }), {
       params: { id: "course-1" },
     });
@@ -166,13 +167,32 @@ test("authentication without enrollment keeps the item response locked and title
 });
 
 test("anonymous item responses are locked and contain no curriculum key or secret title", async () => {
-  await withCourseApiFixture(null, async (enrollmentLookups) => {
+  await withCourseApiFixture(0, async (grantLookups) => {
     const response = await getCourse(request(), { params: { id: "course-1" } });
     const body = await response.json();
 
     assert.equal(response.status, 200);
     assertLockedCourse(body.course);
-    assert.deepEqual(enrollmentLookups, []);
+    assert.deepEqual(grantLookups, []);
+  });
+});
+
+test("a revoked-only enrollment grant still keeps the curriculum locked while any active independent grant preserves access", async () => {
+  await withCourseApiFixture(0, async () => {
+    const response = await getCourse(request({ id: "user-revoked", role: "user" }), {
+      params: { id: "course-1" },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assertLockedCourse(body.course);
+  });
+  await withCourseApiFixture(1, async () => {
+    const response = await getCourse(request({ id: "user-kept", role: "user" }), {
+      params: { id: "course-1" },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.course.curriculumLocked, false);
   });
 });
 

@@ -97,15 +97,18 @@ function parseEvent(candidate: { type: string; payload: string }): Parameters<ty
     payment_receipt: ["displayName", "courseTitle", "orderNumber", "amountTomans", "submittedAt", "orderId", "userId", "actions"],
     profile_review: ["displayName", "submittedAt", "userId", "actions"],
     avatar_review: ["displayName", "submittedAt", "submissionId", "userId", "actions"],
+    payment_review_decision: ["displayName", "submittedAt", "userId", "orderId", "orderNumber", "courseTitle", "amountTomans", "action", "fromStatus", "toStatus", "reason", "actions"],
   };
   const keys = requestKeys[candidate.type];
   if (keys && hasExactKeys(payload, keys)) {
-    if (!keys.filter((key) => !["submittedAt", "actions", "amountTomans"].includes(key)).every((key) => isSafeText(payload[key]))) return null;
+    if (!keys.filter((key) => !["submittedAt", "actions", "amountTomans", "reason"].includes(key)).every((key) => isSafeText(payload[key]))) return null;
     if (!isCanonicalIsoInstant(payload.submittedAt)) return null;
-    const expectedActions: Record<string, string[]> = { support_ticket: ["support_ticket", "user"], support_user_message: ["support_ticket", "user"], course_application: ["course_application", "user"], payment_receipt: ["payment_order", "user"], profile_review: ["user"], avatar_review: ["user"] };
+    const expectedActions: Record<string, string[]> = { support_ticket: ["support_ticket", "user"], support_user_message: ["support_ticket", "user"], course_application: ["course_application", "user"], payment_receipt: ["payment_order", "user"], profile_review: ["user"], avatar_review: ["user"], payment_review_decision: ["payment_order", "user"] };
     if (!Array.isArray(payload.actions) || JSON.stringify(payload.actions) !== JSON.stringify(expectedActions[candidate.type])) return null;
     if (candidate.type === "course_application" && payload.reviewState !== "pending") return null;
-    if (candidate.type === "payment_receipt" && (!Number.isSafeInteger(payload.amountTomans) || (payload.amountTomans as number) <= 0)) return null;
+    if (candidate.type === "payment_review_decision" && !isSafeText(payload.reason)) return null;
+    if (candidate.type === "payment_review_decision" && !["approve", "reject", "reopen_rejection", "reverse_approval"].includes(payload.action as string)) return null;
+    if ((candidate.type === "payment_receipt" || candidate.type === "payment_review_decision") && (!Number.isSafeInteger(payload.amountTomans) || (payload.amountTomans as number) <= 0)) return null;
     return { type: candidate.type, payload } as Parameters<typeof formatBaleGroupEvent>[0];
   }
 

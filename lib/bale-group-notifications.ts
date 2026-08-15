@@ -1,5 +1,6 @@
 export type BaleGroupEventType = "payment_paid" | "payment_duplicate" | "release" | "support_ticket" |
-  "support_user_message" | "course_application" | "payment_receipt" | "profile_review" | "avatar_review";
+  "support_user_message" | "course_application" | "payment_receipt" | "profile_review" | "avatar_review" |
+  "payment_review_decision";
 
 export type PaymentGroupPayload = {
   studentName: string;
@@ -19,7 +20,8 @@ type GroupEvent =
   | { type: "course_application"; payload: CourseApplicationPayload }
   | { type: "payment_receipt"; payload: PaymentReceiptPayload }
   | { type: "profile_review"; payload: ProfileReviewPayload }
-  | { type: "avatar_review"; payload: AvatarReviewPayload };
+  | { type: "avatar_review"; payload: AvatarReviewPayload }
+  | { type: "payment_review_decision"; payload: PaymentReviewDecisionPayload };
 
 export type BaleGroupActionName = "support_ticket" | "course_application" | "payment_order" | "user";
 type BaseRequestPayload = { displayName: string; submittedAt: string; userId: string; actions: readonly BaleGroupActionName[] };
@@ -29,6 +31,16 @@ export type CourseApplicationPayload = BaseRequestPayload & { applicationId: str
 export type PaymentReceiptPayload = BaseRequestPayload & { orderId: string; orderNumber: string; courseTitle: string; amountTomans?: number };
 export type ProfileReviewPayload = BaseRequestPayload;
 export type AvatarReviewPayload = BaseRequestPayload & { submissionId: string };
+export type PaymentReviewDecisionPayload = BaseRequestPayload & {
+  orderId: string;
+  orderNumber: string;
+  courseTitle: string;
+  amountTomans: number;
+  action: string;
+  fromStatus: string;
+  toStatus: string;
+  reason: string | null;
+};
 
 export type BaleGroupAction =
   | { action: "support_ticket"; ticketId: string }
@@ -65,6 +77,7 @@ const methodLabels: Record<string, string> = {
 export const paymentPaidEventKey = (orderId: string) => `payment-paid:${orderId}`;
 export const paymentDuplicateEventKey = (attemptId: string) => `payment-duplicate:${attemptId}`;
 export const releaseEventKey = (releaseId: string) => `release:${releaseId}`;
+export const paymentReviewDecisionEventKey = (decisionId: string) => `payment-review-decision:${decisionId}`;
 
 export function retryAt(now: Date, attempts: number) {
   return new Date(now.getTime() + Math.max(1, attempts) * 60_000);
@@ -136,6 +149,16 @@ export function formatBaleGroupEvent(event: GroupEvent) {
       `دسته: ${event.type === "profile_review" ? "پروفایل" : "تصویر پروفایل"}`, `نام: ${event.payload.displayName}`,
       `زمان: ${formatPersianDateTime(event.payload.submittedAt)}`].join("\n");
   }
+  if (event.type === "payment_review_decision") {
+    const p = event.payload;
+    const actionLabels: Record<string, string> = { approve: "تأیید", reject: "رد", reverse_approval: "ابطال تأیید", reopen_rejection: "بازگشایی رد" };
+    return ["🔄 اصلاح رسید پرداخت", "دسته: پرداخت",
+      `نام: ${p.displayName}`, `دوره: ${p.courseTitle}`,
+      `شماره سفارش: ${p.orderNumber}`, `مبلغ: ${p.amountTomans.toLocaleString("fa-IR")} تومان`,
+      `عمل: ${actionLabels[p.action] || p.action}`, `از: ${p.fromStatus} → به: ${p.toStatus}`,
+      ...(p.reason ? [`دلیل: ${p.reason}`] : []),
+      `زمان: ${formatPersianDateTime(p.submittedAt)}`].join("\n");
+  }
   const payload = event.payload;
   const heading = event.type === "payment_duplicate" ? "⚠️ پرداخت تکراری؛ نیازمند پیگیری" : "✅ پرداخت موفق";
   return [
@@ -182,6 +205,28 @@ export function queueProfileReviewEvent(tx: BaleGroupEventTransaction, user: { i
 }
 export function queueAvatarReviewEvent(tx: BaleGroupEventTransaction, submission: { id: string; userId: string; user: { name?: string | null } }, submittedAt: Date) {
   return queueRequestEvent(tx, `avatar-review:${submission.id}`, "avatar_review", { displayName: submission.user.name || "نامشخص", submittedAt: submittedAt.toISOString(), submissionId: submission.id, userId: submission.userId, actions: ["user"] });
+}
+export function queuePaymentReviewDecisionEvent(
+  tx: BaleGroupEventTransaction,
+  decision: { id: string; action: string; reason: string | null; fromStatus: string; toStatus: string; reviewVersion: number },
+  order: { id: string; orderNumber: string; amountTomans: number; userId: string; user: { name?: string | null }; course: { title?: string | null } },
+  reviewer: { id: string; name?: string | null },
+  createdAt: Date,
+) {
+  return queueRequestEvent(tx, paymentReviewDecisionEventKey(decision.id), "payment_review_decision", {
+    displayName: order.user.name || "نامشخص",
+    submittedAt: createdAt.toISOString(),
+    userId: reviewer.id,
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    courseTitle: order.course.title || "نامشخص",
+    amountTomans: order.amountTomans,
+    action: decision.action,
+    fromStatus: decision.fromStatus,
+    toStatus: decision.toStatus,
+    reason: decision.reason,
+    actions: ["payment_order", "user"],
+  });
 }
 
 async function queuePaymentEvent(

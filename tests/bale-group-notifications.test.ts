@@ -117,6 +117,33 @@ test("queues one immutable safe event for every durable request submission", asy
   assert.doesNotMatch(JSON.stringify([...events.values()]), /0912|example@|national|address|customResponses|receiptUrl|payerCard|token/i);
 });
 
+test("formats a payment review decision card with safe labeled fields", () => {
+  const message = formatBaleGroupEvent({
+    type: "payment_review_decision",
+    payload: {
+      displayName: "زهرا",
+      courseTitle: "تدوین",
+      orderNumber: "PAY-9",
+      amountTomans: 800_000,
+      action: "reverse_approval",
+      fromStatus: "paid",
+      toStatus: "review_reopened",
+      reason: "رسید اشتباه بود",
+      submittedAt: "2026-08-13T08:00:00.000Z",
+      orderId: "order-9",
+      userId: "reviewer-1",
+      actions: ["payment_order", "user"],
+    },
+  });
+  assert.match(message, /اصلاح رسید پرداخت/);
+  assert.match(message, /زهرا/);
+  assert.match(message, /تدوین/);
+  assert.match(message, /PAY-9/);
+  assert.match(message, /ابطال تأیید/);
+  assert.match(message, /رسید اشتباه بود/);
+  assert.doesNotMatch(message, /order-9|reviewer-1|receipt|card|token/i);
+});
+
 test("builds stable event keys and increasing retry times", () => {
   assert.equal(paymentPaidEventKey("order-1"), "payment-paid:order-1");
   assert.equal(paymentDuplicateEventKey("attempt-2"), "payment-duplicate:attempt-2");

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { decryptPaymentCard } from "@/lib/payment-card-crypto";
+import { enrollmentGrantSources } from "@/lib/payment-review";
 
 async function admin(req: NextRequest) {
   const header = req.headers.get("authorization");
@@ -52,15 +53,56 @@ export async function GET(
             invalidatedAt: true,
           },
         },
+        reviewDecisions: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            action: true,
+            reason: true,
+            fromStatus: true,
+            toStatus: true,
+            reviewVersion: true,
+            createdAt: true,
+            reviewerId: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),
     dependencies.db.paymentSettings.findUnique({ where: { id: 1 } }),
   ]);
+  const reviewerIds = [...new Set(orders.flatMap((order) => order.reviewDecisions.map((decision) => decision.reviewerId)))];
+  const reviewers = reviewerIds.length
+    ? await dependencies.db.user.findMany({
+        where: { id: { in: reviewerIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const reviewerById = new Map(reviewers.map((reviewer) => [reviewer.id, reviewer]));
+  const cardOrders = orders.filter((order) => order.method === "card_to_card");
+  const cardGrants = cardOrders.length
+    ? await dependencies.db.enrollmentGrant.findMany({
+        where: {
+          sourceType: enrollmentGrantSources.cardPayment,
+          sourceId: { in: cardOrders.map((order) => order.id) },
+        },
+        select: { sourceId: true, active: true, revokedAt: true },
+      })
+    : [];
+  const grantByOrderId = new Map(
+    cardGrants.map((grant) => [grant.sourceId, grant]),
+  );
   const safeOrders = orders.map(({ payerCardEncrypted, balePayload: _balePayload, baleChatId, ...order }) => ({
     ...order,
     hasBalePayerEvidence: Boolean(order.payerBaleId || baleChatId),
     attempts: order.attempts.map(({ balePayload: _attemptPayload, ...attempt }: any) => attempt),
+    reviewDecisions: order.reviewDecisions.map(({ reviewerId, ...decision }) => ({
+      ...decision,
+      reviewer: reviewerById.get(reviewerId) ?? null,
+    })),
+    paymentGrant: order.method === "card_to_card"
+      ? (grantByOrderId.get(order.id) ?? null)
+      : null,
     payerCardNumber: payerCardEncrypted ? (() => { try { return decryptPaymentCard(payerCardEncrypted); } catch { return null; } })() : null,
   }));
   return NextResponse.json({ orders: safeOrders, settings });

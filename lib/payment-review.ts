@@ -92,7 +92,7 @@ export async function applyCardPaymentReview(tx: any, input: {
     if (attempt.count !== 1) throw new Error("INVALID_ATTEMPT");
   }
 
-  await tx.paymentReviewDecision.create({ data: {
+  const decision = await tx.paymentReviewDecision.create({ data: {
     orderId: input.order.id,
     reviewerId: input.reviewerId,
     action: input.action,
@@ -113,5 +113,6 @@ export async function applyCardPaymentReview(tx: any, input: {
     await tx.courseApplication.update({ where: { id: input.order.applicationId }, data: { status: "pending_payment" } });
   }
 
-  return tx.paymentOrder.findUniqueOrThrow({ where: { id: input.order.id } });
+  const updatedOrder = await tx.paymentOrder.findUniqueOrThrow({ where: { id: input.order.id } });
+  return { order: updatedOrder, decision };
 }

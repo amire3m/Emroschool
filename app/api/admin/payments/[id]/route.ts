@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserFromToken, isAdminRole } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { queuePaidPaymentEvent } from "@/lib/bale-group-notifications";
+import { queuePaidPaymentEvent, queuePaymentReviewDecisionEvent } from "@/lib/bale-group-notifications";
 import { applyCardPaymentReview, type PaymentReviewAction } from "@/lib/payment-review";
 
 async function admin(req: NextRequest) {
@@ -33,11 +33,13 @@ export async function PATCH(
       if (!order) return null;
        const reason = typeof suppliedReason === "string" ? suppliedReason.trim() : typeof rejectionReason === "string" ? rejectionReason.trim() : "";
        const reviewedAt = dependencies.now();
-       const updated = await applyCardPaymentReview(tx, { order, reviewerId: reviewer.id, action: action as PaymentReviewAction, reason, expectedReviewVersion, now: reviewedAt });
+       const { decision, order: updatedOrder } = await applyCardPaymentReview(tx, { order, reviewerId: reviewer.id, action: action as PaymentReviewAction, reason, expectedReviewVersion, now: reviewedAt });
        if (action === "approve") {
-          await queuePaidPaymentEvent(tx, order, reviewedAt);
-      }
-      return updated;
+           await queuePaidPaymentEvent(tx, order, reviewedAt);
+       } else {
+           await queuePaymentReviewDecisionEvent(tx, decision, order, { id: reviewer.id, name: reviewer.name ?? reviewer.id }, reviewedAt);
+       }
+       return updatedOrder;
     });
     if (!result) return NextResponse.json({ error: "سفارش پیدا نشد" }, { status: 404 });
     return NextResponse.json({ order: result });

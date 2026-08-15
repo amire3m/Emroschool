@@ -667,8 +667,10 @@ test("admin payments API returns attempt history in ascending sequence order", a
         findManyArgs = args;
         return [{
           id: "order-1",
+          method: "bale_wallet",
           balePayload: "order-secret-payload",
           payerCardEncrypted: null,
+          reviewDecisions: [],
           attempts: [
             { id: "attempt-1", sequence: 1, balePayload: "attempt-secret-1" },
             { id: "attempt-2", sequence: 2, balePayload: "attempt-secret-2" },
@@ -689,6 +691,47 @@ test("admin payments API returns attempt history in ascending sequence order", a
   assert.deepEqual(payload.orders[0].attempts.map((attempt: any) => attempt.sequence), [1, 2]);
   assert.equal(payload.orders[0].balePayload, undefined);
   assert.equal(payload.orders[0].attempts[0].balePayload, undefined);
+});
+
+test("admin payments API returns decision timeline with reviewer names and card grant status", async () => {
+  const db = {
+    paymentOrder: {
+      findMany: async () => [
+        {
+          id: "order-card",
+          method: "card_to_card",
+          reviewVersion: 2,
+          balePayload: "secret",
+          payerCardEncrypted: null,
+          reviewDecisions: [
+            { id: "decision-1", action: "approve", reason: "ok", fromStatus: "under_review", toStatus: "paid", reviewVersion: 1, createdAt: new Date("2026-08-12T10:00:00.000Z"), reviewerId: "reviewer-1" },
+            { id: "decision-2", action: "reverse_approval", reason: "wrong", fromStatus: "paid", toStatus: "review_reopened", reviewVersion: 2, createdAt: new Date("2026-08-13T10:00:00.000Z"), reviewerId: "reviewer-1" },
+          ],
+          attempts: [],
+        },
+      ],
+    },
+    paymentSettings: { findUnique: async () => null },
+    user: {
+      findMany: async () => [{ id: "reviewer-1", name: "Reviewer", email: "reviewer@example.com" }],
+    },
+    enrollmentGrant: {
+      findMany: async () => [{ sourceId: "order-card", active: false, revokedAt: new Date("2026-08-13T11:00:00.000Z") }],
+    },
+  };
+  const request = new NextRequest("http://localhost/api/admin/payments");
+
+  const response = await (getAdminPayments as any)(request, {}, { db, authorize });
+  const payload = await response.json();
+  const order = payload.orders[0];
+
+  assert.equal(response.status, 200);
+  assert.equal(order.reviewVersion, 2);
+  assert.equal(order.paymentGrant.active, false);
+  assert.equal(order.paymentGrant.revokedAt !== null, true);
+  assert.deepEqual(order.reviewDecisions.map((decision: any) => decision.action), ["approve", "reverse_approval"]);
+  assert.equal(order.reviewDecisions[1].reviewer.name, "Reviewer");
+  assert.equal(order.reviewDecisions[1].reviewerId, undefined);
 });
 
 test("offers admin recovery only for unpaid orders with Bale evidence", () => {

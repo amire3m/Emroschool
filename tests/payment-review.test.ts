@@ -53,6 +53,7 @@ test("reopens a rejected card receipt for review without user resubmission", asy
       },
       paymentReviewDecision: { create: async ({ data }: any) => decisions.push(data) },
       enrollmentGrant: { upsert: async () => undefined },
+      baleGroupEvent: { upsert: async () => undefined },
       courseApplication: { update: async () => undefined },
     }),
   };
