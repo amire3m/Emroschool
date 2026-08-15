@@ -1,4 +1,5 @@
-/** @type {import('next').NextConfig} */
+import withSerwist from "@serwist/next";
+
 const nextConfig = {
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/api/favicon" }];
@@ -13,4 +14,10 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default withSerwist({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  register: true,
+  reloadOnOnline: true,
+  globPublicPatterns: ["icons/**/*", "sw.js"],
+})(nextConfig);
