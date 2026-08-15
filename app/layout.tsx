@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ToasterProvider from "@/components/ToasterProvider";
+import PushManager from "@/components/push/PushManager";
 import { siteName, siteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col">
         <ToasterProvider />
         {children}
+        <PushManager />
       </body>
     </html>
   );

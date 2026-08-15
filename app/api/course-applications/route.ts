@@ -7,6 +7,7 @@ import { ensureDiscountCodes, findActiveDiscountCode } from "@/lib/discount-code
 import { mergeRegistrationForm, parseRegistrationForm } from "@/lib/registration-form";
 import { sendInitialCourseRegistrationNotification } from "@/lib/registration-notification";
 import { queueCourseApplicationEvent } from "@/lib/bale-group-notifications";
+import { notifyAdminsPush, buildAdminApplicationPush } from "@/lib/push-notifications";
 
 function tokenUser(req: NextRequest) {
   const authorization = req.headers.get("authorization");
@@ -44,6 +45,7 @@ const defaultPostDependencies = {
   ensureDiscounts: ensureDiscountCodes,
   findDiscount: findActiveDiscountCode,
   notify: sendInitialCourseRegistrationNotification,
+  notifyAdminsPush,
 };
 
 export async function POST(req: NextRequest, _context: { params?: Record<string, string> } = {}, overrides: Partial<typeof defaultPostDependencies> = {}) {
@@ -114,6 +116,11 @@ export async function POST(req: NextRequest, _context: { params?: Record<string,
       return created;
     });
     await dependencies.notify({ ...existingUser, name: fullName, email, phone }, course);
+    try {
+      await dependencies.notifyAdminsPush(buildAdminApplicationPush(application));
+    } catch (error) {
+      console.error("Admin push notification failed:", error);
+    }
     return NextResponse.json({ application, profileUpdated, finalAmountTomans: application.finalAmountTomans }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {

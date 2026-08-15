@@ -7,14 +7,16 @@ import { encryptPaymentCard } from "@/lib/payment-card-crypto";
 import { effectiveBaleExpiry, isExpired, newBaleExpiry } from "@/lib/bale-payment-domain";
 import { runPaymentTransaction } from "@/lib/payment-transaction";
 import { enrollmentGrantSources, ensureEnrollmentGrant } from "@/lib/payment-review";
+import { notifyAdminsPush, buildAdminPaymentPush } from "@/lib/push-notifications";
 
-type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void; botUsername: () => string };
+type PaymentRouteDependencies = { db: any; now: () => Date; onError: (error: unknown) => void; botUsername: () => string; pushAdmin: (content: { title: string; body: string; url: string }) => Promise<unknown> };
 
 const defaultDependencies: PaymentRouteDependencies = {
   db: prisma,
   now: () => new Date(),
   onError: (error) => console.error("Payment creation error:", error),
   botUsername: () => process.env.BALE_BOT_USERNAME || "imamruhollahschool_bot",
+  pushAdmin: (content) => notifyAdminsPush(content),
 };
 
 const checkoutAttemptSelect = {
@@ -152,6 +154,11 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     });
     const createdResponse = await checkoutOrderResponse(dependencies.db, { id: order.id, userId: id }, dependencies.botUsername());
     if (!createdResponse) throw new Error("PAYMENT_ORDER_MISSING");
+    try {
+      await dependencies.pushAdmin(buildAdminPaymentPush(order, application));
+    } catch (error) {
+      dependencies.onError(error);
+    }
     return NextResponse.json({
       ...createdResponse,
       paymentInstructions: method === "card_to_card" ? await cardInstructions(dependencies.db) : undefined,

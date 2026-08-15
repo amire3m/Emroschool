@@ -64,6 +64,7 @@ model User {
   createdPaymentOrders PaymentOrder[] @relation("PaymentOrderCreator")
   courseApplications CourseApplication[]
   notifications UserNotification[]
+  pushSubscriptions PushSubscription[]
   instructor    Instructor?
   alumni        Alumni?
   avatarSubmissions AvatarSubmission[] @relation("AvatarOwner")
@@ -670,4 +671,18 @@ model UserNotification {
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, notificationId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  keys      String   // JSON { p256dh, auth }
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

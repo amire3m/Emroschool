@@ -4,13 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import { releaseEventKey } from "../lib/bale-group-notifications";
 import { APP_VERSION, ReleaseNote, releaseNotes } from "../lib/version";
+import { notifyAllSubscribedUsersPush, buildReleasePush } from "../lib/push-notifications";
 
 type ReleaseEventDatabase = Pick<PrismaClient, "baleGroupEvent">;
 
 export async function reconcileBaleReleaseEvents(
   db: ReleaseEventDatabase,
   now = new Date(),
-  options: { notes?: ReleaseNote[]; appVersion?: string } = {},
+  options: { notes?: ReleaseNote[]; appVersion?: string; onReleaseQueued?: (release: ReleaseNote) => Promise<void> } = {},
 ) {
   const notes = [...(options.notes ?? releaseNotes)].sort(
     (left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt),
@@ -48,6 +49,13 @@ export async function reconcileBaleReleaseEvents(
         },
       });
       queued += 1;
+      if (options.onReleaseQueued) {
+        try {
+          await options.onReleaseQueued(release);
+        } catch (error) {
+          console.error("Release push notification failed:", error);
+        }
+      }
     } catch (error) {
       if (!(error && typeof error === "object" && "code" in error && error.code === "P2002")) throw error;
     }
@@ -63,7 +71,10 @@ export function isDirectExecution(moduleUrl: string, entryPath = process.argv[1]
 async function main() {
   const db = new PrismaClient();
   try {
-    console.log(JSON.stringify(await reconcileBaleReleaseEvents(db)));
+    const onReleaseQueued = async (release: ReleaseNote) => {
+      await notifyAllSubscribedUsersPush(buildReleasePush(release));
+    };
+    console.log(JSON.stringify(await reconcileBaleReleaseEvents(db, new Date(), { onReleaseQueued })));
   } finally {
     await db.$disconnect();
   }
