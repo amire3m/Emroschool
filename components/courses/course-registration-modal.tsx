@@ -12,6 +12,7 @@ import {
 import CourseRegistrationLocationFields, {
   startCourseTehranDistrictLoad,
 } from "@/components/courses/course-registration-location-fields";
+import UniversityField from "@/components/courses/university-field";
 import {
   getIranianMobileOperator,
   isValidIranianMobile,
@@ -85,8 +86,6 @@ export default function CourseRegistrationModal({
   const [tehranDistricts, setTehranDistricts] = useState<Record<string, string[]>>({});
   const [tehranDistrictError, setTehranDistrictError] = useState("");
   const [universities, setUniversities] = useState<string[]>([]);
-  const [universitySearch, setUniversitySearch] = useState("");
-  const [showUniversities, setShowUniversities] = useState(false);
   const [formSchema, setFormSchema] = useState<RegistrationFormSchema>(defaultRegistrationForm);
   const [customResponses, setCustomResponses] = useState<Record<string, string>>({});
   const [customFiles, setCustomFiles] = useState<Record<string, File | null>>({});
@@ -465,7 +464,7 @@ export default function CourseRegistrationModal({
                         className={inputClass}
                       />
                     </label>
-                    <label className="relative text-sm font-bold text-primary">دانشگاه *<input value={showUniversities ? universitySearch : form.university} onFocus={() => { setUniversitySearch(""); setShowUniversities(true); }} onChange={(event) => { setUniversitySearch(event.target.value); setShowUniversities(true); }} placeholder="جستجو و انتخاب دانشگاه" className={inputClass} />{showUniversities && <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-surface-variant bg-white p-1 shadow-lg">{universities.filter((name) => name.includes(universitySearch)).slice(0, 80).map((name) => <button type="button" key={name} onClick={() => { update("university", name); setShowUniversities(false); }} className="block w-full rounded-lg px-3 py-2 text-right text-sm hover:bg-surface-low">{name}</button>)}{universities.filter((name) => name.includes(universitySearch)).length === 0 && <p className="p-3 text-center text-xs text-outline">دانشگاهی پیدا نشد</p>}</div>}</label>
+                    <label className="block text-sm font-bold text-primary">دانشگاه *<UniversityField value={form.university} onChange={(name) => update("university", name)} options={universities} inputClassName={inputClass} required /></label>
                     <label className="text-sm font-bold text-primary">رشته دانشگاهی *<input value={form.universityField} onChange={(event) => update("universityField", event.target.value)} placeholder="مثال: ارتباط تصویری" className={inputClass} /></label>
                   </div>
                   <label className="block text-sm font-bold text-primary">
