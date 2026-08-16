@@ -50,7 +50,7 @@ jobs:
       - name: Bubblewrap init
         run: |
           export ANDROID_HOME="$HOME/android-sdk"
-          npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android"
+          printf 'n\n' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android"
           node -e "const f='android/twa-manifest.json';const m=require('./'+f);m.signingKey.path='emroschool-release.keystore';require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')"
 
       - name: Bubblewrap build
