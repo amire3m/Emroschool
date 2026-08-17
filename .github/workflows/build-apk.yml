@@ -31,7 +31,7 @@ jobs:
 
       - name: Bubblewrap init (accept defaults)
         run: |
-          printf '%*s' 60 '' | tr ' ' '\n' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android" --skipPwaValidation
+          yes '' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android" --skipPwaValidation
 
       - name: Point signing key inside android project
         run: |
