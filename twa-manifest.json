@@ -9,7 +9,7 @@
   "navigationColorDark": "#03004B",
   "backgroundColor": "#FFFFFF",
   "enableNotifications": true,
-  "startUrl": "/",
+  "startUrl": "https://imamruhollahschool.com/",
   "iconUrl": "https://imamruhollahschool.com/icons/icon-512x512.png",
   "maskableIconUrl": "https://imamruhollahschool.com/icons/maskable-512.png",
   "splashScreenFadeOutDuration": 300,
