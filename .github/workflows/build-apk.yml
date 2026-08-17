@@ -13,24 +13,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Android cmdline-tools
-        run: |
-          set -e
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-          URL=""
-          for v in 13114758 12266719 11076708 10406996 9477386 8512546 7583922; do
-            cand="https://dl.google.com/android/repository/commandlinetools-linux-${v}_latest.zip"
-            if [ "$(curl -sI -o /dev/null -w '%{http_code}' "$cand")" = "200" ]; then URL="$cand"; break; fi
-          done
-          [ -n "$URL" ] || { echo "no cmdline-tools url found"; exit 1; }
-          echo "using $URL"
-          curl -sSf -o /tmp/cmdtools.zip "$URL"
-          unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
-          mv /tmp/cmdtools/cmdline-tools "$HOME/android-sdk/cmdline-tools/latest"
-          export ANDROID_HOME="$HOME/android-sdk"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null 2>&1
-
       - name: Prepare keystore
         run: |
           mkdir -p android
@@ -39,7 +21,7 @@ jobs:
           else
             keytool -genkeypair -v -keystore android/emroschool-release.keystore -alias emroschool \
               -keyalg RSA -keysize 2048 -validity 10000 -storepass emroschool -keypass emroschool \
-              -dname "CN=Emroschool, OU=App, O=Emroschool, L=Tehran, C=IR" >/dev/null 2>&1
+              -dname "CN=Emroschool, OU=App, O=Emroschool, L=Tehran, C=IR" >/dev/null
           fi
 
       - name: Patch version into twa-manifest
@@ -47,15 +29,16 @@ jobs:
           VER=$(node -p "require('./package.json').version")
           node -e "const f='twa-manifest.json';const m=require('./'+f);m.appVersionName=process.argv[1];m.appVersionCode=1;require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')" "$VER"
 
-      - name: Bubblewrap init
+      - name: Bubblewrap init (accept defaults)
         run: |
-          export ANDROID_HOME="$HOME/android-sdk"
-          printf 'n\n%s\n' "$JAVA_HOME" | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android"
+          printf '%*s' 60 '' | tr ' ' '\n' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android" --skipPwaValidation
+
+      - name: Point signing key inside android project
+        run: |
           node -e "const f='android/twa-manifest.json';const m=require('./'+f);m.signingKey.path='emroschool-release.keystore';require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')"
 
       - name: Bubblewrap build
         run: |
-          export ANDROID_HOME="$HOME/android-sdk"
           printf 'emroschool\nemroschool\n' | npx --yes @bubblewrap/cli build --directory="$PWD/android" --skipPwaValidation
 
       - name: Compute base64 fingerprint
