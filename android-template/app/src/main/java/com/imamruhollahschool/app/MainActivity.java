@@ -1,26 +1,38 @@
 package com.imamruhollahschool.app;
 
 import android.app.Activity;
-import android.net.Uri;
 import android.os.Bundle;
-import com.google.androidbrowserhelper.TwaLauncher;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
     private static final String LAUNCH_URL = "https://imamruhollahschool.com/";
-    private TwaLauncher twaLauncher;
+    private WebView webView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        twaLauncher = new TwaLauncher(this);
-        twaLauncher.launch(Uri.parse(LAUNCH_URL), null, null);
+        webView = new WebView(this);
+        setContentView(webView);
+
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+        webView.setWebViewClient(new WebViewClient());
+        webView.loadUrl(LAUNCH_URL);
     }
 
     @Override
-    protected void onDestroy() {
-        if (twaLauncher != null) {
-            twaLauncher.destroy();
+    public void onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
         }
-        super.onDestroy();
     }
 }
