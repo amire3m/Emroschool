@@ -43,8 +43,7 @@ jobs:
       - name: Build release APK
         run: |
           cd android
-          gradle wrapper --gradle-version 8.4 --no-daemon
-          ./gradlew assembleRelease --no-daemon
+          gradle assembleRelease --no-daemon
 
       - name: Rename APK
         run: |
