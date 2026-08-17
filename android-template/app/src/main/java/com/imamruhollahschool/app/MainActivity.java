@@ -1,10 +1,8 @@
 package com.imamruhollahschool.app;
 
 import android.app.Activity;
-import android.os.Bundle;
-import android.content.Intent;
 import android.net.Uri;
-import androidx.browser.trusted.TrustedWebActivityIntentBuilder;
+import android.os.Bundle;
 import com.google.androidbrowserhelper.TwaLauncher;
 
 public class MainActivity extends Activity {
@@ -15,20 +13,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         twaLauncher = new TwaLauncher(this);
-        launchTwa();
-    }
-
-    private void launchTwa() {
-        TrustedWebActivityIntentBuilder builder = new TrustedWebActivityIntentBuilder.Builder()
-            .setUri(Uri.parse(LAUNCH_URL))
-            .build();
-        twaLauncher.launch(builder, null, null);
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
+        twaLauncher.launch(Uri.parse(LAUNCH_URL), null, null);
     }
 
     @Override
