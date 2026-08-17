@@ -37,7 +37,7 @@ jobs:
 
       - name: Bubblewrap init (accept manifest defaults)
         run: |
-          yes '' | npx --yes @bubblewrap/cli init --manifest="https://imamruhollahschool.com/manifest.webmanifest" --directory="$PWD/android" --skipPwaValidation
+          printf '%*s' 40 '' | tr ' ' '\n' | npx --yes @bubblewrap/cli init --manifest="https://imamruhollahschool.com/manifest.webmanifest" --directory="$PWD/android" --skipPwaValidation
 
       - name: Overwrite TWA manifest with custom values
         run: |
