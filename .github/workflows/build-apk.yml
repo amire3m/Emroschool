@@ -29,8 +29,17 @@ jobs:
           VER=$(node -p "require('./package.json').version")
           node -e "const f='twa-manifest.json';const m=require('./'+f);m.appVersionName=process.argv[1];m.appVersionCode=1;require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')" "$VER"
 
+      - name: Make SDK layout bubblewrap-compatible
+        run: |
+          set -e
+          ls -d "$ANDROID_HOME/cmdline-tools/latest/bin" 2>/dev/null || exit 1
+          ln -sfn "$ANDROID_HOME/cmdline-tools/latest/bin" "$ANDROID_HOME/bin"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/bin" | head -3
+
       - name: Bubblewrap init (accept defaults)
         run: |
+          export ANDROID_HOME ANDROID_SDK_ROOT
           yes '' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android" --skipPwaValidation
 
       - name: Point signing key inside android project
