@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def twaManifest = new groovy.json.JsonSlurper().parse(file("twa-manifest.json"))
+def twaManifest = new groovy.json.JsonSlurper().parse(file("../twa-manifest.json"))
 
 android {
     namespace twaManifest.packageId
@@ -16,7 +16,7 @@ android {
 
     signingConfigs {
         release {
-            storeFile file("emroschool-release.keystore")
+            storeFile file("../app/emroschool-release.keystore")
             storePassword System.getenv("KEYSTORE_PASSWORD") ?: "emroschool"
             keyAlias twaManifest.signingKey?.alias ?: "emroschool"
             keyPassword System.getenv("KEY_PASSWORD") ?: "emroschool"
