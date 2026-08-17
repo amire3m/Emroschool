@@ -37,7 +37,11 @@ jobs:
 
       - name: Bubblewrap init (accept manifest defaults)
         run: |
-          yes '' | npx --yes @bubblewrap/cli init --manifest="$PWD/twa-manifest.json" --directory="$PWD/android" --skipPwaValidation --androidSdkPath="$ANDROID_HOME"
+          yes '' | npx --yes @bubblewrap/cli init --manifest="https://imamruhollahschool.com/manifest.webmanifest" --directory="$PWD/android" --skipPwaValidation
+
+      - name: Overwrite TWA manifest with custom values
+        run: |
+          cp twa-manifest.json android/twa-manifest.json --androidSdkPath="$ANDROID_HOME"
 
       - name: Point signing key inside android project
         run: |
