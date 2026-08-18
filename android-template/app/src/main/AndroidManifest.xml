@@ -9,8 +9,8 @@
         android:label="آکادمی هنر و رسانه امام روح‌الله (ره)"
         android:supportsRtl="true"
         android:theme="@style/SplashTheme"
-        android:icon="@drawable/ic_launcher"
-        android:roundIcon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
 
         <activity
