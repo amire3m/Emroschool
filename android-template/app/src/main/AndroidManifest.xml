@@ -6,16 +6,17 @@
 
     <application
         android:allowBackup="true"
-        android:label="Amir Ruhollah"
+        android:label="آکادمی هنر و رسانه امام روح‌الله (ره)"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:theme="@style/SplashTheme"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:launchMode="singleTask"
+            android:theme="@style/SplashTheme"
             android:screenOrientation="portrait">
 
             <intent-filter>
@@ -33,5 +34,14 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme"/>
+
     </application>
 </manifest>

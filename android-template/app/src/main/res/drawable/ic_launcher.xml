@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#03004b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a0a5e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#capGrad)"/>
+  <!-- Graduation cap - top diamond -->
+  <polygon points="256,80 420,170 256,260 92,170" fill="#ffdeab"/>
+  <!-- Cap band -->
+  <rect x="180" y="170" width="152" height="12" fill="#7b5814" rx="2"/>
+  <!-- Tassel string -->
+  <line x1="256" y1="170" x2="380" y2="200" stroke="#7b5814" stroke-width="4"/>
+  <!-- Tassel ball -->
+  <circle cx="385" cy="202" r="10" fill="#7b5814"/>
+  <!-- Tassel threads -->
+  <path d="M385,212 Q390,250 370,290" stroke="#ffdeab" stroke-width="3" fill="none"/>
+  <path d="M385,212 Q395,260 400,290" stroke="#ffdeab" stroke-width="3" fill="none"/>
+  <path d="M385,212 Q380,255 365,285" stroke="#ffdeab" stroke-width="3" fill="none"/>
+  <!-- Skull cap (bottom part) -->
+  <path d="M180,182 L180,210 Q256,280 332,210 L332,182" fill="#03004b" stroke="#ffdeab" stroke-width="2"/>
+  <!-- Text -->
+  <text x="256" y="380" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#ffdeab" text-anchor="middle">آکادمی امام روح‌الله</text>
+</svg>
