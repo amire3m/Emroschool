@@ -11,15 +11,15 @@ export async function POST(req: NextRequest) {
   if (![province, city, discoverySource].every((value) => typeof value === "string" && value.trim())) {
     return NextResponse.json({ error: "استان، شهر و نحوه آشنایی با سایت الزامی است" }, { status: 400 });
   }
-  if (province === "تهران" && (![district, neighborhood].every((value) => typeof value === "string" && value.trim()))) {
-    return NextResponse.json({ error: "برای تهران، منطقه و محله را انتخاب کنید" }, { status: 400 });
+  if (province === "تهران" && (!district || typeof district !== "string" || !district.trim())) {
+    return NextResponse.json({ error: "برای تهران، منطقه را انتخاب کنید" }, { status: 400 });
   }
 
   await prisma.user.update({
     where: { id: token.id },
     data: {
       province: province.trim(), city: city.trim(), district: province === "تهران" ? district.trim() : null,
-      neighborhood: province === "تهران" ? neighborhood.trim() : null,
+      neighborhood: province === "تهران" ? (neighborhood?.trim() || null) : null,
       discoverySource: discoverySource.trim(), registrationCompleted: true,
     },
   });

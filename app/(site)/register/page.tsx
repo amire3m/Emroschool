@@ -190,7 +190,7 @@ export default function RegisterPage() {
   async function saveDetails(event: FormEvent) {
     event.preventDefault(); clearMessages();
     if (!province || !city || !discoverySource) return setError("استان، شهر و نحوه آشنایی با سایت را انتخاب کنید");
-    if (province === "تهران" && city === "تهران" && (!district || !neighborhood.trim())) return setError("برای تهران، منطقه را انتخاب و محله را وارد کنید");
+    if (province === "تهران" && city === "تهران" && !district) return setError("برای تهران، منطقه را انتخاب کنید");
     setLoading(true);
     try {
       const res = await fetch("/api/auth/complete-registration", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ province, city, district, neighborhood, discoverySource }) });

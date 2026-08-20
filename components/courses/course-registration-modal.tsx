@@ -189,7 +189,7 @@ export default function CourseRegistrationModal({
             "gender",
             "province",
             "city",
-            ...(isTehran ? ["district", "neighborhood"] : []),
+            ...(isTehran ? ["district"] : []),
             "address",
           ]
         : step === 2

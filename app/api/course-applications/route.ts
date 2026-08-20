@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, _context: { params?: Record<string,
     if (!isValidIranianMobile(normalizedPhone)) return NextResponse.json({ error: "شماره تلفن همراه واردشده معتبر نیست" }, { status: 400 });
     if (!["male", "female"].includes(body.gender)) return NextResponse.json({ error: "جنسیت انتخاب‌شده معتبر نیست" }, { status: 400 });
     const isTehran = body.province.trim() === "تهران" && body.city.trim() === "تهران";
-    if (isTehran && (typeof body.district !== "string" || !body.district.trim() || typeof body.neighborhood !== "string" || !body.neighborhood.trim())) return NextResponse.json({ error: "منطقه و محله محل سکونت در تهران را انتخاب کنید" }, { status: 400 });
+    if (isTehran && (typeof body.district !== "string" || !body.district.trim())) return NextResponse.json({ error: "برای تهران، منطقه محل سکونت را انتخاب کنید" }, { status: 400 });
     await dependencies.ensureDiscounts();
     const discountGroup = typeof body.discountGroup === "string" ? body.discountGroup.trim() : "";
     const enteredDiscountCode = typeof body.discountCode === "string" ? body.discountCode.trim() : "";
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest, _context: { params?: Record<string,
 
     const application = await dependencies.db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: token.id }, data: {
-         name: fullName, email, phone, birthDate: body.birthDate.trim(), gender: body.gender, province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
+         name: fullName, email, phone, birthDate: body.birthDate.trim(), gender: body.gender, province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? (body.neighborhood?.trim() || null) : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || null,
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), instagramId: body.instagramId?.trim() || null,
         virtualPhone: body.virtualPhone.trim(), landline: body.landline?.trim() || null, nationalCode,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest, _context: { params?: Record<string,
       const created = await tx.courseApplication.create({ data: {
         userId: token.id, courseId: body.courseId, fullName, email, phone, nationalCode,
          birthDate: body.birthDate.trim(), gender: body.gender,
-         province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? body.neighborhood.trim() : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
+         province: body.province.trim(), city: body.city.trim(), district: isTehran ? body.district.trim() : null, neighborhood: isTehran ? (body.neighborhood?.trim() || null) : null, address: body.address.trim(), postalCode: body.postalCode?.trim() || "",
         workHistory: body.workHistory?.trim() || null, artHistory: body.artHistory?.trim() || null,
         educationLevel: body.educationLevel.trim(), educationField: body.educationField.trim(), university: body.university.trim(), universityField: body.universityField.trim(), reason: body.reason.trim(),
         knowsInstructors: Boolean(body.knowsInstructors), familiarityDetails: body.knowsInstructors ? body.familiarityDetails.trim() : null,

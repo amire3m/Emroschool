@@ -86,7 +86,7 @@ export default function CourseRegistrationLocationFields({
             </select>
           </label>
           <label className="text-sm font-bold text-primary">
-            محله محل سکونت *
+            محله محل سکونت
             <TehranNeighborhoodInput
               value={value.neighborhood}
               disabled={!value.district}
