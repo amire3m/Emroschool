@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       where: adminView ? undefined : { userId: user.id },
       include: {
         course: { select: { id: true, title: true, slug: true, thumbnail: true, startDate: true } },
-        ...(adminView ? { user: { select: { id: true, name: true, email: true, phone: true } } } : {}),
+        ...(adminView ? { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } } } : {}),
       },
       orderBy: { createdAt: "desc" },
     });
