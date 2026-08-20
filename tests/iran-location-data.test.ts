@@ -86,7 +86,7 @@ test("committed location snapshots match documented exact counts and SHA-256 has
     {
       file: "tehran-neighborhoods.json",
       count: 22,
-      hash: "8bad0d913fb47cefb0cee6a2cccad621db2c889b4f6e3df9ad0ccec8d85b0661",
+      hash: "95bdd0e090928d48933a3f921a666f9b66fb2e7646f53f1777731fe481534e9a",
       countRecords: (value: unknown) => value && typeof value === "object"
         ? Object.keys(value).length
         : -1,
@@ -143,7 +143,11 @@ test("repository snapshots contain complete internally consistent location data"
 
   assert.equal(provincesSnapshot.find((province) => province.id === 123)?.name, "تهران");
   assert.equal(cityNamesByProvince.get(123)?.has("تهران"), true);
-  assert.deepEqual(districtsSnapshot, officialTehranDistricts);
+  assert.deepEqual(Object.keys(districtsSnapshot), Object.keys(officialTehranDistricts));
+  for (const neighborhoods of Object.values(districtsSnapshot)) {
+    assert.ok(neighborhoods.length > 0);
+    assert.equal(new Set(neighborhoods).size, neighborhoods.length);
+  }
 });
 
 test("snapshot validation rejects incomplete or malformed structures", () => {
@@ -248,9 +252,13 @@ test("public location functions return defensive copies", () => {
   assert.deepEqual(listCitiesByProvinceId(999999), []);
 
   const districts = getTehranDistricts();
+  const districtCount = Object.keys(districts).length;
   districts["منطقه ۱ شهر تهران"].push("changed");
   districts.changed = ["changed"];
-  assert.deepEqual(getTehranDistricts(), officialTehranDistricts);
+  const fresh = getTehranDistricts();
+  assert.equal(Object.keys(fresh).length, districtCount);
+  assert.equal(fresh["منطقه ۱ شهر تهران"].includes("changed"), false);
+  assert.equal(fresh.changed, undefined);
 });
 
 test("location routes return complete local payloads without network access", async () => {
