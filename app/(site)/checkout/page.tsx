@@ -41,6 +41,9 @@ type Application = {
   id: string;
   status: string;
   finalAmountTomans: number;
+  discountCode?: string | null;
+  discountLabel?: string | null;
+  discountPercent?: number;
   course: { title: string; slug: string };
 };
 
@@ -77,6 +80,8 @@ export default function CheckoutPage() {
   const watcherAbort = useRef<AbortController | null>(null);
   const mutationAbort = useRef<AbortController | null>(null);
   const currentApplicationId = useRef<string | null>(null);
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountApplying, setDiscountApplying] = useState(false);
 
   useLayoutEffect(() => {
     currentApplicationId.current = applicationId;
@@ -465,6 +470,49 @@ export default function CheckoutPage() {
     };
   }, [applicationId, authTerminated, expiredOrderId, loading, order?.expiresAt, order?.id, order?.method, order?.status, router]);
 
+  async function applyDiscount() {
+    const requestApplicationId = applicationId;
+    if (!requestApplicationId || !application) return;
+    const token = getCookie("token");
+    if (!token) {
+      router.push(checkoutLoginUrl(requestApplicationId));
+      return;
+    }
+    setDiscountApplying(true);
+    try {
+      const response = await fetch(
+        `/api/course-applications/${application.id}/discount`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ discountCode: discountInput }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setApplication((current) =>
+        current
+          ? {
+              ...current,
+              finalAmountTomans: data.finalAmountTomans,
+              discountCode: data.application?.discountCode ?? null,
+              discountLabel: data.application?.discountLabel ?? null,
+              discountPercent: data.application?.discountPercent ?? 0,
+            }
+          : current,
+      );
+      setDiscountInput(data.application?.discountCode || "");
+      toast.success(discountInput ? "کد تخفیف اعمال شد" : "کد تخفیف حذف شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "اعمال تخفیف ناموفق بود");
+    } finally {
+      setDiscountApplying(false);
+    }
+  }
+
   async function createOrder() {
     const requestApplicationId = applicationId;
     const token = getCookie("token");
@@ -520,8 +568,7 @@ export default function CheckoutPage() {
     }
   }
 
-  async function restartExpiredOrder() {
-    const requestApplicationId = applicationId;
+  async function restartExpiredOrder() {    const requestApplicationId = applicationId;
     const requestOrderId = expiredOrderId;
     if (!requestApplicationId || !requestOrderId) return;
     const token = getCookie("token");
@@ -738,6 +785,35 @@ export default function CheckoutPage() {
                 <p className="mt-2 font-black">
                   {application.finalAmountTomans.toLocaleString("fa-IR")} تومان
                 </p>
+                {application.discountLabel && (
+                  <p className="mt-1 text-xs font-bold text-green-700">
+                    تخفیف {application.discountLabel} ({application.discountPercent}٪) اعمال شد
+                  </p>
+                )}
+              </div>
+              <div className="rounded-2xl border border-outline-variant/40 p-4">
+                <p className="text-sm font-bold text-primary">کد تخفیف</p>
+                <p className="mt-1 text-xs text-outline">
+                  کد تخفیف خود را وارد کنید یا با پاک کردن آن، مبلغ را تغییر دهید.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={discountInput}
+                    onChange={(event) => setDiscountInput(event.target.value.toUpperCase())}
+                    placeholder="کد تخفیف"
+                    dir="ltr"
+                    disabled={discountApplying}
+                    className="w-full rounded-xl border border-surface-variant px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary-fixed disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyDiscount}
+                    disabled={discountApplying}
+                    className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+                  >
+                    {discountApplying ? <Loader2 className="animate-spin" size={16} /> : "اعمال"}
+                  </button>
+                </div>
               </div>
               {expiredOrderId && (
                 <div role="status" aria-live="polite" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
