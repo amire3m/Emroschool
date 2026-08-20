@@ -335,10 +335,8 @@ export default function HomePage() {
       <div style={{ order: orderFor("hero", 1) }}>
       {sectionVisibility.hero !== false && (
         slidersLoading ? (
-        <section className="relative flex min-h-[65svh] items-center overflow-hidden bg-primary md:min-h-screen">
-          <img src={String(heroContent.imageUrl)} alt="" aria-hidden="true" width={1920} height={1080} fetchPriority="high" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <div className="absolute inset-0 bg-gradient-to-l from-primary via-primary/80 to-primary/60" />
-          <div className="relative z-10 mx-auto w-full max-w-[1280px] px-5 text-right md:px-8"><div className="max-w-3xl"><span className="mb-6 inline-block rounded-full border border-secondary/30 bg-secondary/20 px-4 py-1.5 text-sm font-bold text-secondary-fixed">{heroContent.badge}</span><h1 className="font-playfair text-4xl leading-tight text-secondary-fixed md:text-5xl lg:text-6xl">{heroContent.title}</h1></div></div>
+        <section className="relative flex min-h-[65svh] items-center justify-center overflow-hidden bg-primary md:min-h-screen">
+          <Loader2 className="animate-spin text-secondary-fixed" size={44} />
         </section>
       ) : sliders.length > 0 ? (
         <section className="relative h-[65svh] min-h-[420px] max-h-[560px] overflow-hidden md:min-h-screen md:max-h-none">
