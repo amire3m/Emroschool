@@ -5,6 +5,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION: "2.1.0"
+      APP_VERSION_CODE: "2"
     steps:
       - uses: actions/checkout@v4
 
@@ -14,15 +17,18 @@ jobs:
           java-version: "17"
 
       - name: Prepare keystore
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           mkdir -p android/app
           if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
             echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > android/app/emroschool-release.keystore
           else
             keytool -genkeypair -v -keystore android/app/emroschool-release.keystore -alias emroschool \
-              -keyalg RSA -keysize 2048 -validity 10000 -storepass emroschool -keypass emroschool \
+              -keyalg RSA -keysize 2048 -validity 10000 -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
               -dname "CN=Emroschool, OU=App, O=Emroschool, L=Tehran, C=IR" >/dev/null
           fi
+          ls -la android/app/emroschool-release.keystore
 
       - name: Copy project template
         run: |
@@ -31,35 +37,32 @@ jobs:
 
       - name: Patch version
         run: |
-          VER=$(node -p "require('./package.json').version")
           node -e "
             const fs=require('fs');
             const m=JSON.parse(fs.readFileSync('android/twa-manifest.json','utf8'));
-            m.appVersionName=process.argv[1];
-            m.appVersionCode=1;
+            m.appVersionName=process.env.APP_VERSION;
+            m.appVersionCode=Number(process.env.APP_VERSION_CODE);
             fs.writeFileSync('android/twa-manifest.json',JSON.stringify(m,null,2)+'\n');
-          " "$VER"
+          "
 
       - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           cd android
           gradle assembleRelease --no-daemon
 
       - name: Rename APK
         run: |
-          VER=$(node -p "require('./package.json').version")
-          cp android/app/build/outputs/apk/release/app-release-unsigned.apk "app-v${VER}.apk" 2>/dev/null || \
-          cp android/app/build/outputs/apk/release/*.apk "app-v${VER}.apk" 2>/dev/null || \
-          echo "APK not found"
-          ls -la *.apk 2>/dev/null
+          cp android/app/build/outputs/apk/release/app-release.apk "app-v${APP_VERSION}.apk"
+          ls -la "app-v${APP_VERSION}.apk"
 
-      - name: Compute fingerprint
+      - name: Compute fingerprint (SHA-256 base64 of signing cert)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          VER=$(node -p "require('./package.json').version")
-          APK="app-v${VER}.apk"
-          if [ -f "$APK" ]; then
-            keytool -printcert -jarfile "$APK" 2>/dev/null | grep -oE '[0-9A-F:]{2}(:[0-9A-F]{2})+' | head -1 | tr -d ':' | xxd -r -p | base64 | tee fingerprint-b64.txt
-          fi
+          keytool -exportcert -alias emroschool -keystore android/app/emroschool-release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | openssl dgst -sha256 -binary | openssl base64 -A | tee fingerprint-b64.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
