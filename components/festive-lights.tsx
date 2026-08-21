@@ -60,13 +60,28 @@ export default function FestiveLights() {
         );
       })}
 
+      {/* Hanging ornament */}
+      <div className="absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center">
+        <span className="h-[20px] w-px bg-[#14142b]/85" />
+        <img
+          src="/icons/ornament.svg"
+          alt=""
+          aria-hidden="true"
+          className="h-16 w-16 origin-top animate-[sway_6s_ease-in-out_infinite] drop-shadow-[0_8px_14px_rgba(0,0,0,0.35)] md:h-20 md:w-20"
+        />
+      </div>
+
       <style>{`
         @keyframes twinkle {
           0%, 100% { opacity: 0.7; filter: brightness(0.9); }
           50% { opacity: 1; filter: brightness(1.25); }
         }
+        @keyframes sway {
+          0%, 100% { transform: rotate(-4deg); }
+          50% { transform: rotate(4deg); }
+        }
         @media (prefers-reduced-motion: reduce) {
-          span[style*="animation"] { animation: none !important; }
+          span[style*="animation"], img[style*="animation"] { animation: none !important; }
         }
       `}</style>
     </div>
