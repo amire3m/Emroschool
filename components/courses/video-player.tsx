@@ -266,7 +266,6 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
       dir="ltr"
       className={`group relative isolate overflow-hidden rounded-2xl bg-black shadow-[0_20px_60px_-20px_rgba(3,0,75,0.55)] ring-1 ring-white/10 ${className}`}
       onMouseMove={poke}
-      onClick={togglePlay}
     >
       {/* Video */}
       <video
@@ -275,7 +274,7 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
         poster={poster}
         playsInline
         preload="metadata"
-        onClick={(e) => e.stopPropagation()}
+        onClick={togglePlay}
       />
 
       {/* Brand watermark */}
