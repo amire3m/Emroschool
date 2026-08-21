@@ -35,7 +35,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function VideoPlayer({ src, poster, title, watermark = "/icons/logo-transparent.png", className = "" }: VideoPlayerProps) {
+export default function VideoPlayer({ src, poster, title, watermark = "/icons/logo-main-transparent.png", className = "" }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -281,7 +281,7 @@ export default function VideoPlayer({ src, poster, title, watermark = "/icons/lo
           src={watermark}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-3 z-30 h-10 w-10 opacity-75 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
+          className="pointer-events-none absolute right-3 top-3 z-30 h-9 w-auto opacity-80 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
         />
       )}
 
