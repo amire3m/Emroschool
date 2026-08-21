@@ -17,7 +17,7 @@
     "bale:reconcile-releases": "npx tsx scripts/reconcile-bale-release-events.ts",
     "db:studio": "npx prisma studio",
     "icons:generate": "node scripts/generate-icons.mjs",
-    "apk:build": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1"
+    "pwa:screenshots": "node scripts/generate-pwa-screenshots.mjs"
   },
   "dependencies": {
     "@next/env": "^14.2.0",

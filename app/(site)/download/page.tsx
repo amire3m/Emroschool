@@ -1,33 +1,15 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Metadata } from "next";
+import { MonitorSmartphone, Bell } from "lucide-react";
 import { siteName } from "@/lib/seo";
+import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 
 export const metadata: Metadata = {
-  title: `دانلود اپلیکیشن اندروید | ${siteName}`,
-  description: "دانلود اپلیکیشن اندروید آکادمی هنر و رسانه امام روح‌الله (ره) با امکان دریافت اعلان و دسترسی سریع.",
+  title: `نصب اپلیکیشن | ${siteName}`,
+  description: "نصب اپلیکیشن آکادمی هنر و رسانه امام روح‌الله (ره) از طریق افزودن به صفحه اصلی، همراه با دریافت اعلان و دسترسی سریع.",
   alternates: { canonical: "/download" },
 };
 
-export const dynamic = "force-dynamic";
-
-function findApk(): { name: string; version: string } | null {
-  const directory = path.join(process.cwd(), "public", "apk");
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(directory);
-  } catch {
-    return null;
-  }
-  const apks = entries.filter((entry) => entry.toLowerCase().endsWith(".apk"));
-  if (apks.length === 0) return null;
-  const apk = apks.sort().at(-1)!;
-  const version = (apk.match(/(\d+\.\d+\.\d+)/) || [])[1] || "";
-  return { name: apk, version };
-}
-
 export default function DownloadPage() {
-  const apk = findApk();
   return (
     <main className="min-h-screen bg-surface pb-20 pt-28">
       <div className="mx-auto max-w-2xl px-5 md:px-8">
@@ -36,30 +18,53 @@ export default function DownloadPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icons/icon-512x512.png" alt="آیکن اپلیکیشن" className="h-full w-full object-cover" />
           </div>
-          <p className="mt-8 text-sm font-bold tracking-[.18em] text-secondary">اپلیکیشن اندروید</p>
-          <h1 className="mt-4 text-3xl font-black text-primary md:text-4xl">دانلود اپلیکیشن</h1>
+          <p className="mt-8 text-sm font-bold tracking-[.18em] text-secondary">اپلیکیشن</p>
+          <h1 className="mt-4 text-3xl font-black text-primary md:text-4xl">نصب اپلیکیشن</h1>
           <p className="mt-3 text-sm leading-7 text-outline">
-            نسخه اندروید آکادمی هنر و رسانه امام روح‌الله (ره) را نصب کنید و از امکانات اعلان، دسترسی سریع و تجربه بهتر بهره‌مند شوید.
+            اپلیکیشن آکادمی هنر و رسانه امام روح‌الله (ره) را روی گوشی خود نصب کنید تا با دسترسی سریع و دریافت اعلان، تجربه بهتری داشته باشید.
           </p>
-          {apk ? (
-            <div className="mt-10">
-              <a
-                href={`/apk/${apk.name}`}
-                download
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 font-bold text-white shadow-lg transition-colors hover:bg-primary-container"
-              >
-                دانلود اپلیکیشن
-              </a>
-              <p className="mt-3 text-xs text-outline">نسخه {apk.version || apk.name}</p>
-            </div>
-          ) : (
-            <div className="mt-10 rounded-2xl border border-dashed border-outline-variant/60 bg-surface px-6 py-5">
-              <p className="text-sm font-bold text-primary">به‌زودی در دسترس</p>
-              <p className="mt-2 text-xs leading-6 text-outline">
-                اپلیکیشن اندروید در حال آماده‌سازی است. پس از انتشار، همین صفحه برای دانلود فعال می‌شود.
+
+          <div className="mt-8">
+            <InstallPwaButton />
+          </div>
+
+          <div className="mt-8 space-y-4 text-right">
+            <div className="rounded-2xl border border-surface-variant bg-surface-low p-5">
+              <p className="flex items-center gap-2 text-sm font-black text-primary">
+                <MonitorSmartphone size={18} className="text-secondary" />
+                اندروید (کروم)
               </p>
+              <ol className="mt-3 space-y-2 text-xs leading-6 text-outline" dir="rtl">
+                <li>۱. این صفحه را در مرورگر کروم باز کنید.</li>
+                <li>۲. دکمه سه‌نقطه (⋮) در بالای مرورگر را بزنید.</li>
+                <li>۳. گزینه <strong>افزودن به صفحه اصلی</strong> (Add to Home screen) را انتخاب کنید.</li>
+                <li>۴. در پنجره باز شده روی <strong>افزودن</strong> بزنید.</li>
+              </ol>
             </div>
-          )}
+
+            <div className="rounded-2xl border border-surface-variant bg-surface-low p-5">
+              <p className="flex items-center gap-2 text-sm font-black text-primary">
+                <MonitorSmartphone size={18} className="text-secondary" />
+                آیفون (سافاری)
+              </p>
+              <ol className="mt-3 space-y-2 text-xs leading-6 text-outline" dir="rtl">
+                <li>۱. این صفحه را در مرورگر سافاری باز کنید.</li>
+                <li>۲. دکمه <strong>Share</strong> (📤) را در نوار پایین بزنید.</li>
+                <li>۳. گزینه <strong>افزودن به صفحه اصلی</strong> (Add to Home Screen) را انتخاب کنید.</li>
+                <li>۴. روی <strong>افزودن</strong> بزنید.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-secondary/30 bg-[#fffaf0] p-4">
+            <p className="flex items-center justify-center gap-2 text-sm font-bold text-primary">
+              <Bell size={16} className="text-secondary" />
+              اعلان‌ها
+            </p>
+            <p className="mt-2 text-xs leading-6 text-outline">
+              پس از نصب، برای دریافت اعلان‌ها از دکمه «دریافت اعلان» در پایین سایت استفاده کنید و درخواست را تأیید کنید.
+            </p>
+          </div>
         </div>
       </div>
     </main>
