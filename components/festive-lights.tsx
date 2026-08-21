@@ -23,7 +23,7 @@ export default function FestiveLights() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 top-24 z-[70] h-[96px] select-none overflow-visible"
+      className="pointer-events-none fixed inset-x-0 top-24 z-[70] h-[96px] select-none overflow-visible"
     >
       {/* Wire */}
       <svg className="absolute inset-x-0 top-0 h-full w-full" viewBox="0 0 1200 96" preserveAspectRatio="none">
