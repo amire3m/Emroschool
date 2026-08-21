@@ -194,7 +194,11 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
     const video = videoRef.current;
     if (!video) return;
     if (ended) { video.currentTime = 0; setEnded(false); }
-    video.paused ? video.play() : video.pause();
+    if (video.paused) {
+      video.play().catch(() => setError("امکان پخش ویدیو وجود ندارد"));
+    } else {
+      video.pause();
+    }
   }
 
   function seekTo(time: number) {
@@ -327,7 +331,7 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
         <button
           type="button"
           aria-label="پخش"
-          onClick={togglePlay}
+          onClick={(e) => { e.stopPropagation(); togglePlay(); }}
           className="group/play absolute inset-0 z-10 flex cursor-pointer items-center justify-center focus-visible:outline-none"
         >
           <div className="relative flex h-24 w-24 items-center justify-center transition-transform duration-300 group-hover/play:scale-110 md:h-28 md:w-28">
