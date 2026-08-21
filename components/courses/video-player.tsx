@@ -12,6 +12,8 @@ import {
   SkipBack,
   SkipForward,
   Loader2,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -37,7 +39,6 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<HTMLDivElement>(null);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -73,9 +74,7 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
           setReady(true);
         });
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) {
-            setError("بارگذاری ویدیو ناموفق بود");
-          }
+          if (data.fatal) setError("بارگذاری ویدیو ناموفق بود");
         });
         hlsRef.current = hls;
       } else {
@@ -96,13 +95,9 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
     const video = videoRef.current;
     if (!video) return;
 
-    const onTimeUpdate = () => {
-      if (!seeking) setCurrentTime(video.currentTime);
-    };
+    const onTimeUpdate = () => { if (!seeking) setCurrentTime(video.currentTime); };
     const onProgress = () => {
-      if (video.buffered.length > 0) {
-        setBuffered(video.buffered.end(video.buffered.length - 1));
-      }
+      if (video.buffered.length > 0) setBuffered(video.buffered.end(video.buffered.length - 1));
     };
     const onLoadedMetadata = () => {
       setDuration(video.duration);
@@ -112,10 +107,7 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
     const onPlay = () => { setPlaying(true); setEnded(false); };
     const onPause = () => setPlaying(false);
     const onEnded = () => { setPlaying(false); setEnded(true); };
-    const onError = () => {
-      if (!video.error) return;
-      setError("خطا در پخش ویدیو");
-    };
+    const onError = () => { if (video.error) setError("خطا در پخش ویدیو"); };
 
     video.addEventListener("timeupdate", onTimeUpdate);
     video.addEventListener("progress", onProgress);
@@ -137,26 +129,17 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
   }, [seeking]);
 
   // Auto-hide controls
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    if (playing) {
-      hideTimer.current = setTimeout(() => {
-        if (!seeking) setShowControls(false);
-      }, HIDE_DELAY);
-    }
-  }, [playing, seeking]);
-
   useEffect(() => {
     if (playing && !seeking) {
-      hideTimer.current = setTimeout(() => setShowControls(false), HIDE_DELAY);
-    } else {
-      setShowControls(true);
+      const t = setTimeout(() => setShowControls(false), HIDE_DELAY);
+      return () => clearTimeout(t);
     }
-    return () => {
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    };
+    setShowControls(true);
   }, [playing, seeking]);
+
+  const poke = useCallback(() => {
+    setShowControls(true);
+  }, []);
 
   // Fullscreen change
   useEffect(() => {
@@ -174,33 +157,19 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
       switch (e.key) {
         case " ":
         case "k":
-          e.preventDefault();
-          togglePlay();
-          break;
+          e.preventDefault(); togglePlay(); break;
         case "ArrowLeft":
-          e.preventDefault();
-          seekTo(video.currentTime - SKIP);
-          break;
+          e.preventDefault(); seekTo(video.currentTime - SKIP); break;
         case "ArrowRight":
-          e.preventDefault();
-          seekTo(video.currentTime + SKIP);
-          break;
+          e.preventDefault(); seekTo(video.currentTime + SKIP); break;
         case "ArrowUp":
-          e.preventDefault();
-          adjustVolume(0.1);
-          break;
+          e.preventDefault(); adjustVolume(0.1); break;
         case "ArrowDown":
-          e.preventDefault();
-          adjustVolume(-0.1);
-          break;
+          e.preventDefault(); adjustVolume(-0.1); break;
         case "m":
-          e.preventDefault();
-          toggleMute();
-          break;
+          e.preventDefault(); toggleMute(); break;
         case "f":
-          e.preventDefault();
-          toggleFullscreen();
-          break;
+          e.preventDefault(); toggleFullscreen(); break;
         case "0":
         case "1":
         case "2":
@@ -212,13 +181,13 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
         case "8":
         case "9":
           e.preventDefault();
-          const ratio = Number(e.key) / 10;
-          seekTo(ratio * (video.duration || 0));
+          seekTo((Number(e.key) / 10) * (video.duration || 0));
           break;
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function togglePlay() {
@@ -241,16 +210,14 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
     const rect = seekRef.current?.getBoundingClientRect();
     if (!rect) return;
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    seekTo(ratio * duration);
+    seekTo((Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))) * duration);
   }
 
   function handleSeekMove(e: React.MouseEvent | React.TouchEvent) {
     const rect = seekRef.current?.getBoundingClientRect();
     if (!rect) return;
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    setSeekPreview(ratio * duration);
+    setSeekPreview((Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))) * duration);
   }
 
   function adjustVolume(delta: number) {
@@ -272,11 +239,8 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
 
   function toggleFullscreen() {
     if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      containerRef.current.requestFullscreen();
-    }
+    if (document.fullscreenElement) document.exitFullscreen();
+    else containerRef.current.requestFullscreen();
   }
 
   function setSpeed(rate: number) {
@@ -290,14 +254,14 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0;
   const canPlay = ready || isHlsReady;
-  const showBigPlay = !playing && !error;
+  const showBigPlay = !playing && !error && canPlay;
 
   return (
     <div
       ref={containerRef}
       dir="ltr"
-      className={`group relative overflow-hidden rounded-2xl bg-black ${className}`}
-      onMouseMove={resetHideTimer}
+      className={`group relative isolate overflow-hidden rounded-2xl bg-black shadow-[0_20px_60px_-20px_rgba(3,0,75,0.55)] ring-1 ring-white/10 ${className}`}
+      onMouseMove={poke}
       onClick={togglePlay}
     >
       {/* Video */}
@@ -310,122 +274,164 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
         onClick={(e) => e.stopPropagation()}
       />
 
+      {/* Ambient gradient for depth */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_0%,rgba(255,222,171,0.06),transparent_55%)]" />
+
+      {/* Top progress hairline */}
+      <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-white/10">
+        <div
+          className="h-full bg-secondary-fixed shadow-[0_0_8px_rgba(255,222,171,0.8)] transition-[width] duration-200 ease-linear"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
       {/* Error */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center text-sm text-white">
-          {error}
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/85 p-6 text-center backdrop-blur-sm">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-error-container/20 text-error">
+            <AlertTriangle size={28} />
+          </span>
+          <p className="text-sm font-bold text-white">{error}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); setError(null); setReady(false); setIsHlsReady(false); window.location.reload(); }}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+          >
+            <RotateCcw size={14} />
+            تلاش مجدد
+          </button>
         </div>
       )}
 
       {/* Buffering */}
       {!error && !canPlay && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-          <Loader2 className="animate-spin text-secondary-fixed" size={44} />
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-secondary-fixed/20" />
+            <Loader2 className="animate-spin text-secondary-fixed" size={34} />
+          </div>
         </div>
       )}
 
       {/* Big Play Button */}
-      {showBigPlay && canPlay && (
+      {showBigPlay && (
         <div
-          className="absolute inset-0 flex cursor-pointer items-center justify-center transition-opacity"
+          className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center"
           onClick={(e) => { e.stopPropagation(); togglePlay(); }}
         >
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/80 text-secondary-fixed shadow-lg backdrop-blur-sm transition-transform hover:scale-105">
-            <Play className="ml-1" size={36} fill="currentColor" />
+          <div className="group/play relative flex h-24 w-24 items-center justify-center">
+            <span className="absolute inset-0 rounded-full border border-secondary-fixed/30 transition-transform duration-500 group-hover/play:scale-125" />
+            <span className="absolute inset-2 rounded-full border border-secondary-fixed/20 transition-transform duration-500 group-hover/play:scale-110" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/85 text-secondary-fixed shadow-[0_10px_30px_-8px_rgba(255,222,171,0.5)] ring-1 ring-secondary-fixed/40 backdrop-blur-sm transition-transform duration-300 group-hover/play:scale-105">
+              <Play className="ml-1" size={34} fill="currentColor" />
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Title */}
+      {title && !playing && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-4 pb-10">
+          <p dir="rtl" className="text-right text-sm font-bold text-white/95 drop-shadow-md md:text-base">{title}</p>
         </div>
       )}
 
       {/* Controls Overlay */}
       <div
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent px-3 pb-3 pt-12 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/85 via-black/35 to-transparent px-3 pb-3 pt-14 transition-all duration-300 ${showControls ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Seek Bar */}
         <div
           ref={seekRef}
-          className="group/seek relative mb-3 h-1.5 cursor-pointer rounded-full bg-white/20 transition-all hover:h-2.5"
+          className="group/seek relative mx-1 mb-3 flex h-4 cursor-pointer items-center"
           onMouseDown={handleSeekStart}
           onMouseUp={handleSeekEnd}
           onMouseMove={handleSeekMove}
+          onMouseLeave={() => setSeekPreview(null)}
           onTouchStart={handleSeekStart}
           onTouchEnd={handleSeekEnd}
           onTouchMove={handleSeekMove}
         >
-          <div className="absolute inset-y-0 left-0 rounded-full bg-white/30" style={{ width: `${bufferedProgress}%` }} />
-          <div className="absolute inset-y-0 left-0 rounded-full bg-secondary-fixed" style={{ width: `${progress}%` }} />
-          <div className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-secondary-fixed shadow" style={{ left: `${progress}%`, marginLeft: "-6px" }} />
+          <div className="relative h-1.5 w-full overflow-visible rounded-full bg-white/20 transition-all duration-200 group-hover/seek:h-2">
+            {/* Buffered */}
+            <div className="absolute inset-y-0 left-0 rounded-full bg-white/25" style={{ width: `${bufferedProgress}%` }} />
+            {/* Played */}
+            <div className="absolute inset-y-0 left-0 rounded-full bg-secondary-fixed shadow-[0_0_10px_rgba(255,222,171,0.7)]" style={{ width: `${progress}%` }} />
+            {/* Thumb */}
+            <div
+              className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-secondary-fixed shadow-[0_0_0_4px_rgba(255,222,171,0.25),0_2px_6px_rgba(0,0,0,0.4)] transition-transform duration-150 group-hover/seek:scale-125"
+              style={{ left: `${progress}%`, marginLeft: "-7px" }}
+            />
+          </div>
           {seekPreview !== null && (
-            <div className="absolute -top-8 -translate-x-1/2 rounded bg-black/80 px-2 py-1 text-xs text-white" style={{ left: `${(seekPreview / duration) * 100}%` }}>
+            <div className="pointer-events-none absolute -top-8 z-10 -translate-x-1/2 rounded-lg bg-black/85 px-2 py-1 text-[11px] font-bold tabular-nums text-secondary-fixed shadow-lg ring-1 ring-white/10" style={{ left: `${(seekPreview / Math.max(duration, 1)) * 100}%` }}>
               {formatTime(seekPreview)}
             </div>
           )}
         </div>
 
         {/* Controls Row */}
-        <div className="flex items-center gap-2 text-white">
-          {/* Play/Pause */}
-          <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="rounded p-1.5 hover:bg-white/10" aria-label={playing ? "مکث" : "پخش"}>
-            {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+        <div className="flex items-center gap-1 text-white">
+          <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="rounded-xl p-2.5 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed" aria-label={playing ? "مکث" : "پخش"}>
+            {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
           </button>
 
-          {/* Skip Back */}
-          <button onClick={(e) => { e.stopPropagation(); seekTo(currentTime - SKIP); }} className="rounded p-1.5 hover:bg-white/10" aria-label={`${SKIP} ثانیه عقب`}>
+          <button onClick={(e) => { e.stopPropagation(); seekTo(currentTime - SKIP); }} className="rounded-xl p-2.5 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed" aria-label={`${SKIP} ثانیه عقب`}>
             <SkipBack size={16} />
           </button>
 
-          {/* Skip Forward */}
-          <button onClick={(e) => { e.stopPropagation(); seekTo(currentTime + SKIP); }} className="rounded p-1.5 hover:bg-white/10" aria-label={`${SKIP} ثانیه جلو`}>
+          <button onClick={(e) => { e.stopPropagation(); seekTo(currentTime + SKIP); }} className="rounded-xl p-2.5 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed" aria-label={`${SKIP} ثانیه جلو`}>
             <SkipForward size={16} />
           </button>
 
-          {/* Time */}
-          <span className="ml-auto shrink-0 text-xs tabular-nums opacity-80">
-            {formatTime(currentTime)} / {formatTime(duration)}
+          <span dir="rtl" className="mr-1 shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[11px] font-bold tabular-nums text-white/95">
+            {formatTime(currentTime)} <span className="mx-0.5 text-white/40">/</span> {formatTime(duration)}
           </span>
 
-          {/* Spacer */}
           <span className="flex-1" />
 
           {/* Volume */}
-          <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="rounded p-1.5 hover:bg-white/10" aria-label={muted ? "صدا" : "بیصدا"}>
-            {muted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={muted ? 0 : volume}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              const video = videoRef.current;
-              if (video) { video.volume = v; video.muted = v === 0; }
-              setVolume(v);
-              setMuted(v === 0);
-            }}
-            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 accent-secondary-fixed [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-secondary-fixed"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="group/vol flex items-center">
+            <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="rounded-xl p-2.5 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed" aria-label={muted ? "صدا" : "بی‌صدا"}>
+              {muted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : volume}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const video = videoRef.current;
+                if (video) { video.volume = v; video.muted = v === 0; }
+                setVolume(v);
+                setMuted(v === 0);
+              }}
+              className="h-1 w-0 cursor-pointer appearance-none rounded-full bg-white/30 opacity-0 transition-all duration-200 accent-secondary-fixed group-hover/vol:w-16 group-hover/vol:opacity-100 focus-visible:w-16 focus-visible:opacity-100 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-secondary-fixed"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
 
           {/* Speed */}
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(!showSpeedMenu); }}
-              className="rounded p-1.5 text-xs font-bold hover:bg-white/10"
+              className="rounded-xl px-2.5 py-2.5 text-[11px] font-black tabular-nums transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed"
               aria-label="سرعت پخش"
             >
               {playbackRate}x
             </button>
             {showSpeedMenu && (
-              <div className="absolute bottom-full right-0 mb-2 rounded-lg bg-primary p-1 shadow-lg">
+              <div dir="rtl" className="absolute bottom-full right-0 mb-2 w-28 overflow-hidden rounded-xl bg-[#0d0a38]/95 p-1 shadow-2xl ring-1 ring-white/10 backdrop-blur-md">
                 {SPEEDS.map((rate) => (
                   <button
                     key={rate}
                     onClick={(e) => { e.stopPropagation(); setSpeed(rate); }}
-                    className={`block w-full rounded-md px-5 py-1.5 text-center text-xs font-bold transition hover:bg-white/10 ${rate === playbackRate ? "text-secondary-fixed" : "text-white/70"}`}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-center text-xs font-bold transition hover:bg-white/10 ${rate === playbackRate ? "text-secondary-fixed" : "text-white/75"}`}
                   >
                     {rate}x
+                    {rate === playbackRate && <span className="h-1.5 w-1.5 rounded-full bg-secondary-fixed" />}
                   </button>
                 ))}
               </div>
@@ -433,18 +439,11 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
           </div>
 
           {/* Fullscreen */}
-          <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="rounded p-1.5 hover:bg-white/10" aria-label="تمامصفحه">
-            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="rounded-xl p-2.5 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-fixed" aria-label="تمام‌صفحه">
+            {isFullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
           </button>
         </div>
       </div>
-
-      {/* Title */}
-      {title && !playing && (
-        <div className="absolute left-4 right-4 top-4 text-right">
-          <p className="text-sm font-bold text-white drop-shadow-lg">{title}</p>
-        </div>
-      )}
     </div>
   );
 }
