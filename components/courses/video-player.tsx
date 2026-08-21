@@ -20,6 +20,7 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   title?: string;
+  watermark?: string;
   className?: string;
 }
 
@@ -34,7 +35,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function VideoPlayer({ src, poster, title, className = "" }: VideoPlayerProps) {
+export default function VideoPlayer({ src, poster, title, watermark = "/icons/logo-transparent.png", className = "" }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -274,6 +275,16 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
         onClick={(e) => e.stopPropagation()}
       />
 
+      {/* Brand watermark */}
+      {watermark && (
+        <img
+          src={watermark}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute right-3 top-3 z-30 h-10 w-10 opacity-75 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
+        />
+      )}
+
       {/* Ambient gradient for depth */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_0%,rgba(255,222,171,0.06),transparent_55%)]" />
 
@@ -331,7 +342,7 @@ export default function VideoPlayer({ src, poster, title, className = "" }: Vide
       {/* Title */}
       {title && !playing && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-4 pb-10">
-          <p dir="rtl" className="text-right text-sm font-bold text-white/95 drop-shadow-md md:text-base">{title}</p>
+          <p dir="rtl" className="pr-14 text-right text-sm font-bold text-white/95 drop-shadow-md md:text-base">{title}</p>
         </div>
       )}
 
