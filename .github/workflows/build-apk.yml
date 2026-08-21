@@ -6,8 +6,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: "2.1.0"
-      APP_VERSION_CODE: "2"
+      APP_VERSION: "2.2.0"
+      APP_VERSION_CODE: "3"
     steps:
       - uses: actions/checkout@v4
 
