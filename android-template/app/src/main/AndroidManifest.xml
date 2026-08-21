@@ -20,7 +20,7 @@
             android:exported="true"
             android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:theme="@style/Theme.LauncherTheme">
+            android:theme="@style/Theme.SplashScreen">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

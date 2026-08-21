@@ -58,6 +58,13 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk "app-v${APP_VERSION}.apk"
           ls -la "app-v${APP_VERSION}.apk"
 
+      - name: Inspect merged manifest (diagnostic)
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | tail -1)
+          echo "using aapt2: $AAPT"
+          "$AAPT" dump badging android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | grep -E "package:|launchable-activity|application-label|uses-permission" | head -20 || true
+          "$AAPT" dump xmltree --file AndroidManifest.xml android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | grep -E "activity|theme|asset_statements|exported|launchMode" | head -40 || true
+
       - name: Compute fingerprint (SHA-256 base64 of signing cert)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
