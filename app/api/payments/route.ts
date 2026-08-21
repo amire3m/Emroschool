@@ -121,7 +121,8 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     if (!["pending", "pending_payment"].includes(application.status) || !application.course.published || application.course.scheduleStatus !== "upcoming") return NextResponse.json({ error: "این درخواست قابل پرداخت نیست" }, { status: 400 });
     const discount = application.discountCode ? await dependencies.db.discountCode.findUnique({ where: { code: application.discountCode } }) : null;
     if (discount?.requiresDocument && !application.discountDocumentUrl) return NextResponse.json({ error: "بارگذاری مدرک تخفیف الزامی است" }, { status: 400 });
-    if (application.paymentOrder) {
+    const rejectedOrder = application.paymentOrder && application.paymentOrder.status === "rejected" ? application.paymentOrder : null;
+    if (application.paymentOrder && !rejectedOrder) {
       const existing = await checkoutOrderResponse(dependencies.db, { id: application.paymentOrder.id, userId: id }, dependencies.botUsername());
       if (!existing) throw new Error("PAYMENT_ORDER_MISSING");
       return NextResponse.json({
@@ -147,6 +148,9 @@ export async function POST(req: NextRequest, _context: { params: Record<string, 
     const orderNumber = `PAY-${now.getTime()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
     const payload = method === "bale_wallet" ? `payment:${orderNumber}:${crypto.randomBytes(16).toString("hex")}` : null;
     const order = await runPaymentTransaction(dependencies.db, async (tx) => {
+      if (rejectedOrder) {
+        await tx.paymentOrder.delete({ where: { id: rejectedOrder.id } });
+      }
       const created = await tx.paymentOrder.create({ data: { orderNumber, amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", balePayload: payload, expiresAt, ...(payerCard ? { payerCardEncrypted: encryptPaymentCard(payerCard.cardNumber), payerCardMasked: payerCard.maskedCardNumber, payerBankName: payerCard.bankName, payerBankSlug: payerCard.bankSlug } : {}), userId: id, courseId: course.id, applicationId: application.id, attempts: { create: { sequence: 1, method, status: method === "card_to_card" ? "awaiting_receipt" : "pending", amountTomans: application.finalAmountTomans, amountRials: application.finalAmountTomans * 10, balePayload: payload, expiresAt } } } });
       const attempt = await tx.paymentAttempt.findFirst({ where: { orderId: created.id }, orderBy: { sequence: "desc" } });
       if (!attempt) throw new Error("PAYMENT_ATTEMPT_MISSING");

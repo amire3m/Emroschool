@@ -513,6 +513,15 @@ export default function CheckoutPage() {
     }
   }
 
+  function resetForNewPayment() {
+    setOrder(null);
+    setExpiredOrderId(null);
+    setInstructions(null);
+    setBotUrl("");
+    setFile(null);
+    setCountdownNow(Date.now());
+  }
+
   async function createOrder() {
     const requestApplicationId = applicationId;
     const token = getCookie("token");
@@ -568,7 +577,8 @@ export default function CheckoutPage() {
     }
   }
 
-  async function restartExpiredOrder() {    const requestApplicationId = applicationId;
+  async function restartExpiredOrder() {
+    const requestApplicationId = applicationId;
     const requestOrderId = expiredOrderId;
     if (!requestApplicationId || !requestOrderId) return;
     const token = getCookie("token");
@@ -971,7 +981,7 @@ export default function CheckoutPage() {
                 </button>
                </>
              )}
-             {order.status === "rejected" && <div className="mt-4 rounded-xl bg-error-container p-4 text-sm leading-7 text-error">رسید قبلی رد شده است.{order.rejectionReason ? ` دلیل: ${order.rejectionReason}` : ""}</div>}
+             {order.status === "rejected" && <div className="mt-4 rounded-xl bg-error-container p-4 text-sm leading-7 text-error">رسید قبلی رد شده است.{order.rejectionReason ? ` دلیل: ${order.rejectionReason}` : ""}<button type="button" onClick={resetForNewPayment} disabled={loading} className="mt-3 block w-full rounded-xl bg-error px-4 py-2.5 text-center font-bold text-white disabled:opacity-50">پرداخت مجدد</button></div>}
              {order.status !== "under_review" && order.status !== "paid" && <button type="button" onClick={changeMethod} disabled={loading} className="mt-4 w-full rounded-xl border border-primary px-4 py-2.5 text-sm font-bold text-primary disabled:opacity-50">تغییر روش پرداخت</button>}
             <p className="mt-4 flex items-center justify-center gap-1 text-xs text-outline">
               <ShieldCheck size={14} />
