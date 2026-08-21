@@ -61,7 +61,7 @@ export default function FestiveLights() {
       })}
 
       {/* Hanging ornament */}
-      <div className="absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center">
+      <div className="absolute left-[28%] top-0 flex -translate-x-1/2 flex-col items-center">
         <span className="h-[20px] w-px bg-[#14142b]/85" />
         <img
           src="/icons/ornament.svg"
