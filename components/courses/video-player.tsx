@@ -19,7 +19,6 @@ import {
 interface VideoPlayerProps {
   src: string;
   poster?: string;
-  title?: string;
   watermark?: string;
   className?: string;
 }
@@ -35,7 +34,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function VideoPlayer({ src, poster, title, watermark = "/icons/logo-main-transparent.png", className = "" }: VideoPlayerProps) {
+export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main-transparent.png", className = "" }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -329,20 +328,24 @@ export default function VideoPlayer({ src, poster, title, watermark = "/icons/lo
           className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center"
           onClick={(e) => { e.stopPropagation(); togglePlay(); }}
         >
-          <div className="group/play relative flex h-24 w-24 items-center justify-center">
-            <span className="absolute inset-0 rounded-full border border-secondary-fixed/30 transition-transform duration-500 group-hover/play:scale-125" />
-            <span className="absolute inset-2 rounded-full border border-secondary-fixed/20 transition-transform duration-500 group-hover/play:scale-110" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/85 text-secondary-fixed shadow-[0_10px_30px_-8px_rgba(255,222,171,0.5)] ring-1 ring-secondary-fixed/40 backdrop-blur-sm transition-transform duration-300 group-hover/play:scale-105">
-              <Play className="ml-1" size={34} fill="currentColor" />
+          <div className="group/play relative flex h-28 w-28 items-center justify-center md:h-32 md:w-32">
+            {/* Rotating dashed gold ring */}
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 animate-[spin_7s_linear_infinite] rounded-full [background:conic-gradient(from_0deg,rgba(255,222,171,0.95),rgba(255,222,171,0.06)_25%,rgba(255,222,171,0.06)_75%,rgba(255,222,171,0.95))] [mask:radial-gradient(farthest-side,transparent_calc(100%-3px),#000_calc(100%-2px))]"
+            />
+            {/* Static inner ring */}
+            <span aria-hidden="true" className="absolute inset-2.5 rounded-full border border-secondary-fixed/25 transition-transform duration-500 group-hover/play:scale-105" />
+            {/* Soft glow */}
+            <span aria-hidden="true" className="absolute inset-6 rounded-full bg-secondary-fixed/15 blur-xl transition-opacity duration-300 group-hover/play:bg-secondary-fixed/25" />
+            {/* Main button */}
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,#241a6e,#03004b_72%)] text-secondary-fixed shadow-[0_14px_44px_-12px_rgba(255,222,171,0.55),inset_0_2px_8px_rgba(255,255,255,0.18),inset_0_-8px_18px_rgba(0,0,0,0.4)] ring-1 ring-secondary-fixed/60 transition-transform duration-300 group-hover/play:scale-110 group-hover/play:ring-secondary-fixed">
+              {/* Play triangle */}
+              <svg viewBox="0 0 24 24" className="ml-1 h-9 w-9 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
+                <path d="M8 5.6v12.8a1.05 1.05 0 0 0 1.56.92l10.4-6.4a1.05 1.05 0 0 0 0-1.8L9.56 4.68A1.05 1.05 0 0 0 8 5.6Z" fill="currentColor" />
+              </svg>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Title */}
-      {title && !playing && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-4 pb-10">
-          <p dir="rtl" className="pr-14 text-right text-sm font-bold text-white/95 drop-shadow-md md:text-base">{title}</p>
         </div>
       )}
 

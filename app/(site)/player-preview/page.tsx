@@ -36,7 +36,7 @@ function Preview() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-2xl bg-black shadow-2xl">
-          <VideoPlayer key={src} src={src} title="پلیر اختصاصی آکادمی امام روح‌الله" className="aspect-video" />
+          <VideoPlayer key={src} src={src} className="aspect-video" />
         </div>
 
         <p className="mt-4 text-center text-xs text-white/50" dir="rtl">
