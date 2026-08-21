@@ -328,21 +328,15 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
           className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center"
           onClick={(e) => { e.stopPropagation(); togglePlay(); }}
         >
-          <div className="group/play relative flex h-28 w-28 items-center justify-center md:h-32 md:w-32">
-            {/* Rotating dashed gold ring */}
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 animate-[spin_7s_linear_infinite] rounded-full [background:conic-gradient(from_0deg,rgba(255,222,171,0.95),rgba(255,222,171,0.06)_25%,rgba(255,222,171,0.06)_75%,rgba(255,222,171,0.95))] [mask:radial-gradient(farthest-side,transparent_calc(100%-3px),#000_calc(100%-2px))]"
-            />
-            {/* Static inner ring */}
-            <span aria-hidden="true" className="absolute inset-2.5 rounded-full border border-secondary-fixed/25 transition-transform duration-500 group-hover/play:scale-105" />
-            {/* Soft glow */}
-            <span aria-hidden="true" className="absolute inset-6 rounded-full bg-secondary-fixed/15 blur-xl transition-opacity duration-300 group-hover/play:bg-secondary-fixed/25" />
+          <div className="group/play relative flex h-24 w-24 items-center justify-center md:h-28 md:w-28">
+            {/* Soft outer hairline that grows on hover */}
+            <span aria-hidden="true" className="absolute inset-0 rounded-full border border-secondary-fixed/25 transition-all duration-300 group-hover/play:scale-110 group-hover/play:border-secondary-fixed/50" />
+            {/* Faint halo */}
+            <span aria-hidden="true" className="absolute inset-4 rounded-full bg-secondary-fixed/10 blur-lg transition-opacity duration-300 group-hover/play:bg-secondary-fixed/20" />
             {/* Main button */}
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,#241a6e,#03004b_72%)] text-secondary-fixed shadow-[0_14px_44px_-12px_rgba(255,222,171,0.55),inset_0_2px_8px_rgba(255,255,255,0.18),inset_0_-8px_18px_rgba(0,0,0,0.4)] ring-1 ring-secondary-fixed/60 transition-transform duration-300 group-hover/play:scale-110 group-hover/play:ring-secondary-fixed">
-              {/* Play triangle */}
-              <svg viewBox="0 0 24 24" className="ml-1 h-9 w-9 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
-                <path d="M8 5.6v12.8a1.05 1.05 0 0 0 1.56.92l10.4-6.4a1.05 1.05 0 0 0 0-1.8L9.56 4.68A1.05 1.05 0 0 0 8 5.6Z" fill="currentColor" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-secondary-fixed shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.12)] ring-1 ring-secondary-fixed/50 transition-transform duration-200 group-hover/play:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-secondary-fixed">
+              <svg viewBox="0 0 24 24" className="ml-0.5 h-8 w-8">
+                <path d="M8 5.8v12.4a1 1 0 0 0 1.5.87l9.9-6.2a1 1 0 0 0 0-1.74L9.5 4.93A1 1 0 0 0 8 5.8Z" fill="currentColor" />
               </svg>
             </div>
           </div>
