@@ -395,7 +395,7 @@ export default function VideoPlayer({ src, poster, watermark = "/icons/logo-main
             <SkipForward size={16} />
           </button>
 
-          <span dir="rtl" className="mr-1 shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[11px] font-bold tabular-nums text-white/95">
+          <span dir="ltr" className="mr-1 shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[11px] font-bold tabular-nums text-white/95">
             {formatTime(currentTime)} <span className="mx-0.5 text-white/40">/</span> {formatTime(duration)}
           </span>
 
