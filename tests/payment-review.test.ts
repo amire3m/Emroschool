@@ -97,6 +97,7 @@ function reviewTransaction(order: any, options: { extraGrant?: boolean } = {}) {
       },
     },
     paymentReviewDecision: { create: async ({ data }: any) => decisions.push({ ...data }) },
+    course: { findUnique: async () => null },
     enrollment: { upsert: async () => enrollment },
     enrollmentGrant: {
       upsert: async ({ where, update, create }: any) => {

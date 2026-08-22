@@ -19,11 +19,33 @@ export async function ensureEnrollmentGrant(
     update: {},
     create: { userId: input.userId, courseId: input.courseId },
   });
-  return tx.enrollmentGrant.upsert({
+  const result = await tx.enrollmentGrant.upsert({
     where: { sourceType_sourceId: { sourceType: input.sourceType, sourceId: input.sourceId } },
     update: { active: true, revokedAt: null },
     create: { userId: input.userId, courseId: input.courseId, sourceType: input.sourceType, sourceId: input.sourceId },
   });
+
+  // If the course is comprehensive, also enroll the user in all children
+  const course = tx.course ? await tx.course.findUnique({
+    where: { id: input.courseId },
+    select: { courseType: true, children: { select: { id: true } } },
+  }) : null;
+  if (course?.courseType === "comprehensive" && course.children?.length) {
+    for (const child of course.children) {
+      await tx.enrollment.upsert({
+        where: { userId_courseId: { userId: input.userId, courseId: child.id } },
+        update: {},
+        create: { userId: input.userId, courseId: child.id },
+      });
+      await tx.enrollmentGrant.upsert({
+        where: { sourceType_sourceId: { sourceType: `bundle_${input.sourceType}`, sourceId: `${input.sourceId}:${child.id}` } },
+        update: { active: true, revokedAt: null },
+        create: { userId: input.userId, courseId: child.id, sourceType: `bundle_${input.sourceType}`, sourceId: `${input.sourceId}:${child.id}` },
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function revokeEnrollmentGrant(
