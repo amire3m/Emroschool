@@ -654,28 +654,11 @@ export default function CourseDetailPage() {
                     مجموعه معرفی دوره‌ها
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-outline">
-                    ثبت‌نام این مجموعه به‌صورت تکی انجام می‌شود؛ زیردوره موردنظر را انتخاب کنید:
+                    ثبت‌نام این مجموعه انجام نمی‌شود. زیر‌دوره مناسب را از فهرست
+                    بالا انتخاب و جداگانه اقدام کنید.
                   </p>
-                  <div className="mt-4 space-y-2 text-right">
-                    {course.children?.map((child) => (
-                      <button
-                        key={child.id}
-                        type="button"
-                        disabled={child.scheduleStatus === "completed"}
-                        onClick={() => router.push(`/courses/${child.slug}`)}
-                        className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${child.scheduleStatus === "completed" ? "cursor-not-allowed border-surface-variant bg-surface-low text-outline" : "border-secondary/40 bg-white hover:border-secondary hover:bg-secondary-fixed/10"}`}
-                      >
-                        <span className="font-bold text-primary">{child.title}</span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${child.scheduleStatus === "completed" ? "bg-surface-variant text-outline" : "bg-primary text-secondary-fixed"}`}>
-                          {child.scheduleStatus === "completed" ? "برگزار شده" : "ثبت‌نام"}
-                        </span>
-                      </button>
-                    ))}
-                    {(!course.children || course.children.length === 0) && (
-                      <p className="rounded-xl bg-surface-low px-3 py-3 text-xs text-outline">
-                        هنوز زیردوره‌ای ثبت نشده است.
-                      </p>
-                    )}
+                  <div className="mt-5 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white">
+                    انتخاب زیر‌دوره
                   </div>
                 </div>
               ) : (
