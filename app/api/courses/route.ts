@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const categoryName = searchParams.get("categoryName");
     const level = searchParams.get("level");
 
-    const where: Record<string, unknown> = admin ? {} : { published: true };
+    const where: Record<string, unknown> = admin ? {} : { published: true, scheduleStatus: "upcoming" };
     if (categoryName) where.categoryName = categoryName;
     if (level) where.level = level;
 
