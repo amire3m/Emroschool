@@ -22,7 +22,7 @@ export default function BrandSplash() {
   return (
     <div
       aria-hidden="true"
-      className={`fixed inset-0 z-[80] flex items-center justify-center bg-[#03004b] transition-opacity duration-500 ${leaving ? "opacity-0" : "opacity-100"}`}
+      className={`fixed inset-0 z-[80] flex items-center justify-center bg-[linear-gradient(to_bottom,#162038,#0b1220)] transition-opacity duration-500 ${leaving ? "opacity-0" : "opacity-100"}`}
     >
       <video
         src="/videos/brand-splash.mp4"
