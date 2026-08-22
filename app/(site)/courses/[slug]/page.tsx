@@ -345,7 +345,7 @@ export default function CourseDetailPage() {
     curriculumRefreshing,
     curriculumView.state,
   );
-  const registrationAction = course.courseType === "single" || course.courseType === "comprehensive" ? (
+  const registrationAction = course.courseType === "single" ? (
     course.scheduleStatus === "completed" ? (
       <button
         disabled
@@ -651,23 +651,15 @@ export default function CourseDetailPage() {
                     <CalendarDays size={25} />
                   </div>
                   <h3 className="font-black text-primary">
-                    ثبت‌نام مجموعه جامع
+                    مجموعه معرفی دوره‌ها
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-outline">
-                    با ثبت‌نام در این مجموعه، به همه زیردوره‌های آن دسترسی پیدا می‌کنید.
+                    ثبت‌نام این مجموعه انجام نمی‌شود. زیر‌دوره مناسب را از فهرست
+                    بالا انتخاب و جداگانه اقدام کنید.
                   </p>
-                  {course.price > 0 && (
-                    <div className="mt-4">
-                      <span className="text-3xl font-black text-primary">{formatPrice(course.price)}</span>
-                      <span className="text-outline text-sm"> تومان</span>
-                      {course.oldPrice && course.oldPrice > course.price && (
-                        <span className="mr-2 text-outline line-through text-sm">{formatPrice(course.oldPrice)}</span>
-                      )}
-                    </div>
-                  )}
-                  {registrationPlacement === "sidebar" && (
-                    <div className="mt-5">{registrationAction}</div>
-                  )}
+                  <div className="mt-5 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white">
+                    انتخاب زیر‌دوره
+                  </div>
                 </div>
               ) : (
                 <>
