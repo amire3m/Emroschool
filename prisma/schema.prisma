@@ -686,3 +686,13 @@ model PushSubscription {
 
   @@index([userId])
 }
+
+model SiteVisit {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  views     Int      @default(0)
+  visitors  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}

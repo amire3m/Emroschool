@@ -2,6 +2,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SiteSettingsProvider from "@/components/SiteSettingsProvider";
 import MagazineShell from "@/components/magazine/magazine-shell";
+import VisitTracker from "@/components/visit-tracker";
 import { headers } from "next/headers";
 import { siteName, siteUrl } from "@/lib/seo";
 
@@ -11,6 +12,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   if (isMagazine) return <MagazineShell>{children}</MagazineShell>;
   return (
     <SiteSettingsProvider>
+      <VisitTracker />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
