@@ -10,7 +10,6 @@ import GlowingEdgeCard from "@/components/ui/glowing-edge-card";
 const AutoLoopRow = dynamic(() => import("@/components/ui/auto-loop-row"), { ssr: false });
 import { getCookie } from "@/lib/cookie";
 const NewsletterCta = dynamic(() => import("@/components/home/newsletter-cta"), { ssr: false });
-import FestiveLights from "@/components/festive-lights";
 import BrandSplash from "@/components/brand-splash";
 import {
   Star,
@@ -335,7 +334,6 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       <BrandSplash />
-      <FestiveLights />
       <div style={{ order: orderFor("hero", 1) }}>
       {sectionVisibility.hero !== false && (
         slidersLoading ? (
