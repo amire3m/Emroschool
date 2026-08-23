@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, Banknote, BookOpen, CheckCircle2, ClipboardList, CreditCard, Eye, GraduationCap, Loader2, TrendingUp, UserPlus, Users, XCircle, LifeBuoy, Newspaper, BarChart3 } from "lucide-react";
 import { getCookie } from "@/lib/cookie";
 import { APP_VERSION, releaseNotes } from "@/lib/version";
+import TrendChart from "@/components/admin/trend-chart";
 
 type Report = {
   summary: {
@@ -55,7 +56,6 @@ export default function AdminDashboard() {
     ["درخواست ردشده", summary.applicationsRejected, "نیازمند بررسی مجدد", XCircle, "bg-error-container text-error"],
   ] as const;
 
-  const chartMax = Math.max(1, ...report.trend.flatMap((item) => [item.visits, item.users, item.applications]));
   const topCourseMax = Math.max(1, ...report.topCourses.map((c) => c.enrollments));
 
   return <div className="space-y-7" dir="rtl">
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([label, count, description, Icon, color]) => <article key={label} className="rounded-2xl border border-outline-variant/30 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${color}`}><Icon size={22} /></span><div><p className="text-2xl font-black text-primary">{count.toLocaleString("fa-IR")}</p><p className="text-sm font-bold text-primary">{label}</p></div></div><p className="mt-3 text-xs leading-5 text-outline">{description}</p></article>)}</section>
 
     {/* Trend chart with visits */}
-    <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]"><div className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7"><div className="flex items-center gap-2"><TrendingUp size={20} className="text-secondary" /><div><h2 className="font-black text-primary">روند ۳۰ روز اخیر</h2><p className="mt-1 text-xs text-outline">بازدید، کاربران جدید و درخواستهای ثبتنام</p></div></div><div className="mt-7 flex h-52 items-end gap-1">{report.trend.map((item) => <div key={item.date} className="group relative flex h-full flex-1 items-end gap-px" title={`${new Date(item.date).toLocaleDateString("fa-IR")}: ${item.visits} بازدید، ${item.users} کاربر، ${item.applications} درخواست`}><span className="w-1/3 rounded-t bg-blue-400/70 transition group-hover:bg-blue-500" style={{ height: `${Math.max(item.visits ? 4 : 0, item.visits / chartMax * 100)}%` }} /><span className="w-1/3 rounded-t bg-primary/80 transition group-hover:bg-primary" style={{ height: `${Math.max(item.users ? 4 : 0, item.users / chartMax * 100)}%` }} /><span className="w-1/3 rounded-t bg-secondary/80 transition group-hover:bg-secondary" style={{ height: `${Math.max(item.applications ? 4 : 0, item.applications / chartMax * 100)}%` }} /></div>)}</div><div className="mt-4 flex gap-5 text-xs text-outline"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-400" />بازدید</span><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-primary" />کاربران جدید</span><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-secondary" />درخواست دوره</span></div></div>
+    <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]"><div className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7"><div className="flex items-center gap-2"><TrendingUp size={20} className="text-secondary" /><div><h2 className="font-black text-primary">روند ۳۰ روز اخیر</h2><p className="mt-1 text-xs text-outline">بازدید، کاربران جدید و درخواستهای ثبتنام</p></div></div><div className="mt-5"><TrendChart data={report.trend} /></div></div>
       <div className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7"><div className="flex items-center justify-between"><div><h2 className="font-black text-primary">آخرین درخواست‌ها</h2><p className="mt-1 text-xs text-outline">آخرین متقاضیان دوره</p></div><Link href="/admin/applications" className="text-xs font-bold text-secondary">مشاهده همه</Link></div><div className="mt-5 divide-y divide-outline-variant/20">{report.recentApplications.map((item) => <div key={item.id} className="py-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-primary">{item.fullName}</p><p className="mt-1 truncate text-xs text-outline">{item.course.title}</p></div><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${item.status === "approved" ? "bg-green-50 text-green-700" : item.status === "rejected" ? "bg-error-container text-error" : "bg-[#fff4df] text-secondary"}`}>{statusLabel[item.status] || item.status}</span></div></div>)}{report.recentApplications.length === 0 && <p className="py-8 text-center text-sm text-outline">هنوز درخواستی ثبت نشده است.</p>}</div></div></section>
 
     {/* Top courses */}
