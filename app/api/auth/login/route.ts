@@ -1,8 +1,13 @@
 import prisma from "@/lib/prisma";
 import { verifyPassword, generateToken } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limit = rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json({ error: `تلاش‌های زیاد؛ ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید` }, { status: 429 });
+  }
   try {
     const { email, password } = await req.json();
 

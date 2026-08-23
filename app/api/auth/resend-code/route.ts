@@ -2,8 +2,13 @@ import prisma from "@/lib/prisma";
 import { issueEmailVerificationCode } from "@/lib/verification";
 import { issueBaleOtp, issuePhoneOtp } from "@/lib/bale-otp";
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limit = rateLimit(`resend-code:${clientIp(req)}`, 8, 10 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json({ error: `درخواست‌های زیاد؛ ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید` }, { status: 429 });
+  }
   try {
     const { email, phone, channel = "email" } = await req.json();
     const normalized = String(email || "").trim().toLowerCase();
