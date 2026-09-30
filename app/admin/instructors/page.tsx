@@ -2,13 +2,26 @@
 
 import { useEffect, useState } from "react";
 import {
-  Plus, Pencil, Trash2, Loader2, AlertCircle, Search, X, Check,
-  Calendar, Eye, EyeOff, ImageIcon, Merge, AlertTriangle, ExternalLink,
+  Plus, Pencil, Trash2, Loader2, AlertCircle, Search, X,
+  Calendar, Eye, EyeOff, Merge, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
+import {
+  PageHeader,
+  DataTable,
+  Th,
+  Td,
+  Badge,
+  EmptyState,
+  PrimaryButton,
+  SecondaryButton,
+  DangerButton,
+  SearchInput,
+  Modal,
+} from "@/components/admin/ui";
 
 interface Instructor {
   id: string;
@@ -29,6 +42,9 @@ interface UserData {
   name: string;
   email: string;
 }
+
+const INPUT_CLASS = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15";
+const FOCUS_VISIBLE = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("fa-IR", {
@@ -218,260 +234,257 @@ export default function AdminInstructors() {
   );
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 size={32} className="animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 size={32} className="animate-spin text-[#03004b]" /></div>;
   }
 
   if (error) {
-    return <div className="flex items-center justify-center h-64 text-error gap-2"><AlertCircle size={20} /><span>خطا: {error}</span></div>;
+    return <div className="flex items-center justify-center h-64 text-red-600 gap-2"><AlertCircle size={20} /><span>خطا: {error}</span></div>;
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-        <div className="relative w-full sm:w-64">
-          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
-          <input type="text" placeholder="جستجوی استاد..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
+    <div className="space-y-5">
+      <PageHeader
+        title="مدیریت استادان"
+        subtitle={`${instructors.length.toLocaleString("fa-IR")} استاد ثبت‌شده`}
+        actions={
+          <PrimaryButton onClick={openCreateModal}>
+            <Plus size={15} />افزودن استاد
+          </PrimaryButton>
+        }
+      />
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <SearchInput type="text" placeholder="جستجوی استاد..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button onClick={openCreateModal}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={18} /> افزودن استاد
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">نام</th>
-                <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">ایمیل</th>
-                <th className="text-right p-3 font-medium text-outline hidden md:table-cell">خلاصه بیو</th>
-                <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">نمایش در سایت</th>
-                <th className="text-right p-3 font-medium text-outline hidden lg:table-cell">تاریخ ثبت</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((instructor) => (
-                <tr key={instructor.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center overflow-hidden shrink-0">
-                        {getInstructorAvatar(instructor) ? (
-                          <img src={getInstructorAvatar(instructor)!} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-primary font-bold text-sm">{getInstructorName(instructor).charAt(0)}</span>
-                        )}
-                      </div>
-                      <div className="font-medium text-primary">{getInstructorName(instructor)}</div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-outline hidden sm:table-cell">{getInstructorEmail(instructor) || "—"}</td>
-                  <td className="p-3 text-outline hidden md:table-cell max-w-[200px] truncate">{instructor.bio || "—"}</td>
-                  <td className="p-3 hidden lg:table-cell">
-                    {instructor.showOnSite ? (
-                      <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-lg text-xs"><Eye size={12} /> فعال</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-outline bg-surface-low px-2 py-0.5 rounded-lg text-xs"><EyeOff size={12} /> مخفی</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-outline hidden lg:table-cell">
-                    <div className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(instructor.createdAt)}</div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Link href={`/instructors/${instructor.profileSlug || instructor.id}`} target="_blank"
-                        className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="مشاهده پروفایل"><ExternalLink size={16} /></Link>
-                      <button onClick={() => openEditModal(instructor)}
-                        className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-colors" title="ویرایش"><Pencil size={16} /></button>
-                      <button onClick={() => setDeleteTarget(instructor)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors" title="حذف"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-outline">استادی یافت نشد</td></tr>
+      <DataTable
+        minWidth={760}
+        head={
+          <>
+            <Th>نام</Th>
+            <Th className="hidden sm:table-cell">ایمیل</Th>
+            <Th className="hidden md:table-cell">خلاصه بیو</Th>
+            <Th center className="hidden lg:table-cell">نمایش در سایت</Th>
+            <Th className="hidden lg:table-cell">تاریخ ثبت</Th>
+            <Th>عملیات</Th>
+          </>
+        }
+      >
+        {filtered.map((instructor) => (
+          <tr key={instructor.id} className="border-t border-slate-100 transition first:border-t-0 hover:bg-slate-50/60">
+            <Td>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+                  {getInstructorAvatar(instructor) ? (
+                    <img src={getInstructorAvatar(instructor)!} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-bold text-slate-600">{getInstructorName(instructor).charAt(0)}</span>
+                  )}
+                </div>
+                <div className="font-medium text-slate-900">{getInstructorName(instructor)}</div>
+              </div>
+            </Td>
+            <Td className="hidden text-slate-500 sm:table-cell">{getInstructorEmail(instructor) || "—"}</Td>
+            <Td className="hidden max-w-[200px] truncate text-slate-500 md:table-cell">{instructor.bio || "—"}</Td>
+            <Td className="hidden text-center lg:table-cell">
+              {instructor.showOnSite ? (
+                <Badge tone="emerald"><Eye size={12} />فعال</Badge>
+              ) : (
+                <Badge tone="slate"><EyeOff size={12} />مخفی</Badge>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </Td>
+            <Td className="hidden text-slate-500 lg:table-cell">
+              <div className="flex items-center gap-1.5"><Calendar size={13} className="text-slate-400" /><span className="tabular-nums">{formatDate(instructor.createdAt)}</span></div>
+            </Td>
+            <Td>
+              <div className="flex items-center gap-2 justify-end">
+                <Link href={`/instructors/${instructor.profileSlug || instructor.id}`} target="_blank"
+                  className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${FOCUS_VISIBLE}`} title="مشاهده پروفایل"><ExternalLink size={16} /></Link>
+                <button type="button" onClick={() => openEditModal(instructor)}
+                  className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${FOCUS_VISIBLE}`} title="ویرایش"><Pencil size={16} /></button>
+                <button type="button" onClick={() => setDeleteTarget(instructor)}
+                  className={`rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 ${FOCUS_VISIBLE}`} title="حذف"><Trash2 size={16} /></button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+        {filtered.length === 0 && (
+          <tr><Td colSpan={6}><EmptyState message="استادی یافت نشد" /></Td></tr>
+        )}
+      </DataTable>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">{editingInstructor ? "ویرایش استاد" : "افزودن استاد جدید"}</h3>
-              <button onClick={() => setShowModal(false)} className="text-outline hover:text-primary p-1"><X size={20} /></button>
+        <Modal
+          title={editingInstructor ? "ویرایش استاد" : "افزودن استاد جدید"}
+          onClose={() => { if (!saving) setShowModal(false); }}
+          maxWidth="max-w-2xl"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!editingInstructor && (
+              <div className="flex items-center gap-3 mb-3">
+                <button type="button" onClick={() => { setManualMode(false); setForm(p => ({ ...p, userId: "", name: "" })); }}
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${FOCUS_VISIBLE} ${!manualMode ? "bg-[#03004b] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  انتخاب کاربر
+                </button>
+                <button type="button" onClick={() => { setManualMode(true); setForm(p => ({ ...p, userId: "", name: "" })); }}
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${FOCUS_VISIBLE} ${manualMode ? "bg-[#03004b] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                  ورود دستی
+                </button>
+              </div>
+            )}
+
+            {!editingInstructor && !manualMode && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-900">انتخاب کاربر</label>
+                <select required={!manualMode} value={form.userId} onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
+                  className={`w-full ${INPUT_CLASS} ${FOCUS_VISIBLE}`}>
+                  <option value="">انتخاب کنید</option>
+                  {availableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(manualMode || editingInstructor?.name) && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-900">نام استاد</label>
+                <input type="text" required={manualMode} value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  className={`w-full ${INPUT_CLASS}`} />
+              </div>
+            )}
+
+            <ImageUpload value={form.avatar} onChange={(url) => setForm((previous) => ({ ...previous, avatar: url }))} label="تصویر پروفایل" sizeHint="۶۰۰ × ۶۰۰ پیکسل" aspectRatio="1:1" />
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">آدرس صفحه استاد</label>
+              <div className="flex overflow-hidden rounded-lg border border-slate-200"><input type="text" dir="ltr" value={form.profileSlug} onChange={(e) => setForm((p) => ({ ...p, profileSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} placeholder="javad-gharaei" className="min-w-0 flex-1 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none" /><span className="bg-slate-50 px-3 py-2.5 text-xs text-slate-500" dir="ltr">/instructors/</span></div>
+              <p className="mt-1 text-xs text-slate-500">اختیاری؛ حروف انگلیسی کوچک، عدد و خط تیره. در صورت خالی‌بودن، آدرس پیش‌فرض استفاده می‌شود.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!editingInstructor && (
-                <div className="flex items-center gap-3 mb-3">
-                  <button type="button" onClick={() => { setManualMode(false); setForm(p => ({ ...p, userId: "", name: "" })); }}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${!manualMode ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}>
-                    انتخاب کاربر
-                  </button>
-                  <button type="button" onClick={() => { setManualMode(true); setForm(p => ({ ...p, userId: "", name: "" })); }}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${manualMode ? "bg-primary text-white" : "bg-surface-variant text-outline"}`}>
-                    ورود دستی
-                  </button>
-                </div>
-              )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">بیوگرافی</label>
+              <textarea rows={3} value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
+                className={`w-full resize-none ${INPUT_CLASS}`} />
+            </div>
 
-              {!editingInstructor && !manualMode && (
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">انتخاب کاربر</label>
-                  <select required={!manualMode} value={form.userId} onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed">
-                    <option value="">انتخاب کنید</option>
-                    {availableUsers.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">سمت</label>
+              <textarea rows={2} value={form.expertise} onChange={(e) => setForm((p) => ({ ...p, expertise: e.target.value }))}
+                className={`w-full resize-none ${INPUT_CLASS}`} />
+            </div>
 
-              {(manualMode || editingInstructor?.name) && (
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">نام استاد</label>
-                  <input type="text" required={manualMode} value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
-                </div>
-              )}
-
-              <ImageUpload value={form.avatar} onChange={(url) => setForm((previous) => ({ ...previous, avatar: url }))} label="تصویر پروفایل" sizeHint="۶۰۰ × ۶۰۰ پیکسل" aspectRatio="1:1" />
-
-               <div>
-                 <label className="block text-sm font-medium text-primary mb-1">آدرس صفحه استاد</label>
-                 <div className="flex overflow-hidden rounded-xl border border-surface-variant"><input type="text" dir="ltr" value={form.profileSlug} onChange={(e) => setForm((p) => ({ ...p, profileSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} placeholder="javad-gharaei" className="min-w-0 flex-1 px-3 py-2.5 text-sm focus:outline-none" /><span className="bg-surface-low px-3 py-2.5 text-xs text-outline" dir="ltr">/instructors/</span></div>
-                 <p className="mt-1 text-xs text-outline">اختیاری؛ حروف انگلیسی کوچک، عدد و خط تیره. در صورت خالی‌بودن، آدرس پیش‌فرض استفاده می‌شود.</p>
-               </div>
-
-               <div>
-                 <label className="block text-sm font-medium text-primary mb-1">بیوگرافی</label>
-                <textarea rows={3} value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">حوزه تخصصی</label>
+              <div className="rounded-lg border border-slate-200 bg-white p-2 focus-within:border-[#03004b] focus-within:ring-2 focus-within:ring-[#03004b]/15">
+                <div className="flex flex-wrap gap-2">{specialties.map((specialty) => <span key={specialty} className="flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-700">#{specialty}<button type="button" onClick={() => setForm((form) => ({ ...form, specialties: specialties.filter((item) => item !== specialty).join(", ") }))} className={`rounded p-0.5 hover:bg-white ${FOCUS_VISIBLE}`} title={`حذف ${specialty}`}><X size={13} /></button></span>)}</div>
+                <input value={specialtyInput} onChange={(event) => setSpecialtyInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addSpecialty(); } }} onBlur={addSpecialty} placeholder={specialties.length ? "حوزه تخصصی دیگر را وارد کنید..." : "حوزه تخصصی را وارد کنید و Enter بزنید"} className="mt-1 w-full bg-transparent px-1 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
               </div>
+              <p className="mt-1 text-xs text-slate-500">پس از هر حوزه، Enter بزنید.</p>
+            </div>
 
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">سمت</label>
-                <textarea rows={2} value={form.expertise} onChange={(e) => setForm((p) => ({ ...p, expertise: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-none" />
+                <label className="text-sm font-medium text-slate-900">نمایش در سایت</label>
+                <p className="mt-0.5 text-xs text-slate-500">در صورت غیرفعال بودن، استاد در سایت نمایش داده نمی‌شود</p>
               </div>
+              <button type="button" onClick={() => setForm((p) => ({ ...p, showOnSite: !p.showOnSite }))}
+                className={`relative h-6 w-12 rounded-full transition-colors ${FOCUS_VISIBLE} ${form.showOnSite ? "bg-emerald-500" : "bg-slate-200"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.showOnSite ? "translate-x-6" : "translate-x-0.5"}`} />
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">حوزه تخصصی</label>
-                <div className="rounded-xl border border-surface-variant bg-white p-2 focus-within:ring-2 focus-within:ring-secondary-fixed">
-                  <div className="flex flex-wrap gap-2">{specialties.map((specialty) => <span key={specialty} className="flex items-center gap-1 rounded-lg bg-secondary-fixed/30 px-2.5 py-1 text-sm font-bold text-secondary">#{specialty}<button type="button" onClick={() => setForm((form) => ({ ...form, specialties: specialties.filter((item) => item !== specialty).join(", ") }))} className="rounded p-0.5 hover:bg-white/70" title={`حذف ${specialty}`}><X size={13} /></button></span>)}</div>
-                  <input value={specialtyInput} onChange={(event) => setSpecialtyInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addSpecialty(); } }} onBlur={addSpecialty} placeholder={specialties.length ? "حوزه تخصصی دیگر را وارد کنید..." : "حوزه تخصصی را وارد کنید و Enter بزنید"} className="mt-1 w-full bg-transparent px-1 py-2 text-sm outline-none" />
-                </div>
-                <p className="mt-1 text-xs text-outline">پس از هر حوزه، Enter بزنید.</p>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
-                <div>
-                  <label className="text-sm font-medium text-primary">نمایش در سایت</label>
-                  <p className="text-xs text-outline mt-0.5">در صورت غیرفعال بودن، استاد در سایت نمایش داده نمی‌شود</p>
-                </div>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, showOnSite: !p.showOnSite }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${form.showOnSite ? "bg-green-500" : "bg-surface-variant"}`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.showOnSite ? "translate-x-6" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={saving}
-                  className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  {editingInstructor ? "بروزرسانی" : "ایجاد استاد"}
-                </button>
-                <button type="button" onClick={() => setShowModal(false)} disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors">انصراف</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="flex items-center gap-3 pt-2">
+              <PrimaryButton type="submit" disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {editingInstructor ? "بروزرسانی" : "ایجاد استاد"}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => setShowModal(false)} disabled={saving}>انصراف</SecondaryButton>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {mergeDialog && (
-        <div className="modal-overlay" onClick={() => !saving && setMergeDialog(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center mb-5">
-              <div className="w-16 h-16 rounded-full bg-secondary-fixed/30 flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle size={28} className="text-secondary" />
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">کاربر مشابه یافت شد</h3>
-              <p className="text-outline text-sm">
-                کاربری با نام مشابه "<span className="font-bold text-primary">{mergeDialog.manualInstructor.name}</span>" وجود دارد.
-                آیا می‌خواهید استاد را به این کاربر متصل کنید؟
-              </p>
-            </div>
-
-            <div className="space-y-2 mb-5">
-              {mergeDialog.duplicates.map((dup) => (
-                <div key={dup.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-surface-variant hover:bg-surface-low transition-colors cursor-pointer"
-                  onClick={() => {
-                    saveInstructor(dup.id);
-                    setMergeDialog(null);
-                  }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold text-sm">
-                      {dup.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-primary">{dup.name}</div>
-                      <div className="text-xs text-outline">{dup.email}</div>
-                    </div>
-                  </div>
-                  <button className="flex items-center gap-1 text-xs bg-primary text-white px-3 py-1.5 rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                    <Merge size={12} /> اتصال
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-center gap-3">
-              <button onClick={() => { saveInstructor(); setMergeDialog(null); }} disabled={saving}
-                className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors">
+        <Modal
+          title="کاربر مشابه یافت شد"
+          onClose={() => { if (!saving) setMergeDialog(null); }}
+          maxWidth="max-w-md"
+          footer={
+            <>
+              <SecondaryButton onClick={() => { saveInstructor(); setMergeDialog(null); }} disabled={saving}>
                 {saving ? <Loader2 size={16} className="animate-spin" /> : null}
                 ایجاد بدون اتصال
-              </button>
-              <button onClick={() => setMergeDialog(null)} disabled={saving}
-                className="px-6 py-2.5 rounded-xl text-sm bg-primary text-white font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              </SecondaryButton>
+              <PrimaryButton onClick={() => setMergeDialog(null)} disabled={saving}>
                 انصراف
-              </button>
+              </PrimaryButton>
+            </>
+          }
+        >
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+              <AlertTriangle size={28} className="text-amber-600" />
             </div>
+            <p className="text-sm text-slate-500">
+              کاربری با نام مشابه "<span className="font-bold text-slate-900">{mergeDialog.manualInstructor.name}</span>" وجود دارد.
+              آیا می‌خواهید استاد را به این کاربر متصل کنید؟
+            </p>
           </div>
-        </div>
+
+          <div className="space-y-2">
+            {mergeDialog.duplicates.map((dup) => (
+              <div key={dup.id}
+                className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50"
+                onClick={() => {
+                  saveInstructor(dup.id);
+                  setMergeDialog(null);
+                }}>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                    {dup.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-slate-900">{dup.name}</div>
+                    <div className="text-xs text-slate-500">{dup.email}</div>
+                  </div>
+                </div>
+                <button type="button" className={`flex items-center gap-1 rounded-lg bg-[#03004b] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#1b1c5e] ${FOCUS_VISIBLE}`}>
+                  <Merge size={12} /> اتصال
+                </button>
+              </div>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={28} className="text-error" />
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">حذف استاد</h3>
-              <p className="text-outline text-sm mb-1">
-                آیا از حذف استاد <span className="font-bold text-primary">"{getInstructorName(deleteTarget)}"</span> اطمینان دارید؟
-              </p>
-              <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button onClick={handleDelete} disabled={saving}
-                  className="flex items-center gap-2 bg-error text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50">
-                  {saving && <Loader2 size={16} className="animate-spin" />} حذف
-                </button>
-                <button onClick={() => setDeleteTarget(null)} disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors">انصراف</button>
-              </div>
+        <Modal
+          title="حذف استاد"
+          onClose={() => { if (!saving) setDeleteTarget(null); }}
+          maxWidth="max-w-md"
+          footer={
+            <>
+              <DangerButton onClick={handleDelete} disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />} حذف
+              </DangerButton>
+              <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>انصراف</SecondaryButton>
+            </>
+          }
+        >
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+              <Trash2 size={28} className="text-red-500" />
             </div>
+            <p className="text-sm text-slate-500">
+              آیا از حذف استاد <span className="font-bold text-slate-900">"{getInstructorName(deleteTarget)}"</span> اطمینان دارید؟
+            </p>
+            <p className="mt-1 text-xs text-slate-500">این عمل قابل بازگشت نیست.</p>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

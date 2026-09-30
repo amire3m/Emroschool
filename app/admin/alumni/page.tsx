@@ -8,7 +8,6 @@ import {
   Loader2,
   AlertCircle,
   Search,
-  X,
   Eye,
   EyeOff,
   ChevronUp,
@@ -17,6 +16,19 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import {
+  PageHeader,
+  DataTable,
+  Th,
+  Td,
+  Badge,
+  EmptyState,
+  PrimaryButton,
+  SecondaryButton,
+  DangerButton,
+  SearchInput,
+  Modal,
+} from "@/components/admin/ui";
 
 interface AlumniItem {
   id: string;
@@ -32,6 +44,9 @@ interface AlumniItem {
   userId: string | null;
   user?: { id: string; name: string } | null;
 }
+
+const INPUT_CLASS = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15";
+const FOCUS_VISIBLE = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function AdminAlumni() {
   const [alumni, setAlumni] = useState<AlumniItem[]>([]);
@@ -189,178 +204,175 @@ export default function AdminAlumni() {
   }
 
   if (error) {
-    return <div className="flex items-center justify-center h-64 text-error gap-2"><AlertCircle size={20} /><span>خطا: {error}</span></div>;
+    return <div className="flex items-center justify-center h-64 text-red-600 gap-2"><AlertCircle size={20} /><span>خطا: {error}</span></div>;
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-        <div className="relative w-full sm:w-64">
-          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
-          <input type="text" placeholder="جستجوی هنرآموخته..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] focus:border-[#03004b]" />
+    <div className="space-y-5">
+      <PageHeader
+        title="مدیریت هنرآموختگان"
+        subtitle={`${alumni.length.toLocaleString("fa-IR")} هنرآموخته ثبت‌شده`}
+        actions={
+          <PrimaryButton onClick={openCreateModal}>
+            <Plus size={15} />افزودن هنرآموخته
+          </PrimaryButton>
+        }
+      />
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <SearchInput type="text" placeholder="جستجوی هنرآموخته..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button onClick={openCreateModal}
-          className="flex items-center gap-2 bg-[#03004b] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors">
-          <Plus size={18} />
-          افزودن هنرآموخته
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">نام</th>
-                <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">رشته</th>
-                <th className="text-right p-3 font-medium text-outline hidden md:table-cell">دوره</th>
-                <th className="text-center p-3 font-medium text-outline">ترتیب</th>
-                <th className="text-center p-3 font-medium text-outline">نمایش</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item, index) => (
-                <tr key={item.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#eeecfc] flex items-center justify-center overflow-hidden shrink-0">
-                        {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-[#03004b] font-bold text-sm">{item.name.charAt(0)}</span>}
-                      </div>
-                      <div className="font-medium text-primary">{item.name}</div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-outline hidden sm:table-cell">{item.field}</td>
-                  <td className="p-3 text-outline hidden md:table-cell">{item.batch}</td>
-                  <td className="p-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-outline text-xs ml-1">{item.order}</span>
-                      <button onClick={() => moveOrder(item.id, "up")} disabled={index === 0}
-                        className="p-0.5 rounded text-outline hover:text-[#03004b] disabled:opacity-30 disabled:cursor-not-allowed"><ChevronUp size={14} /></button>
-                      <button onClick={() => moveOrder(item.id, "down")} disabled={index === filtered.length - 1}
-                        className="p-0.5 rounded text-outline hover:text-[#03004b] disabled:opacity-30 disabled:cursor-not-allowed"><ChevronDown size={14} /></button>
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    {item.showOnSite ? (
-                      <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-lg text-xs"><Eye size={12} />فعال</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-outline bg-surface-low px-2 py-0.5 rounded-lg text-xs"><EyeOff size={12} />مخفی</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => openEditModal(item)}
-                        className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors" title="ویرایش"><Pencil size={16} /></button>
-                      <button onClick={() => setDeleteTarget(item)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors" title="حذف"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-outline">هنرآموخته‌ای یافت نشد</td></tr>
+      <DataTable
+        minWidth={760}
+        head={
+          <>
+            <Th>نام</Th>
+            <Th className="hidden sm:table-cell">رشته</Th>
+            <Th className="hidden md:table-cell">دوره</Th>
+            <Th center>ترتیب</Th>
+            <Th center>نمایش</Th>
+            <Th>عملیات</Th>
+          </>
+        }
+      >
+        {filtered.map((item, index) => (
+          <tr key={item.id} className="border-t border-slate-100 transition first:border-t-0 hover:bg-slate-50/60">
+            <Td>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+                  {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-sm font-bold text-slate-600">{item.name.charAt(0)}</span>}
+                </div>
+                <div className="font-medium text-slate-900">{item.name}</div>
+              </div>
+            </Td>
+            <Td className="hidden text-slate-500 sm:table-cell">{item.field}</Td>
+            <Td className="hidden text-slate-500 md:table-cell">{item.batch}</Td>
+            <Td className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="ml-1 text-xs tabular-nums text-slate-500">{item.order}</span>
+                <button type="button" onClick={() => moveOrder(item.id, "up")} disabled={index === 0}
+                  className={`rounded p-0.5 text-slate-400 transition hover:text-[#03004b] disabled:cursor-not-allowed disabled:opacity-30 ${FOCUS_VISIBLE}`}><ChevronUp size={14} /></button>
+                <button type="button" onClick={() => moveOrder(item.id, "down")} disabled={index === filtered.length - 1}
+                  className={`rounded p-0.5 text-slate-400 transition hover:text-[#03004b] disabled:cursor-not-allowed disabled:opacity-30 ${FOCUS_VISIBLE}`}><ChevronDown size={14} /></button>
+              </div>
+            </Td>
+            <Td className="text-center">
+              {item.showOnSite ? (
+                <Badge tone="emerald"><Eye size={12} />فعال</Badge>
+              ) : (
+                <Badge tone="slate"><EyeOff size={12} />مخفی</Badge>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </Td>
+            <Td>
+              <div className="flex items-center gap-2 justify-end">
+                <button type="button" onClick={() => openEditModal(item)}
+                  className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${FOCUS_VISIBLE}`} title="ویرایش"><Pencil size={16} /></button>
+                <button type="button" onClick={() => setDeleteTarget(item)}
+                  className={`rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 ${FOCUS_VISIBLE}`} title="حذف"><Trash2 size={16} /></button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+        {filtered.length === 0 && (
+          <tr><Td colSpan={6}><EmptyState message="هنرآموخته‌ای یافت نشد" /></Td></tr>
+        )}
+      </DataTable>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">{editingItem ? "ویرایش هنرآموخته" : "افزودن هنرآموخته جدید"}</h3>
-              <button onClick={() => setShowModal(false)} className="text-outline hover:text-primary p-1"><X size={20} /></button>
+        <Modal
+          title={editingItem ? "ویرایش هنرآموخته" : "افزودن هنرآموخته جدید"}
+          onClose={() => { if (!saving) setShowModal(false); }}
+          maxWidth="max-w-2xl"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">اتصال به حساب کاربری (اختیاری)</label>
+              <select
+                value={form.userId}
+                onChange={(e) => {
+                  const selected = users.find((user) => user.id === e.target.value);
+                  setForm((previous) => ({ ...previous, userId: e.target.value, name: previous.name || selected?.name || "" }));
+                }}
+                className={`w-full ${INPUT_CLASS} ${FOCUS_VISIBLE}`}
+              >
+                <option value="">بدون حساب کاربری</option>
+                {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
+              </select>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">اتصال به حساب کاربری (اختیاری)</label>
-                <select
-                  value={form.userId}
-                  onChange={(e) => {
-                    const selected = users.find((user) => user.id === e.target.value);
-                    setForm((previous) => ({ ...previous, userId: e.target.value, name: previous.name || selected?.name || "" }));
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed"
-                >
-                  <option value="">بدون حساب کاربری</option>
-                  {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">نام *</label>
-                  <input type="text" required value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">رشته</label>
-                  <input type="text" value={form.field} onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">دوره</label>
-                  <input type="text" value={form.batch} onChange={(e) => setForm((p) => ({ ...p, batch: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]" />
-                </div>
-              </div>
-              <ImageUpload value={form.imageUrl} onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))} label="تصویر" sizeHint="۳۰۰ × ۳۰۰ پیکسل" aspectRatio="1:1" />
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">نقل قول</label>
-                <textarea rows={2} value={form.quote} onChange={(e) => setForm((p) => ({ ...p, quote: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none" />
+                <label className="mb-1 block text-sm font-medium text-slate-900">نام *</label>
+                <input type="text" required value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  className={`w-full ${INPUT_CLASS}`} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">افتخارات (با کاما جدا کنید)</label>
-                <textarea rows={2} value={form.achievements} onChange={(e) => setForm((p) => ({ ...p, achievements: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none" />
+                <label className="mb-1 block text-sm font-medium text-slate-900">رشته</label>
+                <input type="text" value={form.field} onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))}
+                  className={`w-full ${INPUT_CLASS}`} />
               </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-low border border-surface-variant">
-                <div>
-                  <label className="text-sm font-medium text-primary">نمایش در سایت</label>
-                  <p className="text-xs text-outline mt-0.5">در صورت غیرفعال بودن، در سایت نمایش داده نمی‌شود</p>
-                </div>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, showOnSite: !p.showOnSite }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${form.showOnSite ? "bg-green-500" : "bg-surface-variant"}`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.showOnSite ? "translate-x-6" : "translate-x-0.5"}`} />
-                </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-900">دوره</label>
+                <input type="text" value={form.batch} onChange={(e) => setForm((p) => ({ ...p, batch: e.target.value }))}
+                  className={`w-full ${INPUT_CLASS}`} />
               </div>
-              <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={saving}
-                  className="flex items-center gap-2 bg-[#03004b] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors disabled:opacity-50">
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  {editingItem ? "بروزرسانی" : "ایجاد"}
-                </button>
-                <button type="button" onClick={() => setShowModal(false)} disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors">انصراف</button>
+            </div>
+            <ImageUpload value={form.imageUrl} onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))} label="تصویر" sizeHint="۳۰۰ × ۳۰۰ پیکسل" aspectRatio="1:1" />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">نقل قول</label>
+              <textarea rows={2} value={form.quote} onChange={(e) => setForm((p) => ({ ...p, quote: e.target.value }))}
+                className={`w-full resize-none ${INPUT_CLASS}`} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">افتخارات (با کاما جدا کنید)</label>
+              <textarea rows={2} value={form.achievements} onChange={(e) => setForm((p) => ({ ...p, achievements: e.target.value }))}
+                className={`w-full resize-none ${INPUT_CLASS}`} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
+              <div>
+                <label className="text-sm font-medium text-slate-900">نمایش در سایت</label>
+                <p className="mt-0.5 text-xs text-slate-500">در صورت غیرفعال بودن، در سایت نمایش داده نمی‌شود</p>
               </div>
-            </form>
-          </div>
-        </div>
+              <button type="button" onClick={() => setForm((p) => ({ ...p, showOnSite: !p.showOnSite }))}
+                className={`relative h-6 w-12 rounded-full transition-colors ${FOCUS_VISIBLE} ${form.showOnSite ? "bg-emerald-500" : "bg-slate-200"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.showOnSite ? "translate-x-6" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <PrimaryButton type="submit" disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {editingItem ? "بروزرسانی" : "ایجاد"}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => setShowModal(false)} disabled={saving}>انصراف</SecondaryButton>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center mx-auto mb-4"><Trash2 size={28} className="text-error" /></div>
-              <h3 className="text-lg font-bold text-primary mb-2">حذف هنرآموخته</h3>
-              <p className="text-outline text-sm mb-1">آیا از حذف <span className="font-bold text-primary">"{deleteTarget.name}"</span> اطمینان دارید؟</p>
-              <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button onClick={handleDelete} disabled={saving}
-                  className="flex items-center gap-2 bg-error text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50">
-                  {saving && <Loader2 size={16} className="animate-spin" />}حذف</button>
-                <button onClick={() => setDeleteTarget(null)} disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors">انصراف</button>
-              </div>
-            </div>
+        <Modal
+          title="حذف هنرآموخته"
+          onClose={() => { if (!saving) setDeleteTarget(null); }}
+          maxWidth="max-w-md"
+          footer={
+            <>
+              <DangerButton onClick={handleDelete} disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}حذف</DangerButton>
+              <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>انصراف</SecondaryButton>
+            </>
+          }
+        >
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50"><Trash2 size={28} className="text-red-500" /></div>
+            <p className="text-sm text-slate-500">آیا از حذف <span className="font-bold text-slate-900">"{deleteTarget.name}"</span> اطمینان دارید؟</p>
+            <p className="mt-1 text-xs text-slate-500">این عمل قابل بازگشت نیست.</p>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

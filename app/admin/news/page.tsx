@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Eye, Loader2, Newspaper, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { CalendarDays, Eye, Loader2, Newspaper, Pencil, Plus, Search, Star, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { getCookie } from "@/lib/cookie";
+import { Badge, DangerButton, EmptyState, Modal, PrimaryButton, SearchInput, SecondaryButton } from "@/components/admin/ui";
 
 interface NewsPost { id: string; title: string; slug: string; excerpt: string; content: string; coverImage: string | null; category: string; authorName: string | null; tags: string | null; featured: boolean; published: boolean; publishedAt: string | null; createdAt: string; }
 const categories = [{ value: "general", label: "خبر آکادمی" }, { value: "course", label: "دوره‌ها" }, { value: "instructor", label: "اساتید" }, { value: "alumni", label: "هنرآموختگان" }];
 const emptyForm = { title: "", slug: "", excerpt: "", content: "", coverImage: "", category: "general", authorName: "", tags: "", featured: false, published: false };
+
+const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnCls = "p-2 text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] rounded-lg";
 
 function toSlug(value: string) {
   const map: Record<string, string> = { ا: "a", آ: "a", ب: "b", پ: "p", ت: "t", ث: "s", ج: "j", چ: "ch", ح: "h", خ: "kh", د: "d", ذ: "z", ر: "r", ز: "z", ژ: "zh", س: "s", ش: "sh", ص: "s", ض: "z", ط: "t", ظ: "z", ع: "a", غ: "gh", ف: "f", ق: "gh", ک: "k", گ: "g", ل: "l", م: "m", ن: "n", و: "v", ه: "h", ی: "y", " ": "-" };
@@ -62,19 +66,65 @@ export default function AdminNewsPage() {
 
   const filtered = news.filter((post) => post.title.includes(search) || post.excerpt.includes(search) || post.tags?.includes(search));
   return <div className="space-y-5">
-    <div className="flex flex-col sm:flex-row gap-3 justify-between"><div className="relative sm:w-72"><Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو در اخبار..." className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm outline-none focus:ring-2 focus:ring-secondary-fixed" /></div><button onClick={openCreate} className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold"><Plus size={18} />خبر جدید</button></div>
-    {loading ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-primary" size={32} /></div> : filtered.length === 0 ? <div className="bg-white rounded-2xl border border-surface-variant py-20 text-center text-outline"><Newspaper size={42} className="mx-auto mb-3 opacity-30" /><p>خبری پیدا نشد</p></div> : <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((post) => <article key={post.id} className="bg-white rounded-2xl border border-surface-variant overflow-hidden group"><div className="aspect-[16/8] bg-surface-low relative overflow-hidden">{post.coverImage ? <img src={post.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center text-outline-variant"><Newspaper size={42} /></div>}<div className="absolute top-3 right-3 flex gap-2">{post.featured && <span className="bg-secondary-fixed text-secondary rounded-full p-1.5"><Star size={13} className="fill-current" /></span>}<span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${post.published ? "bg-green-600 text-white" : "bg-white text-outline"}`}>{post.published ? "منتشرشده" : "پیش‌نویس"}</span></div></div><div className="p-4"><span className="text-[11px] font-bold text-secondary">{categories.find((item) => item.value === post.category)?.label}</span><h2 className="font-black text-primary mt-1 line-clamp-2 leading-7">{post.title}</h2><p className="text-xs text-outline line-clamp-2 leading-6 mt-1">{post.excerpt}</p><div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-variant"><span className="text-[10px] text-outline flex items-center gap-1"><CalendarDays size={12} />{new Date(post.publishedAt || post.createdAt).toLocaleDateString("fa-IR")}</span><div className="flex gap-1">{post.published && <Link href={`/news/${post.slug}`} target="_blank" className="p-2 text-outline hover:text-primary"><Eye size={16} /></Link>}<button onClick={() => openEdit(post)} className="p-2 text-outline hover:text-primary"><Pencil size={16} /></button><button onClick={() => setDeleteTarget(post)} className="p-2 text-outline hover:text-error"><Trash2 size={16} /></button></div></div></div></article>)}</div>}
+    <div className="flex flex-col sm:flex-row gap-3 justify-between">
+      <div className="relative sm:w-72">
+        <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو در اخبار..." />
+      </div>
+      <PrimaryButton onClick={openCreate}><Plus size={18} />خبر جدید</PrimaryButton>
+    </div>
+    {loading ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-[#03004b]" size={32} /></div> : filtered.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white py-10 text-center"><Newspaper size={42} className="mx-auto mb-1 text-slate-300" /><EmptyState message="خبری پیدا نشد" /></div> : <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((post) => <article key={post.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden group">
+      <div className="aspect-[16/8] bg-slate-100 relative overflow-hidden">
+        {post.coverImage ? <img src={post.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Newspaper size={42} /></div>}
+        <div className="absolute top-3 right-3 flex gap-2">
+          {post.featured && <span className="rounded-full border border-amber-200/70 bg-amber-50 text-amber-600 p-1.5"><Star size={13} className="fill-current" /></span>}
+          <Badge tone={post.published ? "emerald" : "slate"}>{post.published ? "منتشرشده" : "پیش‌نویس"}</Badge>
+        </div>
+      </div>
+      <div className="p-4">
+        <span className="text-[11px] font-bold text-slate-500">{categories.find((item) => item.value === post.category)?.label}</span>
+        <h2 className="text-base font-black text-slate-900 mt-1 line-clamp-2 leading-7">{post.title}</h2>
+        <p className="text-xs text-slate-500 line-clamp-2 leading-6 mt-1">{post.excerpt}</p>
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+          <span className="text-[10px] tabular-nums text-slate-500 flex items-center gap-1"><CalendarDays size={12} />{new Date(post.publishedAt || post.createdAt).toLocaleDateString("fa-IR")}</span>
+          <div className="flex gap-1">
+            {post.published && <Link href={`/news/${post.slug}`} target="_blank" className={iconBtnCls}><Eye size={16} /></Link>}
+            <button type="button" onClick={() => openEdit(post)} className={iconBtnCls}><Pencil size={16} /></button>
+            <button type="button" onClick={() => setDeleteTarget(post)} className="rounded-lg p-2 text-slate-400 transition hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"><Trash2 size={16} /></button>
+          </div>
+        </div>
+      </div>
+    </article>)}</div>}
 
-    {modalOpen && <div className="modal-overlay" onClick={() => !saving && setModalOpen(false)}><form onSubmit={save} className="modal-content max-w-4xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between mb-5"><div><h2 className="text-xl font-black text-primary">{editing ? "ویرایش خبر" : "روایت تازه"}</h2><p className="text-xs text-outline mt-1">متن را با یک خط خالی بین پاراگراف‌ها بنویسید.</p></div><button type="button" onClick={() => setModalOpen(false)} className="p-2 text-outline"><X size={20} /></button></div><div className="grid md:grid-cols-2 gap-4">
-      <label className="md:col-span-2 text-sm font-bold text-primary">عنوان<input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value, slug: editing ? current.slug : toSlug(event.target.value) }))} className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" /></label>
-       <label className="text-sm font-bold text-primary">آدرس صفحه در مجله<div className="mt-1 space-y-1.5" dir="ltr"><div className="w-full rounded-xl border border-surface-variant bg-surface-low px-3 py-2 text-[10px] font-normal text-outline">mag.imamruhollahschool.com/news/</div><input required value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-") }))} className="w-full px-3 py-3 rounded-xl border border-surface-variant font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" /></div></label>
-      <label className="text-sm font-bold text-primary">موضوع<select value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal">{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-      <label className="md:col-span-2 text-sm font-bold text-primary">خلاصه<input required value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} maxLength={300} className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal outline-none focus:ring-2 focus:ring-secondary-fixed" /></label>
-      <label className="md:col-span-2 text-sm font-bold text-primary">متن خبر<textarea required rows={11} value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal leading-8 outline-none focus:ring-2 focus:ring-secondary-fixed resize-y" /></label>
-      <div className="md:col-span-2"><ImageUpload value={form.coverImage} onChange={(coverImage) => setForm((current) => ({ ...current, coverImage }))} label="تصویر شاخص" sizeHint="پیشنهاد: تصویر افقی با نسبت 16:9" aspectRatio="16:9" /></div>
-      <label className="text-sm font-bold text-primary">نام نویسنده<input value={form.authorName} onChange={(event) => setForm((current) => ({ ...current, authorName: event.target.value }))} placeholder="تحریریه آکادمی" className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal" /></label><label className="text-sm font-bold text-primary">برچسب‌ها<input value={form.tags} onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))} placeholder="هنر، رسانه، آموزش" className="mt-1 w-full px-4 py-3 rounded-xl border border-surface-variant font-normal" /></label>
-      <label className="flex items-center justify-between rounded-xl bg-surface-low border border-surface-variant p-3"><span className="text-sm font-bold text-primary">روایت ویژه</span><input type="checkbox" checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} className="w-5 h-5 accent-primary" /></label><label className="flex items-center justify-between rounded-xl bg-surface-low border border-surface-variant p-3"><span className="text-sm font-bold text-primary">انتشار عمومی</span><input type="checkbox" checked={form.published} onChange={(event) => setForm((current) => ({ ...current, published: event.target.checked }))} className="w-5 h-5 accent-primary" /></label>
-    </div><div className="flex gap-3 mt-6"><button disabled={saving} className="bg-primary text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 disabled:opacity-50">{saving && <Loader2 size={16} className="animate-spin" />}{editing ? "ذخیره تغییرات" : "ایجاد خبر"}</button><button type="button" onClick={() => setModalOpen(false)} className="px-6 py-3 rounded-xl border border-surface-variant text-sm text-outline">انصراف</button></div></form></div>}
-    {deleteTarget && <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}><div className="modal-content max-w-md text-center" onClick={(event) => event.stopPropagation()}><div className="w-14 h-14 rounded-full bg-error-container text-error flex items-center justify-center mx-auto"><Trash2 size={24} /></div><h3 className="font-black text-primary mt-4">حذف این خبر؟</h3><p className="text-sm text-outline mt-2">«{deleteTarget.title}» برای همیشه حذف می‌شود.</p><div className="flex justify-center gap-3 mt-6"><button onClick={remove} disabled={saving} className="bg-error text-white px-5 py-2.5 rounded-xl text-sm">حذف</button><button onClick={() => setDeleteTarget(null)} className="border border-surface-variant px-5 py-2.5 rounded-xl text-sm text-outline">انصراف</button></div></div></div>}
+    {modalOpen && <Modal title={editing ? "ویرایش خبر" : "روایت تازه"} subtitle="متن را با یک خط خالی بین پاراگراف‌ها بنویسید." onClose={() => !saving && setModalOpen(false)} maxWidth="max-w-4xl">
+      <form onSubmit={save}>
+        <div className="grid md:grid-cols-2 gap-4">
+          <label className="md:col-span-2 text-sm font-bold text-slate-900">عنوان<input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value, slug: editing ? current.slug : toSlug(event.target.value) }))} className={`mt-1 w-full font-normal ${inputCls}`} /></label>
+          <label className="text-sm font-bold text-slate-900">آدرس صفحه در مجله<div className="mt-1 space-y-1.5" dir="ltr"><div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-normal text-slate-500">mag.imamruhollahschool.com/news/</div><input required value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-") }))} className={`w-full font-normal ${inputCls}`} /></div></label>
+          <label className="text-sm font-bold text-slate-900">موضوع<select value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} className={`mt-1 w-full font-normal ${inputCls}`}>{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label className="md:col-span-2 text-sm font-bold text-slate-900">خلاصه<input required value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} maxLength={300} className={`mt-1 w-full font-normal ${inputCls}`} /></label>
+          <label className="md:col-span-2 text-sm font-bold text-slate-900">متن خبر<textarea required rows={11} value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className={`mt-1 w-full font-normal leading-8 resize-y ${inputCls}`} /></label>
+          <div className="md:col-span-2"><ImageUpload value={form.coverImage} onChange={(coverImage) => setForm((current) => ({ ...current, coverImage }))} label="تصویر شاخص" sizeHint="پیشنهاد: تصویر افقی با نسبت 16:9" aspectRatio="16:9" /></div>
+          <label className="text-sm font-bold text-slate-900">نام نویسنده<input value={form.authorName} onChange={(event) => setForm((current) => ({ ...current, authorName: event.target.value }))} placeholder="تحریریه آکادمی" className={`mt-1 w-full font-normal ${inputCls}`} /></label>
+          <label className="text-sm font-bold text-slate-900">برچسب‌ها<input value={form.tags} onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))} placeholder="هنر، رسانه، آموزش" className={`mt-1 w-full font-normal ${inputCls}`} /></label>
+          <label className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 p-3"><span className="text-sm font-bold text-slate-900">روایت ویژه</span><input type="checkbox" checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} className="w-5 h-5 accent-[#03004b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]" /></label>
+          <label className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 p-3"><span className="text-sm font-bold text-slate-900">انتشار عمومی</span><input type="checkbox" checked={form.published} onChange={(event) => setForm((current) => ({ ...current, published: event.target.checked }))} className="w-5 h-5 accent-[#03004b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]" /></label>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#03004b] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#1b1c5e] disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]">{saving && <Loader2 size={16} className="animate-spin" />}{editing ? "ذخیره تغییرات" : "ایجاد خبر"}</button>
+          <SecondaryButton onClick={() => setModalOpen(false)} disabled={saving}>انصراف</SecondaryButton>
+        </div>
+      </form>
+    </Modal>}
+    {deleteTarget && <Modal title="حذف این خبر؟" onClose={() => !saving && setDeleteTarget(null)} maxWidth="max-w-md">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto"><Trash2 size={24} /></div>
+        <p className="text-sm text-slate-500 mt-4">«{deleteTarget.title}» برای همیشه حذف می‌شود.</p>
+      </div>
+      <div className="flex justify-center gap-3 mt-6">
+        <DangerButton onClick={remove} disabled={saving}>حذف</DangerButton>
+        <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>انصراف</SecondaryButton>
+      </div>
+    </Modal>}
   </div>;
 }

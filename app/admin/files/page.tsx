@@ -22,10 +22,10 @@ import {
   ShieldAlert,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import { Badge, DangerButton, EmptyState, FilterChips, Modal, PrimaryButton, SearchInput, SecondaryButton, StatCard } from "@/components/admin/ui";
 
 interface ManagedFile {
   name: string;
@@ -78,6 +78,10 @@ const allowedExtensions = new Set([
   "mp4", "webm", "mov", "mkv", "avi", "mp3", "wav", "ogg", "m4a", "aac",
   "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip", "rar", "7z",
 ]);
+
+const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnCls = "p-1.5 rounded-lg text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const focusCls = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 function validateUpload(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
@@ -322,25 +326,14 @@ export default function AdminFilesPage() {
   const activeUploadIndex = uploadItems.findIndex((item) => item.status === "uploading");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-primary text-white rounded-2xl p-5 relative overflow-hidden">
-          <HardDrive className="absolute -left-4 -bottom-4 text-white/10" size={100} />
-          <p className="text-white/60 text-sm">فضای آزاد سرور</p>
-          <p className="text-2xl font-black mt-2">{storage ? formatBytes(storage.availableBytes) : "—"}</p>
-          <div className="h-1.5 bg-white/15 rounded-full mt-4 overflow-hidden"><div className="h-full bg-secondary-fixed rounded-full" style={{ width: `${diskUsagePercent}%` }} /></div>
-          <p className="text-xs text-white/50 mt-2">{diskUsagePercent.toLocaleString("fa-IR", { maximumFractionDigits: 1 })}٪ از دیسک مصرف شده</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-surface-variant p-5">
-          <p className="text-outline text-sm">حجم فایل‌های آپلودی</p>
-          <p className="text-2xl font-black text-primary mt-2">{storage ? formatBytes(storage.uploadsBytes) : "—"}</p>
-          <p className="text-xs text-outline mt-4">فقط فایل‌های داخل پوشه uploads</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-surface-variant p-5">
-          <p className="text-outline text-sm">تعداد فایل‌ها</p>
-          <p className="text-2xl font-black text-secondary mt-2">{files.length.toLocaleString("fa-IR")}</p>
-          <p className="text-xs text-outline mt-4">{files.filter((file) => file.references.length > 0).length.toLocaleString("fa-IR")} فایل در سایت استفاده شده</p>
-        </div>
+        <StatCard label="فضای آزاد سرور" value={storage ? formatBytes(storage.availableBytes) : "—"} sub={`${diskUsagePercent.toLocaleString("fa-IR", { maximumFractionDigits: 1 })}٪ از دیسک مصرف شده`} icon={HardDrive} tone="bg-slate-100 text-slate-600" />
+        <StatCard label="حجم فایل‌های آپلودی" value={storage ? formatBytes(storage.uploadsBytes) : "—"} sub="فقط فایل‌های داخل پوشه uploads" icon={Upload} tone="bg-blue-50 text-blue-600" />
+        <StatCard label="تعداد فایل‌ها" value={files.length.toLocaleString("fa-IR")} sub={`${files.filter((file) => file.references.length > 0).length.toLocaleString("fa-IR")} فایل در سایت استفاده شده`} icon={File} tone="bg-emerald-50 text-emerald-600" />
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" dir="ltr"><div className="h-full rounded-full bg-[#03004b]" style={{ width: `${diskUsagePercent}%` }} /></div>
       </div>
 
       <div
@@ -348,74 +341,101 @@ export default function AdminFilesPage() {
         onDragOver={(event) => event.preventDefault()}
         onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }}
         onDrop={(event) => { event.preventDefault(); setDragging(false); if (!uploading) uploadFiles(event.dataTransfer.files); }}
-        className={`rounded-2xl border-2 border-dashed p-5 transition-colors ${dragging ? "border-secondary bg-secondary-fixed/20" : "border-outline-variant bg-white"}`}
+        className={`rounded-xl border-2 border-dashed p-5 transition-colors ${dragging ? "border-[#03004b] bg-slate-50" : "border-slate-300 bg-white"}`}
       >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary"><Upload size={22} /></div>
-            <div><p className="font-bold text-primary">فایل‌ها را اینجا رها کنید</p><p className="text-xs text-outline mt-1">تصاویر تا ۱۰ مگابایت؛ ویدئو، صدا، سند و فایل فشرده تا ۵۰ مگابایت</p></div>
+            <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><Upload size={22} /></div>
+            <div><p className="font-bold text-slate-900">فایل‌ها را اینجا رها کنید</p><p className="text-xs text-slate-500 mt-1">تصاویر تا ۱۰ مگابایت؛ ویدئو، صدا، سند و فایل فشرده تا ۵۰ مگابایت</p></div>
           </div>
-          <button onClick={() => inputRef.current?.click()} disabled={uploading} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
+          <PrimaryButton onClick={() => inputRef.current?.click()} disabled={uploading}>
              {uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
              {uploading ? `در حال آپلود ${(activeUploadIndex + 1).toLocaleString("fa-IR")} از ${uploadItems.length.toLocaleString("fa-IR")}` : "انتخاب فایل"}
-           </button>
+           </PrimaryButton>
            <input ref={inputRef} type="file" multiple className="hidden" onChange={(event) => event.target.files && uploadFiles(event.target.files)} />
          </div>
-         {uploadItems.length > 0 && <div className="mt-5 border-t border-surface-variant pt-4">
+         {uploadItems.length > 0 && <div className="mt-5 border-t border-slate-100 pt-4">
            <div className="flex items-center justify-between gap-3 mb-2 text-xs">
-             <span className="font-bold text-primary">پیشرفت کل: {totalUploadProgress.toLocaleString("fa-IR")}٪</span>
-             <span className="text-outline">{formatBytes(loadedUploadBytes)} از {formatBytes(totalUploadBytes)}</span>
+             <span className="font-bold text-slate-900 tabular-nums">پیشرفت کل: {totalUploadProgress.toLocaleString("fa-IR")}٪</span>
+             <span className="text-slate-500 tabular-nums">{formatBytes(loadedUploadBytes)} از {formatBytes(totalUploadBytes)}</span>
            </div>
-           <div className="h-2 rounded-full bg-surface-low overflow-hidden" dir="ltr"><div className="h-full bg-secondary transition-[width] duration-200" style={{ width: `${totalUploadProgress}%` }} /></div>
+           <div className="h-2 rounded-full bg-slate-100 overflow-hidden" dir="ltr"><div className="h-full bg-[#03004b] transition-[width] duration-200" style={{ width: `${totalUploadProgress}%` }} /></div>
            <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pl-1">
-             {uploadItems.map((item) => <div key={item.id} className="rounded-xl border border-surface-variant bg-surface-low/40 p-3">
+             {uploadItems.map((item) => <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                <div className="flex items-center gap-3">
-                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.status === "success" ? "bg-green-100 text-green-700" : item.status === "error" ? "bg-error-container text-error" : "bg-secondary-fixed text-secondary"}`}>
+                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.status === "success" ? "bg-emerald-50 text-emerald-600" : item.status === "error" ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-600"}`}>
                    {item.status === "uploading" ? <Loader2 size={18} className="animate-spin" /> : item.status === "success" ? <Check size={18} /> : item.status === "error" ? <AlertCircle size={18} /> : <File size={18} />}
                  </div>
                  <div className="min-w-0 flex-1">
-                   <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold text-primary truncate" dir="ltr" title={item.file.name}>{item.file.name}</p><span className="text-xs font-bold text-outline shrink-0">{item.progress.toLocaleString("fa-IR")}٪</span></div>
-                   <div className="flex items-center justify-between gap-2 mt-1"><span className={`text-[11px] ${item.status === "error" ? "text-error" : "text-outline"}`}>{item.error || (item.status === "queued" ? "در صف انتظار" : item.status === "success" ? "آپلود کامل شد" : item.progress === 100 ? "در حال ذخیره روی سرور" : "در حال ارسال")}</span><span className="text-[10px] text-outline shrink-0">{formatBytes(item.loaded)} / {formatBytes(item.file.size)}</span></div>
-                   <div className="h-1.5 rounded-full bg-white mt-2 overflow-hidden" dir="ltr"><div className={`h-full transition-[width] duration-200 ${item.status === "error" ? "bg-error" : item.status === "success" ? "bg-green-600" : "bg-secondary"}`} style={{ width: `${item.progress}%` }} /></div>
+                   <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold text-slate-900 truncate tabular-nums" dir="ltr" title={item.file.name}>{item.file.name}</p><span className="text-xs font-bold text-slate-500 tabular-nums shrink-0">{item.progress.toLocaleString("fa-IR")}٪</span></div>
+                   <div className="flex items-center justify-between gap-2 mt-1"><span className={`text-[11px] ${item.status === "error" ? "text-red-600" : "text-slate-500"}`}>{item.error || (item.status === "queued" ? "در صف انتظار" : item.status === "success" ? "آپلود کامل شد" : item.progress === 100 ? "در حال ذخیره روی سرور" : "در حال ارسال")}</span><span className="text-[10px] text-slate-500 tabular-nums shrink-0">{formatBytes(item.loaded)} / {formatBytes(item.file.size)}</span></div>
+                   <div className="h-1.5 rounded-full bg-white mt-2 overflow-hidden" dir="ltr"><div className={`h-full transition-[width] duration-200 ${item.status === "error" ? "bg-red-500" : item.status === "success" ? "bg-emerald-500" : "bg-[#03004b]"}`} style={{ width: `${item.progress}%` }} /></div>
                  </div>
                </div>
              </div>)}
            </div>
-           {!uploading && <div className="flex justify-end mt-3"><button type="button" onClick={() => setUploadItems([])} className="text-xs text-outline hover:text-primary">پاک کردن فهرست</button></div>}
+           {!uploading && <div className="flex justify-end mt-3"><button type="button" onClick={() => setUploadItems([])} className={`text-xs text-slate-500 hover:text-slate-900 rounded ${focusCls}`}>پاک کردن فهرست</button></div>}
          </div>}
        </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-surface-variant flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
-          <div className="flex flex-wrap gap-2">{filters.map((item) => <button key={item.value} onClick={() => setFilter(item.value)} className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${filter === item.value ? "bg-primary text-white" : "bg-surface-low text-outline hover:text-primary"}`}>{item.label}</button>)}</div>
+      <div className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)] overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
+          <FilterChips options={filters} value={filter} onChange={(value) => setFilter(value)} />
           <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:w-60"><Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی فایل..." className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /></div>
-            <button onClick={fetchFiles} className="p-2.5 rounded-xl border border-surface-variant text-outline hover:text-primary"><RefreshCw size={18} /></button>
-            <div className="flex rounded-xl border border-surface-variant overflow-hidden"><button onClick={() => setView("grid")} className={`p-2.5 ${view === "grid" ? "bg-primary text-white" : "text-outline"}`}><Grid2X2 size={18} /></button><button onClick={() => setView("list")} className={`p-2.5 ${view === "list" ? "bg-primary text-white" : "text-outline"}`}><List size={18} /></button></div>
+            <div className="relative flex-1 sm:w-60"><Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی فایل..." /></div>
+            <button type="button" onClick={fetchFiles} className={`p-2.5 rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 ${focusCls}`}><RefreshCw size={18} /></button>
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden"><button type="button" onClick={() => setView("grid")} className={`p-2.5 transition ${focusCls} ${view === "grid" ? "bg-[#03004b] text-white" : "bg-white text-slate-500"}`}><Grid2X2 size={18} /></button><button type="button" onClick={() => setView("list")} className={`p-2.5 transition ${focusCls} ${view === "list" ? "bg-[#03004b] text-white" : "bg-white text-slate-500"}`}><List size={18} /></button></div>
           </div>
         </div>
 
-        {loading ? <div className="py-20 flex justify-center"><Loader2 size={34} className="animate-spin text-primary" /></div> : error ? <div className="py-20 text-center text-error"><AlertCircle size={38} className="mx-auto mb-3" /><p>{error}</p></div> : filteredFiles.length === 0 ? <div className="py-20 text-center"><File size={42} className="mx-auto text-outline-variant mb-3" /><p className="text-outline">فایلی پیدا نشد</p></div> : view === "grid" ? (
+        {loading ? <div className="py-20 flex justify-center"><Loader2 size={34} className="animate-spin text-[#03004b]" /></div> : error ? <div className="py-20 text-center text-red-600"><AlertCircle size={38} className="mx-auto mb-3" /><p>{error}</p></div> : filteredFiles.length === 0 ? <div className="py-10 text-center"><File size={42} className="mx-auto text-slate-300" /><EmptyState message="فایلی پیدا نشد" /></div> : view === "grid" ? (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 p-4">
-            {filteredFiles.map((file) => <div key={file.path} className="group rounded-2xl border border-surface-variant overflow-hidden hover:shadow-md transition-shadow bg-white">
-              <button onClick={() => setPreview(file)} className="relative w-full aspect-square bg-surface-low overflow-hidden flex items-center justify-center text-outline">
+            {filteredFiles.map((file) => <div key={file.path} className="group rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow bg-white">
+              <button type="button" onClick={() => setPreview(file)} className={`relative w-full aspect-square bg-slate-100 overflow-hidden flex items-center justify-center text-slate-400 ${focusCls}`}>
                 {file.type === "image" ? <img src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <FileTypeIcon type={file.type} size={52} />}
-                <span className="absolute top-2 left-2 text-[10px] bg-primary/80 text-white px-2 py-1 rounded-lg">{file.extension}</span>
-                {file.references.length > 0 && <span className="absolute top-2 right-2 text-[10px] bg-green-600 text-white px-2 py-1 rounded-lg flex items-center gap-1"><Check size={10} /> در استفاده</span>}
+                <span className="absolute top-2 left-2"><Badge tone="slate">{file.extension}</Badge></span>
+                {file.references.length > 0 && <span className="absolute top-2 right-2"><Badge tone="emerald"><Check size={10} /> در استفاده</Badge></span>}
               </button>
-               <div className="p-3"><p className="text-xs font-bold text-primary truncate" dir="ltr" title={file.name}>{file.name}</p><p className="mt-1 truncate text-[10px] text-outline" dir="ltr" title={file.path}>{file.path}</p><p className="text-[11px] text-outline mt-1">{formatBytes(file.size)}</p><div className="flex items-center justify-between mt-3 pt-2 border-t border-surface-variant/60"><button onClick={() => copyUrl(file)} className="p-1.5 text-outline hover:text-primary" title="کپی لینک"><Clipboard size={15} /></button><button onClick={() => openRename(file)} className="p-1.5 text-outline hover:text-primary" title="تغییر نام"><Pencil size={15} /></button><a href={file.url} download className="p-1.5 text-outline hover:text-primary" title="دانلود"><Download size={15} /></a><button onClick={() => file.references.length ? toast.error(`این فایل در ${file.references.length.toLocaleString("fa-IR")} بخش استفاده شده است`) : setDeleteTarget(file)} className={`p-1.5 ${file.references.length ? "text-outline-variant cursor-not-allowed" : "text-outline hover:text-error"}`} title="حذف"><Trash2 size={15} /></button></div></div>
+               <div className="p-3"><p className="text-xs font-bold text-slate-900 truncate tabular-nums" dir="ltr" title={file.name}>{file.name}</p><p className="mt-1 truncate text-[10px] text-slate-500" dir="ltr" title={file.path}>{file.path}</p><p className="text-[11px] tabular-nums text-slate-500 mt-1">{formatBytes(file.size)}</p><div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100"><button type="button" onClick={() => copyUrl(file)} className={iconBtnCls} title="کپی لینک"><Clipboard size={15} /></button><button type="button" onClick={() => openRename(file)} className={iconBtnCls} title="تغییر نام"><Pencil size={15} /></button><a href={file.url} download className={iconBtnCls} title="دانلود"><Download size={15} /></a><button type="button" onClick={() => file.references.length ? toast.error(`این فایل در ${file.references.length.toLocaleString("fa-IR")} بخش استفاده شده است`) : setDeleteTarget(file)} className={`p-1.5 rounded-lg transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] ${file.references.length ? "text-slate-300 cursor-not-allowed" : "text-slate-400 hover:text-red-600"}`} title="حذف"><Trash2 size={15} /></button></div></div>
             </div>)}
           </div>
         ) : (
-           <div className="divide-y divide-surface-variant">{filteredFiles.map((file) => <div key={file.path} className="p-3 flex items-center gap-4 hover:bg-surface-low/60"><button onClick={() => setPreview(file)} className="w-12 h-12 rounded-xl bg-surface-low overflow-hidden flex items-center justify-center text-outline shrink-0">{file.type === "image" ? <img src={file.url} alt="" className="w-full h-full object-cover" /> : <FileTypeIcon type={file.type} size={24} />}</button><div className="min-w-0 flex-1"><p className="font-bold text-primary text-sm truncate" dir="ltr">{file.name}</p><p className="mt-1 truncate text-[11px] text-outline" dir="ltr">{file.path}</p><p className="text-xs text-outline mt-1">{formatBytes(file.size)} · {new Date(file.modifiedAt).toLocaleDateString("fa-IR")}</p></div><div className="hidden md:block text-xs text-outline w-32">{file.references.length ? `${file.references.length.toLocaleString("fa-IR")} ارجاع` : "بدون استفاده"}</div><div className="flex gap-1"><button onClick={() => setPreview(file)} className="p-2 text-outline hover:text-primary"><Eye size={17} /></button><button onClick={() => copyUrl(file)} className="p-2 text-outline hover:text-primary"><Clipboard size={17} /></button><button onClick={() => openRename(file)} className="p-2 text-outline hover:text-primary" title="تغییر نام"><Pencil size={17} /></button><button onClick={() => file.references.length ? toast.error("فایل در سایت استفاده شده است") : setDeleteTarget(file)} className={`p-2 ${file.references.length ? "text-outline-variant" : "text-outline hover:text-error"}`}><Trash2 size={17} /></button></div></div>)}</div>
+           <div className="divide-y divide-slate-100">{filteredFiles.map((file) => <div key={file.path} className="p-3 flex items-center gap-4 transition hover:bg-slate-50/60"><button type="button" onClick={() => setPreview(file)} className={`w-12 h-12 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center text-slate-400 shrink-0 ${focusCls}`}>{file.type === "image" ? <img src={file.url} alt="" className="w-full h-full object-cover" /> : <FileTypeIcon type={file.type} size={24} />}</button><div className="min-w-0 flex-1"><p className="font-bold text-slate-900 text-sm truncate tabular-nums" dir="ltr">{file.name}</p><p className="mt-1 truncate text-[11px] text-slate-500" dir="ltr">{file.path}</p><p className="text-xs tabular-nums text-slate-500 mt-1">{formatBytes(file.size)} · {new Date(file.modifiedAt).toLocaleDateString("fa-IR")}</p></div><div className="hidden md:block text-xs tabular-nums text-slate-500 w-32">{file.references.length ? `${file.references.length.toLocaleString("fa-IR")} ارجاع` : "بدون استفاده"}</div><div className="flex gap-1"><button type="button" onClick={() => setPreview(file)} className={`p-2 rounded-lg text-slate-400 transition hover:text-slate-700 ${focusCls}`}><Eye size={17} /></button><button type="button" onClick={() => copyUrl(file)} className={`p-2 rounded-lg text-slate-400 transition hover:text-slate-700 ${focusCls}`}><Clipboard size={17} /></button><button type="button" onClick={() => openRename(file)} className={`p-2 rounded-lg text-slate-400 transition hover:text-slate-700 ${focusCls}`} title="تغییر نام"><Pencil size={17} /></button><button type="button" onClick={() => file.references.length ? toast.error("فایل در سایت استفاده شده است") : setDeleteTarget(file)} className={`p-2 rounded-lg transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] ${file.references.length ? "text-slate-300" : "text-slate-400 hover:text-red-600"}`}><Trash2 size={17} /></button></div></div>)}</div>
         )}
       </div>
 
-      {preview && <div className="modal-overlay" onClick={() => setPreview(null)}><div className="modal-content max-w-4xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between mb-4"><div className="min-w-0"><h3 className="font-bold text-primary truncate" dir="ltr">{preview.name}</h3><p className="text-xs text-outline mt-1">{formatBytes(preview.size)}</p></div><button onClick={() => setPreview(null)} className="p-2 text-outline hover:text-primary"><X size={20} /></button></div><div className="bg-surface-low rounded-2xl min-h-64 max-h-[60vh] overflow-auto flex items-center justify-center">{preview.type === "image" ? <img src={preview.url} alt={preview.name} className="max-w-full max-h-[60vh] object-contain" /> : preview.type === "video" ? <video src={preview.url} controls className="max-w-full max-h-[60vh]" /> : preview.type === "audio" ? <audio src={preview.url} controls className="w-4/5" /> : preview.extension === "PDF" ? <iframe src={preview.url} title={preview.name} className="w-full h-[60vh]" /> : <div className="text-outline text-center"><FileTypeIcon type={preview.type} size={64} /><p className="mt-3">پیش‌نمایش این فرمت در دسترس نیست</p></div>}</div>{preview.references.length > 0 && <div className="mt-4 bg-green-50 text-green-800 rounded-xl p-3 text-sm"><p className="font-bold mb-1">محل‌های استفاده:</p>{preview.references.map((reference) => <p key={reference} className="text-xs mt-1">• {reference}</p>)}</div>}<div className="flex gap-2 mt-4"><button onClick={() => copyUrl(preview)} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm"><Clipboard size={16} /> کپی لینک</button><a href={preview.url} download className="flex items-center gap-2 border border-surface-variant px-4 py-2 rounded-xl text-sm text-primary"><Download size={16} /> دانلود</a></div></div></div>}
+      {preview && <Modal title={preview.name} subtitle={formatBytes(preview.size)} onClose={() => setPreview(null)} maxWidth="max-w-4xl">
+        <div className="bg-slate-100 rounded-xl min-h-64 max-h-[60vh] overflow-auto flex items-center justify-center">{preview.type === "image" ? <img src={preview.url} alt={preview.name} className="max-w-full max-h-[60vh] object-contain" /> : preview.type === "video" ? <video src={preview.url} controls className="max-w-full max-h-[60vh]" /> : preview.type === "audio" ? <audio src={preview.url} controls className="w-4/5" /> : preview.extension === "PDF" ? <iframe src={preview.url} title={preview.name} className="w-full h-[60vh]" /> : <div className="text-slate-400 text-center"><FileTypeIcon type={preview.type} size={64} /><p className="mt-3">پیش‌نمایش این فرمت در دسترس نیست</p></div>}</div>
+        {preview.references.length > 0 && <div className="mt-4 bg-emerald-50 text-emerald-800 rounded-xl p-3 text-sm"><p className="font-bold mb-1">محل‌های استفاده:</p>{preview.references.map((reference) => <p key={reference} className="text-xs mt-1">• {reference}</p>)}</div>}
+        <div className="flex gap-2 mt-5">
+          <PrimaryButton onClick={() => copyUrl(preview)}><Clipboard size={16} /> کپی لینک</PrimaryButton>
+          <a href={preview.url} download className={`inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 ${focusCls}`}><Download size={16} /> دانلود</a>
+        </div>
+      </Modal>}
 
-      {deleteTarget && <div className="modal-overlay" onClick={() => !deleting && setDeleteTarget(null)}><div className="modal-content max-w-md" onClick={(event) => event.stopPropagation()}><div className="text-center"><div className="w-16 h-16 mx-auto rounded-full bg-error-container flex items-center justify-center text-error"><ShieldAlert size={28} /></div><h3 className="text-lg font-bold text-primary mt-4">حذف دائمی فایل</h3><p className="text-sm text-outline mt-2 break-all" dir="ltr">{deleteTarget.name}</p><p className="text-xs text-error mt-3">این عملیات قابل بازگشت نیست.</p><div className="flex justify-center gap-3 mt-6"><button onClick={deleteFile} disabled={deleting} className="flex items-center gap-2 bg-error text-white px-5 py-2.5 rounded-xl text-sm disabled:opacity-50">{deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} حذف فایل</button><button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-5 py-2.5 rounded-xl border border-surface-variant text-sm text-outline">انصراف</button></div></div></div></div>}
+      {deleteTarget && <Modal title="حذف دائمی فایل" onClose={() => !deleting && setDeleteTarget(null)} maxWidth="max-w-md">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center text-red-500"><ShieldAlert size={28} /></div>
+          <p className="text-sm font-bold text-slate-900 mt-4 break-all" dir="ltr">{deleteTarget.name}</p>
+          <p className="text-xs text-red-600 mt-3">این عملیات قابل بازگشت نیست.</p>
+        </div>
+        <div className="flex justify-center gap-3 mt-6">
+          <DangerButton onClick={deleteFile} disabled={deleting}>{deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} حذف فایل</DangerButton>
+          <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={deleting}>انصراف</SecondaryButton>
+        </div>
+      </Modal>}
 
-      {renameTarget && <div className="modal-overlay"><div className="modal-content max-w-md" onClick={(event) => event.stopPropagation()}><div className="w-12 h-12 rounded-xl bg-secondary-fixed text-secondary flex items-center justify-center"><Pencil size={22} /></div><h3 className="text-lg font-bold text-primary mt-4">{renameTarget.fromUpload ? "یک نام مناسب برای فایل انتخاب کنید" : "تغییر نام فایل"}</h3><p className="text-xs text-outline mt-2">نام را انگلیسی وارد کنید. پسوند فایل به‌صورت خودکار حفظ می‌شود و تمام لینک‌های قبلی بروزرسانی خواهند شد.</p><p className="text-xs text-outline mt-4 truncate" dir="ltr">{renameTarget.name}</p><div className="mt-2" dir="ltr"><input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value.replace(/\.[^.]*$/, ""))} onKeyDown={(event) => { if (event.key === "Enter") renameFile(); }} placeholder="example-file-name" className="w-full px-4 py-3 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" /></div><p className="text-[11px] text-outline mt-2" dir="ltr">A-Z, a-z, 0-9, - and _</p><div className="flex gap-2 mt-5"><button onClick={renameFile} disabled={renaming} className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">{renaming ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} ذخیره نام</button><button onClick={() => renameTarget.fromUpload ? showNextRename() : setRenameTarget(null)} disabled={renaming} className="px-5 py-2.5 rounded-xl border border-surface-variant text-sm text-outline">{renameTarget.fromUpload ? "فعلاً رد شود" : "انصراف"}</button></div>{renameQueue.length > 0 && <p className="text-[11px] text-outline mt-4">پس از این فایل، {renameQueue.length.toLocaleString("fa-IR")} فایل دیگر برای نام‌گذاری باقی مانده است.</p>}</div></div>}
+      {renameTarget && <Modal title={renameTarget.fromUpload ? "یک نام مناسب برای فایل انتخاب کنید" : "تغییر نام فایل"} subtitle="نام را انگلیسی وارد کنید. پسوند فایل به‌صورت خودکار حفظ می‌شود و تمام لینک‌های قبلی بروزرسانی خواهند شد." onClose={() => { if (!renaming) { if (renameTarget.fromUpload) showNextRename(); else setRenameTarget(null); } }} maxWidth="max-w-md">
+        <div className="w-12 h-12 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><Pencil size={22} /></div>
+        <p className="text-xs text-slate-500 mt-4 truncate tabular-nums" dir="ltr">{renameTarget.name}</p>
+        <div className="mt-2" dir="ltr"><input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value.replace(/\.[^.]*$/, ""))} onKeyDown={(event) => { if (event.key === "Enter") renameFile(); }} placeholder="example-file-name" className={`w-full ${inputCls}`} /></div>
+        <p className="text-[11px] text-slate-500 mt-2" dir="ltr">A-Z, a-z, 0-9, - and _</p>
+        <div className="flex gap-2 mt-5">
+          <PrimaryButton onClick={renameFile} disabled={renaming}>{renaming ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} ذخیره نام</PrimaryButton>
+          <SecondaryButton onClick={() => renameTarget.fromUpload ? showNextRename() : setRenameTarget(null)} disabled={renaming}>{renameTarget.fromUpload ? "فعلاً رد شود" : "انصراف"}</SecondaryButton>
+        </div>
+        {renameQueue.length > 0 && <p className="text-[11px] tabular-nums text-slate-500 mt-4">پس از این فایل، {renameQueue.length.toLocaleString("fa-IR")} فایل دیگر برای نام‌گذاری باقی مانده است.</p>}
+      </Modal>}
     </div>
   );
 }

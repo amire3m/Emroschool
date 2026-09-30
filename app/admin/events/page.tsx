@@ -8,14 +8,25 @@ import {
   Loader2,
   AlertCircle,
   Search,
-  X,
-  Check,
   MapPin,
    Calendar,
    Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import {
+  PageHeader,
+  DataTable,
+  Th,
+  Td,
+  Badge,
+  EmptyState,
+  PrimaryButton,
+  SecondaryButton,
+  DangerButton,
+  SearchInput,
+  Modal,
+} from "@/components/admin/ui";
 import ImageUpload from "@/components/ui/ImageUpload";
 import DatePicker from "react-multi-date-picker";
 import TimePicker from "react-multi-date-picker/plugins/time_picker";
@@ -70,6 +81,9 @@ function formatDate(dateStr: string) {
     day: "numeric",
   });
 }
+
+const INPUT_CLASS = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15";
+const FOCUS_VISIBLE = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function AdminEvents() {
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -258,15 +272,15 @@ export default function AdminEvents() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 size={32} className="animate-spin text-[#03004b]" />
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-slate-400" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 text-error gap-2">
+      <div className="flex h-64 items-center justify-center gap-2 text-red-600">
         <AlertCircle size={20} />
         <span>خطا: {error}</span>
       </div>
@@ -274,167 +288,149 @@ export default function AdminEvents() {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+    <div className="space-y-5" dir="rtl">
+      <PageHeader
+        title="مدیریت رویدادها"
+        actions={
+          <PrimaryButton onClick={openCreateModal}>
+            <Plus size={18} />
+            افزودن رویداد
+          </PrimaryButton>
+        }
+      />
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="relative w-full sm:w-64">
-          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
-          <input
+          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <SearchInput
             type="text"
             placeholder="جستجوی رویداد..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] focus:border-[#03004b]"
           />
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 bg-[#03004b] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors"
-        >
-          <Plus size={18} />
-          افزودن رویداد
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">عنوان</th>
-                <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">تاریخ شروع</th>
-                <th className="text-right p-3 font-medium text-outline hidden md:table-cell">مکان</th>
-                <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">اساتید</th>
-                <th className="text-center p-3 font-medium text-outline">وضعیت</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
+      <DataTable
+        minWidth={720}
+        head={
+          <>
+            <Th>عنوان</Th>
+            <Th className="hidden sm:table-cell">تاریخ شروع</Th>
+            <Th className="hidden md:table-cell">مکان</Th>
+            <Th center className="hidden lg:table-cell">اساتید</Th>
+            <Th center>وضعیت</Th>
+            <Th>عملیات</Th>
+          </>
+        }
+      >
               {filtered.map((event) => (
-                <tr key={event.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="font-medium text-primary">{event.title}</div>
-                    <div className="text-xs text-outline mt-0.5">{event.slug}</div>
-                  </td>
-                  <td className="p-3 text-outline hidden sm:table-cell">
+                <tr key={event.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
+                  <Td>
+                    <div className="font-medium text-slate-900">{event.title}</div>
+                    <div className="mt-0.5 text-xs text-slate-500" dir="ltr">{event.slug}</div>
+                  </Td>
+                  <Td className="hidden text-slate-500 sm:table-cell">
                     <div className="flex items-center gap-1.5">
-                      <Calendar size={13} />
-                      {formatDate(event.startDate)}
+                      <Calendar size={13} className="text-slate-400" />
+                      <span className="tabular-nums">{formatDate(event.startDate)}</span>
                     </div>
-                  </td>
-                  <td className="p-3 text-outline hidden md:table-cell">
+                  </Td>
+                  <Td className="hidden text-slate-500 md:table-cell">
                     {event.location ? (
                       <div className="flex items-center gap-1.5">
-                        <MapPin size={13} />
+                        <MapPin size={13} className="text-slate-400" />
                         {event.location}
                       </div>
                     ) : "—"}
-                  </td>
-                  <td className="p-3 text-center hidden lg:table-cell">
-                      <span className="font-medium">{event.instructorCount}</span>
-                  </td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        event.published
-                          ? "bg-green-50 text-green-700"
-                          : "bg-yellow-50 text-yellow-700"
-                      }`}
-                    >
-                      {event.published ? <Check size={12} /> : <X size={12} />}
+                  </Td>
+                  <Td className="hidden text-center lg:table-cell">
+                      <span className="font-medium tabular-nums text-slate-900">{event.instructorCount.toLocaleString("fa-IR")}</span>
+                  </Td>
+                  <Td className="text-center">
+                    <Badge tone={event.published ? "emerald" : "slate"}>
                       {event.published ? "منتشر شده" : "پیش‌نویس"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => copyEventLink(event.slug)} className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-secondary-fixed/30 transition-colors" title="کپی لینک صفحه رویداد"><Link2 size={16} /></button>
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-1 justify-end">
+                      <button type="button" onClick={() => copyEventLink(event.slug)} className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${FOCUS_VISIBLE}`} title="کپی لینک صفحه رویداد"><Link2 size={16} /></button>
                       <button
+                        type="button"
                         onClick={() => openEditModal(event)}
-                        className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
+                        className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${FOCUS_VISIBLE}`}
                         title="ویرایش"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setDeleteTarget(event)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors"
+                        className={`rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 ${FOCUS_VISIBLE}`}
                         title="حذف"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-outline">
-                    هیچ رویدادی یافت نشد
-                  </td>
+                  <Td colSpan={6}><EmptyState message="هیچ رویدادی یافت نشد" /></Td>
                 </tr>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </DataTable>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">
-                {editingEvent ? "ویرایش رویداد" : "افزودن رویداد جدید"}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-outline hover:text-primary p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
+        <Modal
+          title={editingEvent ? "ویرایش رویداد" : "افزودن رویداد جدید"}
+          onClose={() => { if (!saving) setShowModal(false); }}
+          maxWidth="max-w-2xl"
+        >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">عنوان</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">عنوان</label>
                   <input
                     type="text"
                     required
                     value={form.title}
                     onChange={(e) => handleTitleChange(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    className={`w-full ${INPUT_CLASS}`}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">آدرس در سایت</label>
                    <div className="space-y-1.5" dir="ltr">
-                     <div className="w-full rounded-xl border border-surface-variant bg-surface-low px-3 py-2 text-xs text-outline select-none">imamruhollahschool.com/events/</div>
+                     <div className="w-full select-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">imamruhollahschool.com/events/</div>
                      <input
                       type="text"
                       required
                       value={form.slug}
                       onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                       className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                       className={`w-full ${INPUT_CLASS}`}
                       style={{ fontFamily: "'Courier New', monospace" }}
                     />
                   </div>
-                  <p className="text-xs text-outline mt-1 flex items-center gap-1">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">توضیحات</label>
+                <label className="mb-1 block text-sm font-medium text-slate-900">توضیحات</label>
                 <textarea
                   required
                   rows={3}
                   value={form.description}
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none"
+                  className={`w-full resize-none ${INPUT_CLASS}`}
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">تاریخ شروع</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">تاریخ شروع</label>
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
@@ -444,12 +440,12 @@ export default function AdminEvents() {
                     onChange={(date) => {
                        setForm((p) => ({ ...p, startDate: date ? date.toDate().toISOString() : "" }));
                     }}
-                    inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    inputClass={INPUT_CLASS}
                     containerClassName="w-full"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">تاریخ پایان</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">تاریخ پایان</label>
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
@@ -459,7 +455,7 @@ export default function AdminEvents() {
                     onChange={(date) => {
                        setForm((p) => ({ ...p, endDate: date ? date.toDate().toISOString() : "" }));
                     }}
-                    inputClass="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    inputClass={INPUT_CLASS}
                     containerClassName="w-full"
                   />
                 </div>
@@ -467,12 +463,12 @@ export default function AdminEvents() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary mb-1">مکان</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">مکان</label>
                   <input
                     type="text"
                     value={form.location}
                     onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
+                    className={`w-full ${INPUT_CLASS}`}
                   />
                 </div>
                 <ImageUpload
@@ -485,99 +481,87 @@ export default function AdminEvents() {
               </div>
 
               <div>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
                     checked={form.published}
                     onChange={(e) => setForm((p) => ({ ...p, published: e.target.checked }))}
-                    className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
+                    className="h-4 w-4 rounded accent-[#03004b]"
                   />
-                  <span className="text-sm text-primary">منتشر شده</span>
+                  <span className="text-sm text-slate-900">منتشر شده</span>
                 </label>
               </div>
 
               <div>
-                  <label className="block text-sm font-medium text-primary mb-2">اساتید رویداد</label>
-                  <p className="mb-2 text-xs text-outline">می‌توانید چند استاد را از فهرست اساتید سایت انتخاب کنید.</p>
-                  <input value={instructorSearch} onChange={(event) => setInstructorSearch(event.target.value)} placeholder="جستجوی نام استاد..." className="mb-2 w-full rounded-lg border border-surface-variant px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
-                  <div className="max-h-40 overflow-y-auto border border-surface-variant rounded-xl p-2 space-y-1">
+                  <label className="mb-2 block text-sm font-medium text-slate-900">اساتید رویداد</label>
+                  <p className="mb-2 text-xs text-slate-500">می‌توانید چند استاد را از فهرست اساتید سایت انتخاب کنید.</p>
+                  <input value={instructorSearch} onChange={(event) => setInstructorSearch(event.target.value)} placeholder="جستجوی نام استاد..." className={`mb-2 w-full ${INPUT_CLASS}`} />
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
                     {instructors.length === 0 && (
-                      <p className="text-xs text-outline p-2">استادی یافت نشد</p>
+                      <p className="p-2 text-xs text-slate-500">استادی یافت نشد</p>
                     )}
                     {instructors.filter((inst) => (inst.name || inst.user?.name || "").includes(instructorSearch.trim())).map((inst) => (
                       <label
                         key={inst.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-low cursor-pointer"
+                        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50"
                       >
                         <input
                           type="checkbox"
                           checked={form.instructorIds.includes(inst.id)}
                           onChange={() => toggleInstructorId(inst.id)}
-                          className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
+                          className="h-4 w-4 rounded accent-[#03004b]"
                         />
-                        {inst.avatar || inst.user?.avatar ? <img src={inst.avatar || inst.user?.avatar || ""} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-variant text-xs text-outline">{(inst.name || inst.user?.name || "؟").charAt(0)}</span>}
-                        <span className="text-sm text-primary">{inst.name || inst.user?.name || "نامشخص"}</span>
+                        {inst.avatar || inst.user?.avatar ? <img src={inst.avatar || inst.user?.avatar || ""} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">{(inst.name || inst.user?.name || "؟").charAt(0)}</span>}
+                        <span className="text-sm text-slate-900">{inst.name || inst.user?.name || "نامشخص"}</span>
                       </label>
                     ))}
-                    {instructors.length > 0 && !instructors.some((inst) => (inst.name || inst.user?.name || "").includes(instructorSearch.trim())) && <p className="p-2 text-xs text-outline">استادی با این نام یافت نشد</p>}
+                    {instructors.length > 0 && !instructors.some((inst) => (inst.name || inst.user?.name || "").includes(instructorSearch.trim())) && <p className="p-2 text-xs text-slate-500">استادی با این نام یافت نشد</p>}
                   </div>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-[#03004b] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors disabled:opacity-50"
-                >
+                <PrimaryButton type="submit" disabled={saving}>
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   {editingEvent ? "بروزرسانی" : "ایجاد رویداد"}
-                </button>
-                <button
-                  type="button"
+                </PrimaryButton>
+                <SecondaryButton
                   onClick={() => setShowModal(false)}
                   disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
                 >
                   انصراف
-                </button>
+                </SecondaryButton>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+        <Modal
+          title="حذف رویداد"
+          onClose={() => { if (!saving) setDeleteTarget(null); }}
+          maxWidth="max-w-md"
+          footer={
+            <>
+              <DangerButton onClick={handleDelete} disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                حذف
+              </DangerButton>
+              <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>
+                انصراف
+              </SecondaryButton>
+            </>
+          }
+        >
             <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={28} className="text-error" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+                <Trash2 size={28} className="text-red-600" />
               </div>
-              <h3 className="text-lg font-bold text-primary mb-2">حذف رویداد</h3>
-              <p className="text-outline text-sm mb-1">
-                آیا از حذف رویداد <span className="font-bold text-primary">"{deleteTarget.title}"</span> اطمینان دارید؟
+              <p className="mb-1 text-sm text-slate-500">
+                آیا از حذف رویداد <span className="font-bold text-slate-900">"{deleteTarget.title}"</span> اطمینان دارید؟
               </p>
-              <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-error text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  حذف
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
-                >
-                  انصراف
-                </button>
-              </div>
+              <p className="text-xs text-slate-500">این عمل قابل بازگشت نیست.</p>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
