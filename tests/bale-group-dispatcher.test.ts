@@ -141,8 +141,8 @@ test("an atomic claim lets concurrent dispatchers send an event only once", asyn
   const firstResult = await first;
 
   assert.equal(sends, 1);
-  assert.deepEqual(firstResult, { claimed: 1, sent: 1, retryable: 0, uncertain: 0, needsReview: 0 });
-  assert.deepEqual(second, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+  assert.deepEqual(firstResult, { claimed: 1, sent: 1, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+  assert.deepEqual(second, { claimed: 0, sent: 0, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
   assert.equal(rows[0].attempts, 1);
 });
 
@@ -161,6 +161,36 @@ test("successful delivery marks the event sent without persisting a provider ide
   assert.equal(rows[0].sentAt?.toISOString(), now.toISOString());
   assert.equal(rows[0].providerResponseId, null);
   assert.match(messages[0], /پرداخت موفق/);
+});
+
+test("stale announcement events expire instead of sending", async () => {
+  const old = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+  const { db, rows } = database([event({ createdAt: old, updatedAt: old })]);
+  let sends = 0;
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => { sends += 1; return { message_id: "x" }; },
+  });
+
+  assert.equal(sends, 0);
+  assert.deepEqual(result, { claimed: 1, sent: 0, expired: 1, retryable: 0, uncertain: 0, needsReview: 0 });
+  assert.equal(rows[0].status, "expired");
+  assert.equal(rows[0].lastError, "EVENT_STALE_EXPIRED");
+});
+
+test("fresh announcement events still send normally", async () => {
+  const { db, rows } = database([event()]);
+  let sends = 0;
+  const result = await dispatchBaleGroupEvents(db as never, {
+    chatId: "group-test",
+    now,
+    send: async () => { sends += 1; return { message_id: "x" }; },
+  });
+
+  assert.equal(sends, 1);
+  assert.deepEqual(result, { claimed: 1, sent: 1, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+  assert.equal(rows[0].status, "sent");
 });
 
 test("request events send URL-only allowlisted admin buttons from the canonical origin", async () => {
@@ -411,8 +441,8 @@ test("a malformed sendMessage success becomes uncertain and is never sent or ret
       now: new Date("2026-08-13T12:00:00.000Z"),
     });
 
-    assert.deepEqual(first, { claimed: 1, sent: 0, retryable: 0, uncertain: 1, needsReview: 0 });
-    assert.deepEqual(repeated, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+    assert.deepEqual(first, { claimed: 1, sent: 0, expired: 0, retryable: 0, uncertain: 1, needsReview: 0 });
+    assert.deepEqual(repeated, { claimed: 0, sent: 0, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
     assert.equal(sends, 1);
     assert.equal(rows[0].status, "uncertain");
     assert.equal(rows[0].sentAt, null);
@@ -444,7 +474,7 @@ test("one event failure does not block the rest of the bounded batch", async () 
     },
   });
 
-  assert.deepEqual(result, { claimed: 2, sent: 1, retryable: 1, uncertain: 0, needsReview: 0 });
+  assert.deepEqual(result, { claimed: 2, sent: 1, expired: 0, retryable: 1, uncertain: 0, needsReview: 0 });
   assert.equal(rows[0].status, "retryable");
   assert.equal(rows[1].status, "sent");
   assert.equal(rows[2].status, "pending");
@@ -553,7 +583,7 @@ test("missing coordination chat configuration neither claims nor burns attempts"
     send: async () => { sends += 1; return {}; },
   });
 
-  assert.deepEqual(result, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+  assert.deepEqual(result, { claimed: 0, sent: 0, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
   assert.equal(sends, 0);
   assert.equal(rows[0].status, "pending");
   assert.equal(rows[0].attempts, 0);
@@ -565,7 +595,7 @@ test("missing bot token with the production sender performs no database work", a
   const { db, rows, stats } = database([event()]);
   try {
     const result = await dispatchBaleGroupEvents(db as never, { chatId: "group-test", now });
-    assert.deepEqual(result, { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 });
+    assert.deepEqual(result, { claimed: 0, sent: 0, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 });
     assert.equal(stats.queries, 0);
     assert.equal(rows[0].attempts, 0);
     assert.equal(rows[0].status, "pending");

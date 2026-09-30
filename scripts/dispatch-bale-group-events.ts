@@ -10,12 +10,21 @@ const MAX_BATCH_SIZE = 100;
 const STALE_LEASE_MS = 5 * 60_000;
 const MAX_TEXT_LENGTH = 200;
 const MAX_RELEASE_CAPABILITIES = 50;
+const MAX_EVENT_AGE_MS = 72 * 60 * 60 * 1000;
+
+const STALE_ANNOUNCEMENT_TYPES = new Set([
+  "payment_paid",
+  "payment_duplicate",
+  "payment_receipt",
+  "release",
+]);
 
 type GroupEventDatabase = Pick<PrismaClient, "baleGroupEvent">;
 type DispatchOptions = {
   chatId?: string;
   now?: Date;
   batchSize?: number;
+  maxAgeMs?: number;
   send?: typeof sendMessage;
 };
 
@@ -25,10 +34,11 @@ type DispatchResult = {
   retryable: number;
   uncertain: number;
   needsReview: number;
+  expired: number;
 };
 
 function emptyResult(): DispatchResult {
-  return { claimed: 0, sent: 0, retryable: 0, uncertain: 0, needsReview: 0 };
+  return { claimed: 0, sent: 0, expired: 0, retryable: 0, uncertain: 0, needsReview: 0 };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -191,6 +201,16 @@ export async function dispatchBaleGroupEvents(db: GroupEventDatabase, options: D
       });
       if (claim.count !== 1) continue;
       result.claimed += 1;
+
+      const maxAgeMs = options.maxAgeMs ?? MAX_EVENT_AGE_MS;
+      if (STALE_ANNOUNCEMENT_TYPES.has(candidate.type) && now.getTime() - new Date(candidate.createdAt).getTime() > maxAgeMs) {
+        const expired = await db.baleGroupEvent.updateMany({
+          where: { id: candidate.id, status: "processing", attempts: candidate.attempts, claimedAt: now, sendStartedAt: null },
+          data: { status: "expired", lastError: "EVENT_STALE_EXPIRED" },
+        });
+        if (expired.count === 1) result.expired += 1;
+        continue;
+      }
 
       const parsedEvent = parseEvent(candidate);
       if (!parsedEvent) {
