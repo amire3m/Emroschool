@@ -15,12 +15,22 @@ import {
   Save,
   Settings2,
   Trash2,
-  X,
   HandCoins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ExportActions from "@/components/admin/export-actions";
+import {
+  Badge,
+  DangerButton,
+  EmptyState,
+  FilterChips,
+  Modal,
+  PageHeader,
+  PrimaryButton,
+  SecondaryButton,
+  StatCard,
+} from "@/components/admin/ui";
 import {
   isBaleReconciliationEligible,
   selectBaleReconciliationAttempt,
@@ -177,6 +187,22 @@ const emptyDiscount = {
 };
 const f = (value?: string | null) =>
   value ? new Date(value).toLocaleString("fa-IR") : "-";
+
+const INPUT =
+  "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15";
+
+function orderStatusTone(status: string): "amber" | "emerald" | "red" | "slate" {
+  if (status === "paid" || status === "paid_duplicate") return "emerald";
+  if (status === "rejected") return "red";
+  if (
+    status === "pending" ||
+    status === "awaiting_receipt" ||
+    status === "under_review" ||
+    status === "review_reopened"
+  )
+    return "amber";
+  return "slate";
+}
 
 function PaymentsAdminPage() {
   const [tab, setTab] = useState<"card" | "bale" | "manual" | "discounts">(
@@ -377,67 +403,63 @@ function PaymentsAdminPage() {
   const shown = tab === "card" ? card : tab === "bale" ? bale : manual;
   if (loading)
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="animate-spin text-secondary" />
+      <div className="flex min-h-[50vh] items-center justify-center" dir="rtl">
+        <Loader2 className="animate-spin text-slate-400" />
       </div>
     );
   return (
-    <div className="mx-auto max-w-6xl space-y-6" dir="rtl">
-      <section className="rounded-[1.8rem] bg-primary p-6 text-white">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-fixed text-primary">
-              <CreditCard size={24} />
-            </span>
-            <div>
-              <h1 className="text-xl font-black">مرکز پرداخت آکادمی</h1>
-              <p className="mt-1 text-sm text-white/60">
-                پیگیری پرداخت‌ها، بررسی رسیدها و مدیریت تخفیف‌ها.
-              </p>
-            </div>
-          </div>
+    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+      <PageHeader
+        title="مرکز پرداخت آکادمی"
+        subtitle="پیگیری پرداخت‌ها، بررسی رسیدها و مدیریت تخفیف‌ها."
+        actions={
           <ExportActions
             endpoint="/api/admin/exports/payments"
             title="گزارش پرداخت‌های آکادمی"
             fileName="گزارش-پرداخت‌ها"
           />
-        </div>
-      </section>
-      <div className="grid gap-3 sm:grid-cols-4">
-        {(
-          [
-            [
-              "card",
-              "کارت‌به‌کارت",
-              CreditCard,
-              `${card.length.toLocaleString("fa-IR")} سفارش`,
-            ],
-            [
-              "bale",
-              "کیف پول بله",
-              MessageCircle,
-              `${bale.length.toLocaleString("fa-IR")} سفارش`,
-            ],
-            [
-              "manual",
-              "پرداخت دستی",
-              HandCoins,
-              `${manual.length.toLocaleString("fa-IR")} ثبت`,
-            ],
-            ["discounts", "کدهای تخفیف", BadgePercent, "مدیریت گروه‌ها"],
-          ] as const
-        ).map(([key, title, Icon, text]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`rounded-2xl border p-5 text-right transition ${tab === key ? "border-secondary bg-[#fff8e9] shadow-sm" : "border-outline-variant/40 bg-white"}`}
-          >
-            <Icon size={22} className="mb-3 text-secondary" />
-            <p className="font-black text-primary">{title}</p>
-            <p className="mt-1 text-xs text-outline">{text}</p>
-          </button>
-        ))}
+        }
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="کارت‌به‌کارت"
+          value={card.length.toLocaleString("fa-IR")}
+          sub={`${card.length.toLocaleString("fa-IR")} سفارش`}
+          icon={CreditCard}
+          tone="bg-slate-100 text-slate-600"
+        />
+        <StatCard
+          label="کیف پول بله"
+          value={bale.length.toLocaleString("fa-IR")}
+          sub={`${bale.length.toLocaleString("fa-IR")} سفارش`}
+          icon={MessageCircle}
+          tone="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          label="پرداخت دستی"
+          value={manual.length.toLocaleString("fa-IR")}
+          sub={`${manual.length.toLocaleString("fa-IR")} ثبت`}
+          icon={HandCoins}
+          tone="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          label="کدهای تخفیف"
+          value={discounts.length.toLocaleString("fa-IR")}
+          sub="مدیریت گروه‌ها"
+          icon={BadgePercent}
+          tone="bg-amber-50 text-amber-600"
+        />
       </div>
+      <FilterChips
+        value={tab}
+        onChange={(value) => setTab(value as typeof tab)}
+        options={[
+          { value: "card", label: "کارت‌به‌کارت" },
+          { value: "bale", label: "کیف پول بله" },
+          { value: "manual", label: "پرداخت دستی" },
+          { value: "discounts", label: "کدهای تخفیف" },
+        ]}
+      />
       {tab === "discounts" ? (
         <DiscountManager
           items={discounts}
@@ -461,19 +483,19 @@ function PaymentsAdminPage() {
       ) : (
         <>
           {tab === "manual" && (
-            <section className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7">
-              <h2 className="font-black text-primary">ثبت پرداخت دستی</h2>
-              <p className="mt-1 text-xs text-outline">
+            <section className="rounded-xl border border-slate-200 bg-white p-5 md:p-6">
+              <h2 className="text-base font-black text-slate-900">ثبت پرداخت دستی</h2>
+              <p className="mt-1 text-xs text-slate-500">
                 فقط درخواست‌های در انتظار پرداخت قابل انتخاب هستند. ثبت موفق،
                 پرداخت و ثبت‌نام دوره را نهایی می‌کند.
               </p>
               {applicationsError ? (
-                <p className="mt-4 rounded-xl bg-error-container p-3 text-sm text-error">
+                <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                   {applicationsError}
                 </p>
               ) : (
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-bold text-primary md:col-span-2">
+                  <label className="text-sm font-bold text-slate-900 md:col-span-2">
                     درخواست ثبت‌نام
                     <select
                       value={manualForm.applicationId}
@@ -483,7 +505,7 @@ function PaymentsAdminPage() {
                           applicationId: event.target.value,
                         })
                       }
-                      className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 font-normal"
+                      className={`${INPUT} mt-2 w-full`}
                     >
                       <option value="">انتخاب کنید</option>
                       {applications.map((application) => (
@@ -497,7 +519,7 @@ function PaymentsAdminPage() {
                       ))}
                     </select>
                   </label>
-                  <label className="text-sm font-bold text-primary">
+                  <label className="text-sm font-bold text-slate-900">
                     شماره پیگیری (اختیاری)
                     <input
                       value={manualForm.reference}
@@ -507,10 +529,10 @@ function PaymentsAdminPage() {
                           reference: event.target.value,
                         })
                       }
-                      className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+                      className={`${INPUT} mt-2 w-full`}
                     />
                   </label>
-                  <label className="text-sm font-bold text-primary">
+                  <label className="text-sm font-bold text-slate-900">
                     یادداشت (اختیاری)
                     <input
                       value={manualForm.note}
@@ -520,36 +542,37 @@ function PaymentsAdminPage() {
                           note: event.target.value,
                         })
                       }
-                      className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+                      className={`${INPUT} mt-2 w-full`}
                     />
                   </label>
-                  <button
-                    onClick={createManualPayment}
-                    disabled={saving || applications.length === 0}
-                    className="flex w-fit items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    {saving && <Loader2 size={16} className="animate-spin" />}
-                    ثبت پرداخت دستی
-                  </button>
-                  {applications.length === 0 && (
-                    <p className="self-center text-sm text-outline">
-                      درخواست در انتظار پرداختی وجود ندارد.
-                    </p>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+                    <PrimaryButton
+                      onClick={createManualPayment}
+                      disabled={saving || applications.length === 0}
+                    >
+                      {saving && <Loader2 size={16} className="animate-spin" />}
+                      ثبت پرداخت دستی
+                    </PrimaryButton>
+                    {applications.length === 0 && (
+                      <p className="text-sm text-slate-500">
+                        درخواست در انتظار پرداختی وجود ندارد.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </section>
           )}
           {tab === "card" && (
-            <section className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7">
+            <section className="rounded-xl border border-slate-200 bg-white p-5 md:p-6">
               <div className="mb-5 flex items-center gap-2">
-                <Settings2 size={19} className="text-secondary" />
-                <h2 className="font-black text-primary">
+                <Settings2 size={19} className="text-slate-400" />
+                <h2 className="text-base font-black text-slate-900">
                   اطلاعات واریز کارت‌به‌کارت
                 </h2>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-bold text-primary">
+                <label className="text-sm font-bold text-slate-900">
                   شماره کارت
                   <input
                     value={settings.cardNumber || ""}
@@ -557,20 +580,20 @@ function PaymentsAdminPage() {
                       setSettings({ ...settings, cardNumber: e.target.value })
                     }
                     dir="ltr"
-                    className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+                    className={`${INPUT} mt-2 w-full tabular-nums`}
                   />
                 </label>
-                <label className="text-sm font-bold text-primary">
+                <label className="text-sm font-bold text-slate-900">
                   نام صاحب حساب
                   <input
                     value={settings.cardHolder || ""}
                     onChange={(e) =>
                       setSettings({ ...settings, cardHolder: e.target.value })
                     }
-                    className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+                    className={`${INPUT} mt-2 w-full`}
                   />
                 </label>
-                <label className="text-sm font-bold text-primary md:col-span-2">
+                <label className="text-sm font-bold text-slate-900 md:col-span-2">
                   توضیحات واریز
                   <textarea
                     value={settings.cardInstructions || ""}
@@ -580,14 +603,14 @@ function PaymentsAdminPage() {
                         cardInstructions: e.target.value,
                       })
                     }
-                    className="mt-2 min-h-24 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+                    className={`${INPUT} mt-2 min-h-24 w-full`}
                   />
                 </label>
               </div>
-              <button
+              <PrimaryButton
                 onClick={saveSettings}
                 disabled={saving}
-                className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+                className="mt-5"
               >
                 {saving ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -595,62 +618,57 @@ function PaymentsAdminPage() {
                   <Save size={16} />
                 )}{" "}
                 ذخیره اطلاعات
-              </button>
+              </PrimaryButton>
             </section>
           )}
-          <section className="overflow-hidden rounded-[1.8rem] border border-outline-variant/30 bg-white">
-            <div className="flex items-center justify-between border-b border-outline-variant/20 p-5">
+          <section className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between p-5">
               <div>
-                <h2 className="font-black text-primary">سفارش‌ها</h2>
-                <p className="mt-1 text-xs text-outline">
+                <h2 className="text-base font-black text-slate-900">سفارش‌ها</h2>
+                <p className="mt-1 text-xs text-slate-500">
                   برای همه وضعیت‌ها جزئیات کامل قابل مشاهده است.
                 </p>
               </div>
-              <span className="rounded-full bg-surface-low px-3 py-1 text-xs text-outline">
+              <Badge tone="slate">
                 {shown.length.toLocaleString("fa-IR")} مورد
-              </span>
+              </Badge>
             </div>
-            <div className="divide-y divide-outline-variant/20">
+            <div className="divide-y divide-slate-100 border-t border-slate-100">
               {shown.map((order) => (
                 <div
                   key={order.id}
-                  className="flex flex-col gap-4 p-5 md:flex-row md:items-center"
+                  className="flex flex-col gap-4 p-5 transition hover:bg-slate-50/60 md:flex-row md:items-center"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-primary">
+                    <p className="font-bold text-slate-900">
                       {order.course.title}
                     </p>
-                    <p className="mt-1 text-xs text-outline">
+                    <p className="mt-1 text-xs text-slate-500">
                       {order.user.name} ·{" "}
                       <span dir="ltr">{order.orderNumber}</span> ·{" "}
                       {f(order.createdAt)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-primary">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-black tabular-nums text-slate-900">
                       {order.amountTomans.toLocaleString("fa-IR")} تومان
                     </span>
-                    <span className="rounded-full bg-surface-low px-3 py-1 text-xs font-bold text-outline">
+                    <Badge tone={orderStatusTone(order.status)}>
                       {labels[order.status] || order.status}
-                    </span>
+                    </Badge>
                     {order.method === "card_to_card" && order.payerBankName && (
-                      <span className="hidden rounded-full bg-[#fff4df] px-3 py-1 text-xs font-bold text-secondary md:inline">
+                      <Badge tone="amber">
                         {order.payerBankName} · {order.payerCardMasked || "کارت ثبت نشده"}
-                      </span>
+                      </Badge>
                     )}
-                    <button
-                      onClick={() => setDetail(order)}
-                      className="flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-xs font-bold text-primary"
-                    >
+                    <SecondaryButton onClick={() => setDetail(order)}>
                       <Eye size={15} /> جزئیات
-                    </button>
+                    </SecondaryButton>
                   </div>
                 </div>
               ))}
               {shown.length === 0 && (
-                <p className="p-8 text-center text-sm text-outline">
-                  سفارشی در این بخش وجود ندارد.
-                </p>
+                <EmptyState message="سفارشی در این بخش وجود ندارد." />
               )}
             </div>
           </section>
@@ -694,36 +712,40 @@ function DiscountManager({
   onRemove: (id: string) => void;
 }) {
   return (
-    <section className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7">
+    <section className="rounded-xl border border-slate-200 bg-white p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="font-black text-primary">
+        <h2 className="text-base font-black text-slate-900">
           {editing ? "ویرایش کد تخفیف" : "افزودن کد تخفیف"}
         </h2>
         {editing && (
-          <button onClick={onReset} className="text-sm text-outline">
+          <button
+            type="button"
+            onClick={onReset}
+            className="rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"
+          >
             انصراف
           </button>
         )}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="text-sm font-bold text-primary">
+        <label className="text-sm font-bold text-slate-900">
           نام گروه
           <input
             value={form.label}
             onChange={(e) => setForm({ ...form, label: e.target.value })}
-            className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+            className={`${INPUT} mt-2 w-full`}
           />
         </label>
-        <label className="text-sm font-bold text-primary">
+        <label className="text-sm font-bold text-slate-900">
           کد تخفیف
           <input
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
             dir="ltr"
-            className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+            className={`${INPUT} mt-2 w-full`}
           />
         </label>
-        <label className="text-sm font-bold text-primary">
+        <label className="text-sm font-bold text-slate-900">
           درصد تخفیف
           <input
             value={form.percent}
@@ -733,15 +755,16 @@ function DiscountManager({
             type="number"
             min="0"
             max="100"
-            className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal"
+            className={`${INPUT} mt-2 w-full tabular-nums`}
           />
         </label>
-        <div className="flex items-end gap-5 pb-3 text-sm font-bold text-primary">
+        <div className="flex items-end gap-5 pb-3 text-sm font-bold text-slate-900">
           <label className="flex gap-2">
             <input
               type="checkbox"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              className="accent-[#03004b]"
             />
             فعال
           </label>
@@ -752,45 +775,54 @@ function DiscountManager({
               onChange={(e) =>
                 setForm({ ...form, requiresDocument: e.target.checked })
               }
+              className="accent-[#03004b]"
             />
             نیازمند مدرک
           </label>
         </div>
       </div>
-      <button
-        onClick={onSave}
-        className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white"
-      >
+      <PrimaryButton onClick={onSave} className="mt-5">
         <Save size={16} />
         {editing ? "ذخیره تغییرات" : "افزودن کد"}
-      </button>
-      <div className="mt-7 divide-y divide-outline-variant/20 border-t border-outline-variant/20">
+      </PrimaryButton>
+      <div className="mt-7 divide-y divide-slate-100 border-t border-slate-100">
         {items.map((item) => (
           <div key={item.id} className="flex items-center gap-3 py-4">
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-primary">
+              <p className="font-bold text-slate-900">
                 {item.label}{" "}
-                <span className="mr-2 text-xs text-outline">
+                <span className="mr-2 text-xs tabular-nums text-slate-500">
                   {item.percent.toLocaleString("fa-IR")}٪
                 </span>
               </p>
-              <p dir="ltr" className="mt-1 text-xs text-outline">
+              <p dir="ltr" className="mt-1 text-left text-xs text-slate-500">
                 {item.code}
               </p>
             </div>
-            <span
-              className={`text-xs ${item.active ? "text-green-700" : "text-error"}`}
-            >
+            <Badge tone={item.active ? "emerald" : "slate"}>
               {item.active ? "فعال" : "غیرفعال"}
-            </span>
-            <button onClick={() => onEdit(item)} className="text-primary">
+            </Badge>
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              aria-label="ویرایش"
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"
+            >
               <Pencil size={17} />
             </button>
-            <button onClick={() => onRemove(item.id)} className="text-error">
+            <button
+              type="button"
+              onClick={() => onRemove(item.id)}
+              aria-label="حذف"
+              className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"
+            >
               <Trash2 size={17} />
             </button>
           </div>
         ))}
+        {items.length === 0 && (
+          <EmptyState message="کد تخفیفی ثبت نشده است." />
+        )}
       </div>
     </section>
   );
@@ -864,8 +896,8 @@ function PaymentDetail({
     }
   }
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <p className="break-words text-sm text-outline">
-      <b className="text-primary">{label}:</b> {value || "-"}
+    <p className="break-words text-sm text-slate-500">
+      <b className="font-bold text-slate-900">{label}:</b> {value || "-"}
     </p>
   );
   const method =
@@ -874,29 +906,95 @@ function PaymentDetail({
       : order.method === "manual"
         ? "پرداخت دستی"
         : "کارت‌به‌کارت";
+  const linkClass =
+    "inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/60 p-4"
-      onMouseDown={(e) => e.currentTarget === e.target && onClose()}
+    <Modal
+      title="جزئیات پرداخت"
+      subtitle={order.orderNumber}
+      onClose={onClose}
+      maxWidth="max-w-3xl"
+      footer={
+        <>
+          {order.receiptUrl && (
+            <a
+              href={order.receiptUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={linkClass}
+            >
+              <ExternalLink size={16} />
+              مشاهده رسید
+            </a>
+          )}
+          {app?.discountDocumentUrl && (
+            <a
+              href={app.discountDocumentUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={linkClass}
+            >
+              <ExternalLink size={16} />
+              مدرک تخفیف
+            </a>
+          )}
+          {order.baleInvoiceUrl && (
+            <a
+              href={order.baleInvoiceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={linkClass}
+            >
+              <ExternalLink size={16} />
+              فاکتور بله
+            </a>
+          )}
+          {order.method === "card_to_card" &&
+            ["under_review", "review_reopened"].includes(order.status) && (
+              <>
+                <PrimaryButton
+                  onClick={() =>
+                    onReview(order.id, "approve", order.reviewVersion, false)
+                  }
+                >
+                  <Check size={16} />
+                  تأیید
+                </PrimaryButton>
+                <DangerButton
+                  onClick={() =>
+                    onReview(order.id, "reject", order.reviewVersion, true)
+                  }
+                >
+                  رد پرداخت
+                </DangerButton>
+              </>
+            )}
+          {order.method === "card_to_card" && order.status === "rejected" && (
+            <SecondaryButton
+              onClick={() =>
+                onReview(order.id, "reopen_rejection", order.reviewVersion, true)
+              }
+            >
+              <RefreshCcw size={16} />
+              بازگشایی رد پرداخت
+            </SecondaryButton>
+          )}
+          {order.method === "card_to_card" && order.status === "paid" && (
+            <DangerButton
+              onClick={() =>
+                onReview(order.id, "reverse_approval", order.reviewVersion, true)
+              }
+            >
+              بازگرداندن تأیید پرداخت
+            </DangerButton>
+          )}
+        </>
+      }
     >
-      <section
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl"
-        dir="rtl"
-      >
-        <div className="flex items-start justify-between border-b border-outline-variant/30 pb-4">
-          <div>
-            <h2 className="font-black text-primary">جزئیات پرداخت</h2>
-            <p className="mt-1 text-xs text-outline" dir="ltr">
-              {order.orderNumber}
-            </p>
-          </div>
-          <button onClick={onClose} className="text-outline">
-            <X />
-          </button>
-        </div>
-        <div className="grid gap-6 py-6 md:grid-cols-2">
+      <div dir="rtl">
+        <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <h3 className="font-bold text-primary">
+            <h3 className="text-sm font-black text-slate-900">
               اطلاعات سفارش و پرداخت‌کننده
             </h3>
             <Row label="وضعیت" value={labels[order.status] || order.status} />
@@ -938,7 +1036,7 @@ function PaymentDetail({
             )}
           </div>
           <div className="space-y-2">
-            <h3 className="font-bold text-primary">زمان‌ها و بررسی</h3>
+            <h3 className="text-sm font-black text-slate-900">زمان‌ها و بررسی</h3>
             <Row label="وضعیت" value={labels[order.status] || order.status} />
             <Row
               label="نسخه بررسی"
@@ -962,7 +1060,7 @@ function PaymentDetail({
         {order.method === "card_to_card" && order.paymentGrant && (
           <div
             role="status"
-            className={`mt-2 rounded-2xl border px-4 py-3 text-sm font-bold leading-7 ${order.paymentGrant.active ? "border-[#cfe8d8] bg-[#e8f7ee] text-green-700" : "border-[#f3cfc4] bg-error-container text-error"}`}
+            className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-7 ${order.paymentGrant.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"}`}
           >
             {order.paymentGrant.active
               ? "دسترسی دوره فعال است (دسترسی پرداخت کارت‌به‌کارت فعال است)."
@@ -970,34 +1068,34 @@ function PaymentDetail({
           </div>
         )}
         {(order.reviewDecisions || []).length > 0 && (
-          <div className="border-t border-outline-variant/30 py-5">
-            <h3 className="mb-3 font-bold text-primary">تاریخچه تصمیم‌های بازبینی</h3>
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <h3 className="mb-3 text-sm font-black text-slate-900">تاریخچه تصمیم‌های بازبینی</h3>
             <ol className="space-y-3">
               {order.reviewDecisions?.map((decision) => (
                 <li
                   key={decision.id}
-                  className="rounded-2xl border border-outline-variant/40 bg-surface-low p-4"
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-white">
+                    <Badge tone="navy">
                       {reviewActionLabels[decision.action] || decision.action}
-                    </span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-outline">
+                    </Badge>
+                    <Badge tone="slate">
                       {labels[decision.fromStatus] || decision.fromStatus}
                       <span className="mx-1">←</span>
                       {labels[decision.toStatus] || decision.toStatus}
-                    </span>
-                    <span className="text-xs text-outline">
+                    </Badge>
+                    <span className="text-xs text-slate-500">
                       {f(decision.createdAt)}
                     </span>
                     {decision.reviewer && (
-                      <span className="text-xs text-outline">
+                      <span className="text-xs text-slate-500">
                         {decision.reviewer.name}
                       </span>
                     )}
                   </div>
                   {decision.reason && (
-                    <p className="mt-2 text-sm leading-6 text-primary">
+                    <p className="mt-2 text-sm leading-6 text-slate-900">
                       {decision.reason}
                     </p>
                   )}
@@ -1006,30 +1104,30 @@ function PaymentDetail({
             </ol>
           </div>
         )}
-        <div className="border-t border-outline-variant/30 py-5">
+        <div className="mt-6 border-t border-slate-100 pt-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h3 className="font-bold text-primary">سوابق تلاش‌های پرداخت</h3>
-              <p className="mt-1 text-sm text-outline">
+              <h3 className="text-sm font-black text-slate-900">سوابق تلاش‌های پرداخت</h3>
+              <p className="mt-1 text-sm text-slate-500">
                 {order.user.name} · {order.course.title} · <span dir="ltr">{order.orderNumber}</span>
               </p>
             </div>
-            <span className="text-xs text-outline">{order.attempts.length.toLocaleString("fa-IR")} تلاش</span>
+            <span className="text-xs tabular-nums text-slate-500">{order.attempts.length.toLocaleString("fa-IR")} تلاش</span>
           </div>
           {order.attempts.length > 0 ? (
-            <div className="mt-4 divide-y divide-outline-variant/30 border-y border-outline-variant/30">
+            <div className="mt-4 divide-y divide-slate-100 border-y border-slate-100">
               {order.attempts.map((attempt) => (
                 <article key={attempt.id} className="py-5 first:pt-4 last:pb-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="font-bold text-primary">تلاش {attempt.sequence.toLocaleString("fa-IR")}</h4>
-                    <span className="rounded-full bg-surface-low px-2.5 py-1 text-xs font-bold text-outline">
+                    <h4 className="font-bold text-slate-900">تلاش {attempt.sequence.toLocaleString("fa-IR")}</h4>
+                    <Badge tone="slate">
                       {attempt.method === "bale_wallet" ? "کیف پول بله" : attempt.method === "card_to_card" ? "کارت‌به‌کارت" : "پرداخت دستی"}
-                    </span>
-                    <span className="rounded-full bg-surface-low px-2.5 py-1 text-xs font-bold text-outline">
+                    </Badge>
+                    <Badge tone={orderStatusTone(attempt.status)}>
                       {labels[attempt.status] || attempt.status}
-                    </span>
+                    </Badge>
                     {attempt.id === order.activeAttemptId && (
-                      <span className="rounded-full bg-secondary-fixed px-2.5 py-1 text-xs font-bold text-primary">تلاش فعال</span>
+                      <Badge tone="emerald">تلاش فعال</Badge>
                     )}
                   </div>
                   <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
@@ -1056,14 +1154,14 @@ function PaymentDetail({
               ))}
             </div>
           ) : (
-            <p className="mt-4 rounded-xl bg-surface-low p-4 text-sm leading-7 text-outline">
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-7 text-slate-500">
               برای این سفارش قدیمی سابقه تلاش ثبت نشده است. در صورت وجود شناسه پرداخت بله، بازیابی امن یک سابقه ایجاد می‌کند.
             </p>
           )}
         </div>
         {app && (
-          <div className="border-t border-outline-variant/30 py-5">
-            <h3 className="mb-3 font-bold text-primary">دوره و فرم ثبت‌نام</h3>
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <h3 className="mb-3 text-sm font-black text-slate-900">دوره و فرم ثبت‌نام</h3>
             <div className="grid gap-2 md:grid-cols-2">
               <Row
                 label="دوره"
@@ -1106,14 +1204,14 @@ function PaymentDetail({
           </div>
         )}
         {isBaleReconciliationEligible(order) && (
-          <div className="border-t border-outline-variant/30 py-5">
-            <div className="rounded-2xl bg-[#fff8e9] p-4 sm:p-5">
-              <h3 className="font-bold text-primary">بازیابی پرداخت کیف پول بله</h3>
-              <p className="mt-2 text-sm leading-7 text-outline">
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <div className="rounded-xl border border-slate-200 bg-amber-50 p-4 sm:p-5">
+              <h3 className="text-sm font-black text-slate-900">بازیابی پرداخت کیف پول بله</h3>
+              <p className="mt-2 text-sm leading-7 text-slate-600">
                 سامانه ابتدا شناسه یکتای پرداخت ذخیره‌شده را استعلام می‌کند و فقط در صورت ناموفق بودن آن، شماره پیگیری کیف پول را به‌عنوان مسیر جایگزین بررسی می‌کند. نهایی‌سازی فقط با وضعیت دقیق paid و مبلغ ریالی یکسان انجام می‌شود.
               </p>
               {order.attempts.filter((attempt) => attempt.method === "bale_wallet" && !["paid", "paid_duplicate"].includes(attempt.status)).length > 1 && (
-                <label className="mt-4 block text-sm font-bold text-primary">
+                <label className="mt-4 block text-sm font-bold text-slate-900">
                   تلاش پرداخت مورد بررسی
                   <select
                     value={recoveryAttemptId}
@@ -1124,7 +1222,7 @@ function PaymentDetail({
                       setReceiptReference(selected?.baleReceiptReference || "");
                       setReconciliationError("");
                     }}
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                    className={`${INPUT} mt-2 w-full`}
                   >
                     {order.attempts
                       .filter((attempt) => attempt.method === "bale_wallet" && !["paid", "paid_duplicate"].includes(attempt.status))
@@ -1138,7 +1236,7 @@ function PaymentDetail({
                 </label>
               )}
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-bold text-primary">
+                <label className="text-sm font-bold text-slate-900">
                   شماره پیگیری کیف پول بله
                   <input
                     required
@@ -1147,11 +1245,11 @@ function PaymentDetail({
                     dir="ltr"
                     inputMode="numeric"
                     autoComplete="off"
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                    className={`${INPUT} mt-2 w-full tabular-nums`}
                     placeholder="شماره پیگیری تراکنش"
                   />
                 </label>
-                <label className="text-sm font-bold text-primary">
+                <label className="text-sm font-bold text-slate-900">
                   شماره مرجع رسید چاپی (اختیاری، ثبت دستی)
                   <input
                     value={receiptReference}
@@ -1159,129 +1257,50 @@ function PaymentDetail({
                     dir="ltr"
                     inputMode="numeric"
                     autoComplete="off"
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-4 py-3 text-base font-normal outline-none focus:border-secondary md:text-sm"
+                    className={`${INPUT} mt-2 w-full tabular-nums`}
                     placeholder="شماره مرجع روی رسید"
                   />
                 </label>
               </div>
               {!order.hasBalePayerEvidence && (
-                <div className="mt-4 rounded-xl border border-[#d9b96e] bg-white p-4 text-sm leading-7 text-outline">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
                   <p>
                     این سفارش شناسه پرداخت‌کننده یا گفت‌وگوی خصوصی بله ندارد. مرجع رسید را وارد کنید و فقط پس از تطبیق مستقل مالک تراکنش، تأیید زیر را فعال کنید. نام و زمان بازبین ثبت می‌شود.
                   </p>
-                  <label className="mt-3 flex cursor-pointer items-start gap-3 font-bold text-primary">
+                  <label className="mt-3 flex cursor-pointer items-start gap-3 font-bold text-slate-900">
                     <input
                       type="checkbox"
                       checked={confirmUnmatchedPayer}
                       onChange={(event) => setConfirmUnmatchedPayer(event.target.checked)}
-                      className="mt-1 h-4 w-4 accent-primary"
+                      className="mt-1 h-4 w-4 accent-[#03004b]"
                     />
                     مالکیت این تراکنش برای همین ثبت‌نام را مستقلاً تأیید می‌کنم.
                   </label>
                 </div>
               )}
               {reconciliationError && (
-                <p role="alert" className="mt-4 rounded-xl bg-error-container px-4 py-3 text-sm font-bold leading-7 text-error">
+                <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-600">
                   {reconciliationError}
                 </p>
               )}
-              <button
-                type="button"
+              <PrimaryButton
                 onClick={reconcileBalePayment}
                 disabled={reconciling || (!trackingNumber.trim() && !recoveryAttempt?.balePaymentId) || (!order.hasBalePayerEvidence && (!receiptReference.trim() || !confirmUnmatchedPayer))}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="mt-4 w-full sm:w-auto"
               >
                 {reconciling ? <Loader2 size={17} className="animate-spin" /> : <RefreshCcw size={17} />}
                 {reconciling ? "در حال استعلام از بله..." : "استعلام و بازیابی پرداخت بله"}
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         )}
-        <div className="flex flex-wrap gap-3 border-t border-outline-variant/30 pt-5">
-          {order.receiptUrl && (
-            <a
-              href={order.receiptUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-primary"
-            >
-              <ExternalLink size={16} />
-              مشاهده رسید
-            </a>
-          )}
-          {app?.discountDocumentUrl && (
-            <a
-              href={app.discountDocumentUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-primary"
-            >
-              <ExternalLink size={16} />
-              مدرک تخفیف
-            </a>
-          )}
-          {order.baleInvoiceUrl && (
-            <a
-              href={order.baleInvoiceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold text-primary"
-            >
-              <ExternalLink size={16} />
-              فاکتور بله
-            </a>
-          )}
-          {order.method === "card_to_card" &&
-            ["under_review", "review_reopened"].includes(order.status) && (
-              <>
-                <button
-                  onClick={() =>
-                    onReview(order.id, "approve", order.reviewVersion, false)
-                  }
-                  className="flex items-center gap-1 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white"
-                >
-                  <Check size={16} />
-                  تأیید
-                </button>
-                <button
-                  onClick={() =>
-                    onReview(order.id, "reject", order.reviewVersion, true)
-                  }
-                  className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-white"
-                >
-                  رد پرداخت
-                </button>
-              </>
-            )}
-          {order.method === "card_to_card" && order.status === "rejected" && (
-            <button
-              onClick={() =>
-                onReview(order.id, "reopen_rejection", order.reviewVersion, true)
-              }
-              className="flex items-center gap-1 rounded-xl bg-secondary px-4 py-2 text-sm font-bold text-white"
-            >
-              <RefreshCcw size={16} />
-              بازگشایی رد پرداخت
-            </button>
-          )}
-          {order.method === "card_to_card" && order.status === "paid" && (
-            <button
-              onClick={() =>
-                onReview(order.id, "reverse_approval", order.reviewVersion, true)
-              }
-              className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-white"
-            >
-              بازگرداندن تأیید پرداخت
-            </button>
-          )}
-        </div>
-      </section>
-    </div>
+      </div>
+    </Modal>
   );
 }
 
 function PayerCardSpoiler({ order }: { order: Order }) {
   const [visible, setVisible] = useState(false);
   if (!order.payerCardMasked) return <span>ثبت نشده</span>;
-  return <button type="button" onClick={() => setVisible((current) => !current)} className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-white px-2 py-1 font-mono text-xs font-bold text-primary" dir="ltr" title={visible ? "مخفی کردن شماره کارت" : "نمایش شماره کامل کارت"}>{visible ? order.payerCardNumber || order.payerCardMasked : order.payerCardMasked}{visible ? <EyeOff size={14} /> : <Eye size={14} />}</button>;
+  return <button type="button" onClick={() => setVisible((current) => !current)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-xs font-bold text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]" dir="ltr" title={visible ? "مخفی کردن شماره کارت" : "نمایش شماره کامل کارت"}>{visible ? order.payerCardNumber || order.payerCardMasked : order.payerCardMasked}{visible ? <EyeOff size={14} /> : <Eye size={14} />}</button>;
 }
