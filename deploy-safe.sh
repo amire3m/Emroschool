@@ -111,8 +111,9 @@ BACKUP_DIR="$BACKUP_ROOT/$STAMP"
 RUNUSER_BIN="$(realpath -e -- "$(command -v runuser)")"
 FLOCK_BIN="$(realpath -e -- "$(command -v flock)")"
 BASH_BIN="$(realpath -e -- "$(command -v bash)")"
+MKDIR_BIN="$(realpath -e -- "$(command -v mkdir)")"
 DEPLOY_SCRIPT="$(realpath -e -- "$0")"
-for cron_value in "$RUNUSER_BIN" "$FLOCK_BIN" "$BASH_BIN" "$DEPLOY_SCRIPT"; do
+for cron_value in "$RUNUSER_BIN" "$FLOCK_BIN" "$BASH_BIN" "$MKDIR_BIN" "$DEPLOY_SCRIPT"; do
   [[ "$cron_value" = /* ]] && reject_cron_syntax "$cron_value" || {
     echo "Notification executable paths must be absolute and Cron-safe." >&2
     exit 1
@@ -201,7 +202,8 @@ done
 "$RUNUSER_BIN" -u "$APP_USER" -- "$ENV_BIN" -i -C "$APP_DIR" "BALE_APP_DIR=$APP_DIR" \
   "$NODE_BIN" --require "$ENV_LOADER" "$TSX_CLI" "$DISPATCH_SCRIPT"
 
-printf -v CRON_COMMAND '%q -n %q %q -C %q %q %q --require %q %q %q >/dev/null 2>>%q' \
+printf -v CRON_COMMAND 'mkdir -p %q && %q -n %q %q -C %q %q %q --require %q %q %q >/dev/null 2>>%q' \
+  "$BALE_LOCK_DIR" \
   "$FLOCK_BIN" "$BALE_LOCK_FILE" "$ENV_BIN" "$APP_DIR" "BALE_APP_DIR=$APP_DIR" \
   "$NODE_BIN" "$ENV_LOADER" "$TSX_CLI" "$DISPATCH_SCRIPT" "$BALE_LOG_FILE"
 
