@@ -5,116 +5,99 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard,
+  ClipboardList,
+  WalletCards,
+  BadgePercent,
   BookOpen,
-  Image,
+  CalendarDays,
+  FolderOpen,
+  Newspaper,
   Users,
-  Edit,
+  GraduationCap,
+  Image,
+  HardDrive,
+  LifeBuoy,
+  Bell,
+  History,
+  Handshake,
+  SlidersHorizontal,
+  Mail,
+  Settings,
   ArrowLeft,
   LogOut,
   Menu,
   X,
-  ChevronDown,
-  FolderOpen,
-  Calendar,
-  GraduationCap,
-  Bell,
-  Settings,
-  HardDrive,
-  History,
-  ClipboardList,
-  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
-import { APP_VERSION } from "@/lib/version";
 import { getFontFamily } from "@/lib/fonts";
 
-interface MenuLink {
+interface MenuItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  permission: string | null;
+  permission: string[] | null;
 }
 
-interface MenuGroup {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  children: MenuLink[];
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
 }
 
-const menuItems: Array<MenuLink | MenuGroup> = [
-  { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
+const NAV: MenuSection[] = [
   {
-    key: "education",
-    label: "آموزش",
-    icon: BookOpen,
-    children: [
-      { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: "courses" },
-      { href: "/admin/events", label: "رویدادها", icon: Calendar, permission: "events" },
-      { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: "courses" },
-    ],
-  },
-  { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: "applications" },
-  { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: "payments" },
-  { href: "/admin/support", label: "پشتیبانی کاربران", icon: Users, permission: "support" },
-  { href: "/admin/gallery", label: "گالری", icon: Image, permission: "gallery" },
-  { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: "files" },
-  { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: "notifications" },
-  { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
-  {
-    key: "users",
-    label: "کاربران",
-    icon: Users,
-    children: [
-      { href: "/admin/users", label: "همه کاربران", icon: Users, permission: "users" },
-      { href: "/admin/instructors", label: "اساتید", icon: GraduationCap, permission: "instructors" },
-      { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: "instructors" },
-    ],
+    title: "اصلی",
+    items: [{ href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null }],
   },
   {
-    key: "settings",
-    label: "تنظیمات سایت",
-    icon: Settings,
-    children: [
-      { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: "settings" },
-      { href: "/admin/slider", label: "اسلایدر", icon: Image, permission: "slider" },
-      { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
+    title: "مدیریت",
+    items: [
+      { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: ["applications"] },
+      { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: ["payments", "support"] },
+      { href: "/admin/discount-codes", label: "کدهای تخفیف", icon: BadgePercent, permission: ["discounts", "settings"] },
+      { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: ["courses"] },
+      { href: "/admin/events", label: "رویدادها", icon: CalendarDays, permission: ["events"] },
+      { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: ["courses"] },
+      { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: ["news"] },
+      { href: "/admin/users", label: "کاربران", icon: Users, permission: ["users"] },
+      { href: "/admin/instructors", label: "اساتید", icon: GraduationCap, permission: ["instructors"] },
+      { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: ["instructors"] },
+      { href: "/admin/gallery", label: "گالری", icon: Image, permission: ["gallery"] },
+      { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: ["files"] },
+      { href: "/admin/support", label: "پشتیبانی کاربران", icon: LifeBuoy, permission: ["support"] },
+      { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: ["notifications"] },
+      { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
+      { href: "/admin/partners", label: "همراهان", icon: Handshake, permission: null },
+      { href: "/admin/slider", label: "اسلایدر", icon: SlidersHorizontal, permission: ["slider"] },
+      { href: "/admin/email", label: "ایمیل", icon: Mail, permission: ["settings"] },
     ],
   },
-  { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },
+  {
+    title: "سیستم",
+    items: [
+      { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: ["settings"] },
+      { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },
+    ],
+  },
 ];
 
-const pageTitles: Record<string, string> = {
-  "/admin": "داشبورد",
-  "/admin/slider": "مدیریت اسلایدر",
-  "/admin/courses": "مدیریت دوره‌ها",
-  "/admin/applications": "درخواست‌های ثبت‌نام دوره‌ها",
-  "/admin/payments": "مدیریت پرداخت‌ها",
-  "/admin/discount-codes": "مدیریت کدهای تخفیف",
-  "/admin/categories": "دسته‌بندی دوره‌ها",
-  "/admin/events": "مدیریت رویدادها",
-  "/admin/instructors": "مدیریت اساتید",
-  "/admin/alumni": "مدیریت هنرآموختگان",
-  "/admin/gallery": "گالری تصاویر",
-  "/admin/files": "مدیریت فایل‌ها",
-  "/admin/users": "مدیریت کاربران",
-  "/admin/support": "پشتیبانی کاربران",
-  "/admin/notifications": "اعلان‌ها",
-  "/admin/updates": "بروزرسانی‌ها",
-  "/admin/partners": "مدیریت همراهان",
-  "/admin/settings": "تنظیمات سایت",
-};
+function roleLabel(role: string) {
+  if (role === "superadmin") return "مدیر ارشد";
+  if (role === "admin") return "مدیر";
+  return role || "مدیر";
+}
+
+const LINK_FOCUS =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [settings, setSettings] = useState<Record<string, any> | null>(null);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [siteLogo, setSiteLogo] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getCookie("token");
@@ -148,12 +131,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .then((data) => {
         if (!data.error) {
-          setSettings(data);
+          if (data.siteLogo) setSiteLogo(data.siteLogo);
           document.documentElement.style.setProperty("--site-font", `'${getFontFamily(data.siteFont)}', sans-serif`);
-          if (data.bgColor) document.body.style.backgroundColor = data.bgColor;
         }
       })
       .catch(() => {});
+    document.body.style.backgroundColor = "#f4f6fa";
   }, [router]);
 
   const handleLogout = () => {
@@ -161,159 +144,120 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push("/login");
   };
 
-  const pageTitle = pageTitles[pathname] || "داشبورد";
-  const compactSidebar = settings?.sidebarLayout === "compact";
-
-  const canAccess = (item: MenuLink) => {
+  const canAccess = (permission: string[] | null, href: string) => {
     if (userRole === "superadmin") return true;
     if (userRole === "admin" && userPermissions.length === 0) return true;
-    if (item.href === "/admin" || item.href === "/") return true;
-    if (!item.permission) return userRole === "admin";
-    return userPermissions.includes(item.permission);
+    if (href === "/admin" || href === "/") return true;
+    if (!permission) return userRole === "admin";
+    return permission.some((p) => userPermissions.includes(p));
   };
 
-  const customSidebarColor = settings?.sidebarColor || null;
-  const lightSidebar = !customSidebarColor;
+  const isActive = (href: string) =>
+    href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-[#f4f6fa] font-site" dir="rtl">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`fixed top-0 right-0 z-30 h-full flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          compactSidebar ? "w-[72px]" : "w-[280px]"
-        } ${
-          sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-        } ${
-          lightSidebar ? "bg-white border-l border-slate-200" : "text-white"
-        }`}
-        style={customSidebarColor ? { backgroundColor: customSidebarColor } : undefined}
-      >
-        <div className={`flex items-center justify-between p-5 border-b ${lightSidebar ? "border-slate-200" : "border-white/10"}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#03004b] flex items-center justify-center overflow-hidden shrink-0 text-white">
-              <img src={settings?.siteLogo || "/logo.png"} alt="لوگو" className="w-full h-full object-cover" />
-            </div>
-            {!compactSidebar && (
-              <div>
-                <h2 className={`text-sm font-black ${lightSidebar ? "text-slate-900" : "text-[#ffdeab]"}`}>سامانه آکادمی هنر و رسانه</h2>
-                <p className={`text-xs mt-0.5 ${lightSidebar ? "text-slate-500" : "text-white/50"}`}>نسخه ویژه مؤسسه امام روح‌الله (ره)</p>
-              </div>
-            )}
+  function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+    return (
+      <>
+        <div className="flex items-center gap-3 px-2 pb-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#03004b] text-lg font-black text-white">
+            {siteLogo ? <img src={siteLogo} alt="لوگو" className="h-full w-full object-cover" /> : "ا"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-slate-900">پنل مدیریت</p>
+            <p className="text-[11px] text-slate-500">آکادمی امام روح‌الله</p>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className={`lg:hidden ${lightSidebar ? "text-slate-400 hover:text-slate-700" : "text-white/70 hover:text-white"}`}
-          >
-            <X size={22} />
-          </button>
+          {onNavigate ? (
+            <button
+              type="button"
+              onClick={onNavigate}
+              aria-label="بستن منو"
+              className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${LINK_FOCUS}`}
+            >
+              <X size={20} />
+            </button>
+          ) : null}
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {menuItems.map((item) => {
-            if ("children" in item) {
-              const visibleChildren = item.children.filter(canAccess);
-              if (visibleChildren.length === 0) return null;
-              const groupActive = visibleChildren.some((child) => pathname.startsWith(child.href));
-              const expanded = Boolean(openGroups[item.key]) || groupActive;
-              const GroupIcon = item.icon;
-              const groupBtn = lightSidebar
-                ? groupActive
-                  ? "bg-[#03004b] text-white"
-                  : "text-slate-600 hover:bg-slate-100"
-                : groupActive
-                  ? "!bg-[rgba(255,222,171,0.1)] !text-[#ffdeab]"
-                  : "text-white/70";
-              return <div key={item.key}>
-                <button
-                  type="button"
-                  onClick={() => setOpenGroups((previous) => ({ ...previous, [item.key]: !expanded }))}
-                  className={`sidebar-link w-full ${groupBtn} ${compactSidebar ? "justify-center !px-2" : ""}`}
-                  title={compactSidebar ? item.label : undefined}
-                >
-                  <GroupIcon size={compactSidebar ? 22 : 20} className={lightSidebar && !groupActive ? "text-slate-400" : undefined} />
-                  {!compactSidebar && <><span className="flex-1 text-right">{item.label}</span><ChevronDown size={15} className={`transition-transform ${expanded ? "rotate-180" : ""}`} /></>}
-                </button>
-                {expanded && <div className={`mt-1 space-y-1 ${compactSidebar ? "" : lightSidebar ? "mr-3 border-r border-slate-200 pr-2" : "mr-3 border-r border-white/10 pr-2"}`}>
-                  {visibleChildren.map((child) => {
-                    const ChildIcon = child.icon;
-                    const active = pathname.startsWith(child.href);
-                    const childCls = lightSidebar
-                      ? active
-                        ? "bg-[#03004b] text-white"
-                        : "text-slate-500 hover:bg-slate-100"
-                      : active
-                        ? "!bg-[rgba(255,222,171,0.1)] !text-[#ffdeab]"
-                        : "text-white/55";
-                    return <Link key={child.href} href={child.href} onClick={() => setSidebarOpen(false)} className={`sidebar-link !py-2 text-sm ${childCls} ${compactSidebar ? "justify-center !px-2" : ""}`} title={compactSidebar ? child.label : undefined}><ChildIcon size={17} className={lightSidebar && !active ? "text-slate-400" : undefined} />{!compactSidebar && <span>{child.label}</span>}</Link>;
+        <nav className="space-y-5">
+          {NAV.map((section) => {
+            const visible = section.items.filter((item) => canAccess(item.permission, item.href));
+            if (visible.length === 0) return null;
+            return (
+              <div key={section.title}>
+                <p className="px-3 pb-1.5 text-[11px] font-bold text-slate-400">{section.title}</p>
+                <div className="space-y-1">
+                  {visible.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${LINK_FOCUS} ${
+                          active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        <Icon size={18} className={active ? "text-white" : "text-slate-400"} />
+                        <span className="flex-1 text-right">{item.label}</span>
+                      </Link>
+                    );
                   })}
-                </div>}
-              </div>;
-            }
-
-            if (!canAccess(item)) return null;
-            const Icon = item.icon;
-            const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
-            const linkCls = lightSidebar
-              ? isActive
-                ? "bg-[#03004b] text-white"
-                : "text-slate-600 hover:bg-slate-100"
-              : isActive
-                ? "!bg-[rgba(255,222,171,0.1)] !text-[#ffdeab]"
-                : "text-white/70";
-            return <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={`sidebar-link ${linkCls} ${compactSidebar ? "justify-center !px-2" : ""}`} title={compactSidebar ? item.label : undefined}><Icon size={compactSidebar ? 22 : 20} className={lightSidebar && !isActive ? "text-slate-400" : undefined} />{!compactSidebar && <span>{item.label}</span>}</Link>;
+                </div>
+              </div>
+            );
           })}
         </nav>
 
-        <div className={`p-3 border-t ${lightSidebar ? "border-slate-200" : "border-white/10"}`}>
-          <div className={`sidebar-link text-sm ${lightSidebar ? "text-slate-400" : "text-white/50"}`}>
-            <span>نسخه {APP_VERSION}</span>
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#03004b] text-sm font-black text-white">
+            {userName.charAt(0) || "م"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-black text-slate-900">{userName || "مدیر"}</p>
+            <p className="text-[11px] text-slate-500">نقش: {roleLabel(userRole)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="خروج"
+            aria-label="خروج"
+            className={`shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 ${LINK_FOCUS}`}
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f4f6fa] font-site text-slate-900" dir="rtl">
+      <div className="mx-auto flex max-w-7xl gap-6 p-4 md:p-6">
+        <aside className="sticky top-6 hidden h-fit max-h-[calc(100vh-3rem)] w-64 shrink-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 md:block">
+          <SidebarContent />
+        </aside>
+
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setDrawerOpen(true)}
+        aria-label="باز کردن منو"
+        className={`fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#03004b] text-white shadow-lg transition hover:bg-[#1b1c5e] md:hidden ${LINK_FOCUS}`}
+      >
+        <Menu size={22} />
+      </button>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-y-4 right-4 flex w-72 flex-col overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4">
+            <SidebarContent onNavigate={() => setDrawerOpen(false)} />
           </div>
         </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-slate-600 hover:text-slate-900"
-            >
-              <Menu size={24} />
-            </button>
-            <h1 className="text-lg font-black text-slate-900">{pageTitle}</h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-sm">
-              <div className="w-8 h-8 rounded-full bg-[#03004b] flex items-center justify-center text-white font-bold text-sm">
-                {userName.charAt(0)}
-              </div>
-              <span className="text-slate-900 font-bold">{userName}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-red-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">خروج</span>
-            </button>
-          </div>
-        </header>
-
-        <main
-          className="flex-1 overflow-y-auto p-4 lg:p-6 bg-[#f4f6fa]"
-          style={{
-            backgroundColor: settings?.bgColor || undefined,
-            backgroundImage: settings?.bgPattern ? `url(${settings.bgPattern})` : undefined,
-          }}
-        >{children}</main>
-      </div>
+      )}
     </div>
   );
 }

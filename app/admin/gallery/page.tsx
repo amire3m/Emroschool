@@ -15,7 +15,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
 import PersianDateTimePicker from "@/components/ui/persian-date-time-picker";
-import { EmptyState, FilterChips, Modal, PrimaryButton, SecondaryButton } from "@/components/admin/ui";
+import { EmptyState, FilterChips, Modal, PageHeader, PrimaryButton, SecondaryButton } from "@/components/admin/ui";
 
 interface GalleryImage {
   id: string;
@@ -165,15 +165,21 @@ export default function AdminGallery() {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        title="گالری تصاویر"
+        subtitle="مدیریت تصاویر گالری سایت"
+        actions={
+          <PrimaryButton
+            onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }}
+            className="shrink-0"
+          >
+            <Plus size={18} />
+            افزودن تصویر
+          </PrimaryButton>
+        }
+      />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <FilterChips options={folderOptions} value={activeFolder ?? "__all__"} onChange={(value) => setActiveFolder(value === "__all__" ? null : value)} />
-        <PrimaryButton
-          onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }}
-          className="shrink-0"
-        >
-          <Plus size={18} />
-          افزودن تصویر
-        </PrimaryButton>
       </div>
 
       {filtered.length === 0 ? (

@@ -6,7 +6,7 @@ import { CalendarDays, Eye, Loader2, Newspaper, Pencil, Plus, Search, Star, Tras
 import toast from "react-hot-toast";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { getCookie } from "@/lib/cookie";
-import { Badge, DangerButton, EmptyState, Modal, PrimaryButton, SearchInput, SecondaryButton } from "@/components/admin/ui";
+import { Badge, DangerButton, EmptyState, Modal, PageHeader, PrimaryButton, SearchInput, SecondaryButton } from "@/components/admin/ui";
 
 interface NewsPost { id: string; title: string; slug: string; excerpt: string; content: string; coverImage: string | null; category: string; authorName: string | null; tags: string | null; featured: boolean; published: boolean; publishedAt: string | null; createdAt: string; }
 const categories = [{ value: "general", label: "خبر آکادمی" }, { value: "course", label: "دوره‌ها" }, { value: "instructor", label: "اساتید" }, { value: "alumni", label: "هنرآموختگان" }];
@@ -66,12 +66,16 @@ export default function AdminNewsPage() {
 
   const filtered = news.filter((post) => post.title.includes(search) || post.excerpt.includes(search) || post.tags?.includes(search));
   return <div className="space-y-5">
+    <PageHeader
+      title="اخبار"
+      subtitle="مدیریت اخبار و اطلاعیه‌های سایت"
+      actions={<PrimaryButton onClick={openCreate}><Plus size={18} />خبر جدید</PrimaryButton>}
+    />
     <div className="flex flex-col sm:flex-row gap-3 justify-between">
       <div className="relative sm:w-72">
         <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو در اخبار..." />
       </div>
-      <PrimaryButton onClick={openCreate}><Plus size={18} />خبر جدید</PrimaryButton>
     </div>
     {loading ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-[#03004b]" size={32} /></div> : filtered.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white py-10 text-center"><Newspaper size={42} className="mx-auto mb-1 text-slate-300" /><EmptyState message="خبری پیدا نشد" /></div> : <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((post) => <article key={post.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden group">
       <div className="aspect-[16/8] bg-slate-100 relative overflow-hidden">

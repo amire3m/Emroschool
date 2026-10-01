@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
-import { Badge, DangerButton, EmptyState, FilterChips, Modal, PrimaryButton, SearchInput, SecondaryButton, StatCard } from "@/components/admin/ui";
+import { Badge, DangerButton, EmptyState, FilterChips, Modal, PageHeader, PrimaryButton, SearchInput, SecondaryButton, StatCard } from "@/components/admin/ui";
 
 interface ManagedFile {
   name: string;
@@ -327,6 +327,7 @@ export default function AdminFilesPage() {
 
   return (
     <div className="space-y-5">
+      <PageHeader title="مدیریت فایل‌ها" subtitle="آپلود، جستجو و مدیریت فایل‌های سامانه" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard label="فضای آزاد سرور" value={storage ? formatBytes(storage.availableBytes) : "—"} sub={`${diskUsagePercent.toLocaleString("fa-IR", { maximumFractionDigits: 1 })}٪ از دیسک مصرف شده`} icon={HardDrive} tone="bg-slate-100 text-slate-600" />
         <StatCard label="حجم فایل‌های آپلودی" value={storage ? formatBytes(storage.uploadsBytes) : "—"} sub="فقط فایل‌های داخل پوشه uploads" icon={Upload} tone="bg-blue-50 text-blue-600" />
