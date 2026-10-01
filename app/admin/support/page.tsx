@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Headphones, Loader2, MessageSquare, Send, X } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import {
+  Badge,
+  DangerButton,
+  EmptyState,
+  FilterChips,
+  Modal,
+  PageHeader,
+  PrimaryButton,
+  type BadgeTone,
+} from "@/components/admin/ui";
 
 type Ticket = { id: string; number: string; subject: string; status: string; createdAt: string; updatedAt: string; user: { name: string; email: string }; _count: { messages: number } };
 type TicketDetail = Ticket & { messages: { id: string; body: string; createdAt: string; author: { id: string; name: string; role: string } }[] };
 const statusLabels: Record<string, string> = { open: "باز", waiting_for_support: "در انتظار پشتیبانی", waiting_for_user: "در انتظار کاربر", closed: "بسته" };
-const statusClasses: Record<string, string> = { open: "bg-blue-100 text-blue-800", waiting_for_support: "bg-amber-100 text-amber-800", waiting_for_user: "bg-violet-100 text-violet-800", closed: "bg-slate-100 text-slate-700" };
+const statusTones: Record<string, BadgeTone> = { open: "emerald", waiting_for_support: "amber", waiting_for_user: "amber", closed: "slate" };
+
+const INPUT_CLASS = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function SupportPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]); const [loading, setLoading] = useState(true); const [selected, setSelected] = useState<TicketDetail | null>(null); const [reply, setReply] = useState(""); const [saving, setSaving] = useState(false); const [filter, setFilter] = useState("all");
@@ -18,5 +30,96 @@ export default function SupportPage() {
   const update = async (status?: string) => { if (!selected) return; if (!status && !reply.trim()) return; setSaving(true); try { const res = await fetch(`/api/admin/support/tickets/${selected.id}`, { method: "PATCH", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify({ message: reply.trim() || undefined, status }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error); toast.success(status === "closed" ? "تیکت بسته شد" : reply.trim() ? "پاسخ ارسال شد" : "وضعیت بروزرسانی شد"); await load(); await openTicket(selected.id); } catch (e) { toast.error(e instanceof Error ? e.message : "بروزرسانی ناموفق بود"); } finally { setSaving(false); } };
   useEffect(() => { load(); }, []);
   const shown = tickets.filter((ticket) => filter === "all" || ticket.status === filter);
-  return <div className="mx-auto max-w-6xl space-y-5" dir="rtl"><section className="rounded-3xl bg-primary p-6 text-white"><div className="flex items-center gap-3"><Headphones className="text-secondary-fixed" /><div><h2 className="font-black">پشتیبانی کاربران</h2><p className="mt-1 text-sm text-white/65">رسیدگی به پیام‌ها و درخواست‌های کاربران</p></div></div></section><div className="flex flex-wrap gap-2">{[["all", "همه"], ["waiting_for_support", "نیازمند پاسخ"], ["waiting_for_user", "در انتظار کاربر"], ["closed", "بسته"]].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-xl px-3 py-2 text-xs font-bold ${filter === value ? "bg-primary text-white" : "bg-white text-primary border border-surface-variant"}`}>{label}</button>)}</div>{loading ? <div className="flex h-48 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div> : <section className="overflow-hidden rounded-3xl border border-surface-variant bg-white"><div className="divide-y divide-surface-variant">{shown.map((ticket) => <button key={ticket.id} onClick={() => openTicket(ticket.id)} className="flex w-full flex-col gap-3 p-5 text-right transition hover:bg-surface sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-black text-primary">#{ticket.number.slice(-6)} · {ticket.subject}</p><p className="mt-1 text-xs text-outline">{ticket.user.name} · {ticket.user.email} · {ticket._count.messages.toLocaleString("fa-IR")} پیام</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${statusClasses[ticket.status]}`}>{statusLabels[ticket.status]}</span><span className="text-xs text-outline">{new Date(ticket.updatedAt).toLocaleDateString("fa-IR")}</span></button>)}{shown.length === 0 && <p className="p-10 text-center text-sm text-outline">تیکتی در این بخش وجود ندارد.</p>}</div></section>}{selected && <div className="fixed inset-0 z-[70] flex items-end bg-black/40 p-0 sm:items-center sm:justify-center sm:p-6"><section className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-t-3xl bg-white sm:rounded-3xl"><header className="flex items-start justify-between border-b border-surface-variant p-5"><div><p className="font-black text-primary">#{selected.number.slice(-6)} · {selected.subject}</p><p className="mt-1 text-xs text-outline">{selected.user.name} · {selected.user.email}</p></div><button onClick={() => setSelected(null)} className="rounded-lg p-1 text-outline"><X /></button></header><div className="flex-1 space-y-3 overflow-y-auto bg-surface p-5">{selected.messages.map((message) => <div key={message.id} className={`max-w-[85%] rounded-2xl p-4 ${message.author.role === "user" ? "mr-auto bg-white text-primary" : "bg-primary text-white"}`}><p className="mb-1 text-xs font-bold opacity-70">{message.author.name}</p><p className="whitespace-pre-wrap text-sm leading-7">{message.body}</p><p className="mt-2 text-[10px] opacity-60">{new Date(message.createdAt).toLocaleString("fa-IR")}</p></div>)}</div><footer className="border-t border-surface-variant p-4"><textarea value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} placeholder="پاسخ پشتیبانی..." className="min-h-24 w-full rounded-xl border border-surface-variant p-3 text-sm outline-none focus:border-primary" /><div className="mt-3 flex flex-wrap gap-2"><button disabled={saving || !reply.trim()} onClick={() => update()} className="inline-flex items-center gap-1 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Send size={15} />ارسال پاسخ</button>{selected.status !== "closed" && <button disabled={saving} onClick={() => update("closed")} className="rounded-xl border border-error px-4 py-2 text-sm font-bold text-error">بستن تیکت</button>}<select value={selected.status} onChange={(e) => update(e.target.value)} disabled={saving} className="rounded-xl border border-surface-variant px-3 py-2 text-sm"><option value="open">باز</option><option value="waiting_for_support">در انتظار پشتیبانی</option><option value="waiting_for_user">در انتظار کاربر</option><option value="closed">بسته</option></select></div></footer></section></div>}</div>;
+  return (
+    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+      <PageHeader title="پشتیبانی کاربران" subtitle="رسیدگی به پیام‌ها و درخواست‌های کاربران" />
+      <FilterChips
+        options={[
+          { value: "all", label: "همه" },
+          { value: "waiting_for_support", label: "نیازمند پاسخ" },
+          { value: "waiting_for_user", label: "در انتظار کاربر" },
+          { value: "closed", label: "بسته" },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      {loading ? (
+        <div className="flex h-48 items-center justify-center">
+          <Loader2 className="animate-spin text-[#03004b]" />
+        </div>
+      ) : (
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="divide-y divide-slate-100">
+            {shown.map((ticket) => (
+              <button
+                key={ticket.id}
+                onClick={() => openTicket(ticket.id)}
+                className="flex w-full flex-col gap-3 p-5 text-right transition hover:bg-slate-50/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-slate-900">#{ticket.number.slice(-6)} · {ticket.subject}</p>
+                  <p className="mt-1 text-xs text-slate-500">{ticket.user.name} · {ticket.user.email} · {ticket._count.messages.toLocaleString("fa-IR")} پیام</p>
+                </div>
+                <Badge tone={statusTones[ticket.status] ?? "slate"}>{statusLabels[ticket.status]}</Badge>
+                <span className="text-xs tabular-nums text-slate-500">{new Date(ticket.updatedAt).toLocaleDateString("fa-IR")}</span>
+              </button>
+            ))}
+            {shown.length === 0 && <EmptyState message="تیکتی در این بخش وجود ندارد." />}
+          </div>
+        </section>
+      )}
+      {selected && (
+        <Modal
+          title={`#${selected.number.slice(-6)} · ${selected.subject}`}
+          subtitle={`${selected.user.name} · ${selected.user.email}`}
+          onClose={() => setSelected(null)}
+          maxWidth="max-w-3xl"
+          footer={
+            <>
+              <PrimaryButton disabled={saving || !reply.trim()} onClick={() => update()}>
+                <Send size={15} />
+                ارسال پاسخ
+              </PrimaryButton>
+              {selected.status !== "closed" && (
+                <DangerButton disabled={saving} onClick={() => update("closed")}>
+                  بستن تیکت
+                </DangerButton>
+              )}
+              <select
+                value={selected.status}
+                onChange={(e) => update(e.target.value)}
+                disabled={saving}
+                className={INPUT_CLASS}
+              >
+                <option value="open">باز</option>
+                <option value="waiting_for_support">در انتظار پشتیبانی</option>
+                <option value="waiting_for_user">در انتظار کاربر</option>
+                <option value="closed">بسته</option>
+              </select>
+            </>
+          }
+        >
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
+            {selected.messages.map((message) => (
+              <div
+                key={message.id}
+                className={`max-w-[85%] rounded-2xl p-4 ${message.author.role === "user" ? "mr-auto border border-slate-200 bg-white text-slate-900" : "bg-[#03004b] text-white"}`}
+              >
+                <p className="mb-1 text-xs font-bold opacity-70">{message.author.name}</p>
+                <p className="whitespace-pre-wrap text-sm leading-7">{message.body}</p>
+                <p className="mt-2 text-[10px] tabular-nums opacity-60">{new Date(message.createdAt).toLocaleString("fa-IR")}</p>
+              </div>
+            ))}
+          </div>
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            maxLength={5000}
+            placeholder="پاسخ پشتیبانی..."
+            className={`${INPUT_CLASS} mt-4 min-h-24 w-full resize-y leading-7`}
+          />
+        </Modal>
+      )}
+    </div>
+  );
 }

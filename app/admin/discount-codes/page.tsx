@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgePercent, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
+import {
+  PageHeader,
+  DataTable,
+  Th,
+  Td,
+  Badge,
+  EmptyState,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/components/admin/ui";
 
 type Discount = { id: string; label: string; code: string; percent: number; active: boolean; requiresDocument: boolean };
 const empty = { label: "", code: "", percent: 0, active: true, requiresDocument: false };
+
+const INPUT_CLASS = "mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15";
+const ICON_BUTTON = "rounded-lg border p-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function DiscountCodesPage() {
   const [items, setItems] = useState<Discount[]>([]); const [form, setForm] = useState(empty); const [editing, setEditing] = useState<string | null>(null); const [loading, setLoading] = useState(true); const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${getCookie("token")}` });
@@ -15,6 +28,60 @@ export default function DiscountCodesPage() {
   function reset() { setForm(empty); setEditing(null); }
   async function save() { try { const response = await fetch("/api/admin/discount-codes", { method: editing ? "PATCH" : "POST", headers: headers(), body: JSON.stringify(editing ? { ...form, id: editing } : form) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); toast.success(editing ? "کد بروزرسانی شد" : "کد جدید افزوده شد"); reset(); load(); } catch (error) { toast.error(error instanceof Error ? error.message : "ذخیره ناموفق بود"); } }
   async function remove(id: string) { if (!confirm("این کد حذف شود؟")) return; const response = await fetch("/api/admin/discount-codes", { method: "DELETE", headers: headers(), body: JSON.stringify({ id }) }); if (!response.ok) { const data = await response.json(); toast.error(data.error); return; } toast.success("کد حذف شد"); load(); }
-  if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin text-secondary" /></div>;
-  return <div className="mx-auto max-w-6xl space-y-6"><section className="rounded-[1.8rem] bg-primary p-6 text-white"><div className="flex items-center gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-fixed text-primary"><BadgePercent size={24} /></span><div><h1 className="text-xl font-black">مدیریت کدهای تخفیف</h1><p className="mt-1 text-sm text-white/60">کاربر فقط نام گروه را می‌بیند؛ کد و درصد برای او نمایش داده نمی‌شود.</p></div></div></section><section className="rounded-[1.8rem] border border-outline-variant/30 bg-white p-5 md:p-7"><div className="mb-5 flex items-center justify-between"><h2 className="font-black text-primary">{editing ? "ویرایش کد" : "افزودن کد تخفیف"}</h2>{editing && <button onClick={reset} className="text-sm text-outline">انصراف</button>}</div><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-bold text-primary">نام گروه<input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal" /></label><label className="text-sm font-bold text-primary">کد تخفیف<input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} dir="ltr" className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal" /></label><label className="text-sm font-bold text-primary">درصد تخفیف<input value={form.percent} onChange={(e) => setForm({ ...form, percent: Number(e.target.value) })} min="0" max="100" type="number" className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 font-normal" /></label><div className="flex flex-wrap items-end gap-5 pb-3 text-sm font-bold text-primary"><label className="flex gap-2"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />فعال</label><label className="flex gap-2"><input type="checkbox" checked={form.requiresDocument} onChange={(e) => setForm({ ...form, requiresDocument: e.target.checked })} />نیازمند مدرک</label></div></div><button onClick={save} className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white">{editing ? <Save size={16} /> : <Plus size={16} />}{editing ? "ذخیره تغییرات" : "افزودن کد"}</button></section><section className="overflow-hidden rounded-[1.8rem] border border-outline-variant/30 bg-white"><div className="border-b border-outline-variant/20 p-5"><h2 className="font-black text-primary">کدهای فعال و غیرفعال</h2></div><div className="divide-y divide-outline-variant/15">{items.map((item) => <div key={item.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong className="text-primary">{item.label}</strong><span className="rounded-full bg-secondary-fixed px-2 py-1 text-xs font-bold text-primary">{item.percent.toLocaleString("fa-IR")}٪</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${item.active ? "bg-green-50 text-green-700" : "bg-surface-low text-outline"}`}>{item.active ? "فعال" : "غیرفعال"}</span>{item.requiresDocument && <span className="text-xs text-outline">مدرک الزامی</span>}</div><p dir="ltr" className="mt-1 text-xs text-outline">{item.code}</p></div><div className="flex gap-2"><button onClick={() => { setEditing(item.id); setForm({ label: item.label, code: item.code, percent: item.percent, active: item.active, requiresDocument: item.requiresDocument }); }} className="rounded-xl border border-outline-variant p-2 text-primary"><Pencil size={16} /></button><button onClick={() => remove(item.id)} className="rounded-xl border border-error/30 p-2 text-error"><Trash2 size={16} /></button></div></div>)}</div></section></div>;
+  if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin text-[#03004b]" /></div>;
+  return (
+    <div className="space-y-5">
+      <PageHeader title="مدیریت کدهای تخفیف" subtitle="کاربر فقط نام گروه را می‌بیند؛ کد و درصد برای او نمایش داده نمی‌شود." />
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="text-base font-black text-slate-900">{editing ? "ویرایش کد" : "افزودن کد تخفیف"}</h2>
+          {editing && <SecondaryButton onClick={reset} className="px-3 py-1.5 text-xs">انصراف</SecondaryButton>}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block text-sm font-bold text-slate-900">نام گروه<input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} className={INPUT_CLASS} /></label>
+          <label className="block text-sm font-bold text-slate-900">کد تخفیف<input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} dir="ltr" className={INPUT_CLASS} /></label>
+          <label className="block text-sm font-bold text-slate-900">درصد تخفیف<input value={form.percent} onChange={(e) => setForm({ ...form, percent: Number(e.target.value) })} min="0" max="100" type="number" className={`${INPUT_CLASS} tabular-nums`} /></label>
+          <div className="flex flex-wrap items-end gap-5 pb-3 text-sm font-bold text-slate-900">
+            <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} className="h-4 w-4 accent-[#03004b]" />فعال</label>
+            <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={form.requiresDocument} onChange={(e) => setForm({ ...form, requiresDocument: e.target.checked })} className="h-4 w-4 accent-[#03004b]" />نیازمند مدرک</label>
+          </div>
+        </div>
+        <PrimaryButton onClick={save} className="mt-5">{editing ? <Save size={16} /> : <Plus size={16} />}{editing ? "ذخیره تغییرات" : "افزودن کد"}</PrimaryButton>
+      </section>
+      <section className="space-y-3">
+        <h2 className="text-base font-black text-slate-900">کدهای فعال و غیرفعال</h2>
+        <DataTable
+          head={
+            <>
+              <Th>نام گروه</Th>
+              <Th>کد تخفیف</Th>
+              <Th>درصد تخفیف</Th>
+              <Th>وضعیت</Th>
+              <Th>مدرک الزامی</Th>
+              <Th>عملیات</Th>
+            </>
+          }
+        >
+          {items.map((item) => (
+            <tr key={item.id} className="border-t border-slate-100 transition first:border-t-0 hover:bg-slate-50/60">
+              <Td className="font-bold text-slate-900">{item.label}</Td>
+              <Td><span dir="ltr" className="text-xs tabular-nums text-slate-500">{item.code}</span></Td>
+              <Td className="tabular-nums text-slate-900">{item.percent.toLocaleString("fa-IR")}٪</Td>
+              <Td><Badge tone={item.active ? "emerald" : "slate"}>{item.active ? "فعال" : "غیرفعال"}</Badge></Td>
+              <Td>{item.requiresDocument ? <span className="text-xs text-slate-500">مدرک الزامی</span> : <span className="text-xs text-slate-400">—</span>}</Td>
+              <Td>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setEditing(item.id); setForm({ label: item.label, code: item.code, percent: item.percent, active: item.active, requiresDocument: item.requiresDocument }); }} className={`${ICON_BUTTON} border-slate-200 text-slate-600 hover:bg-slate-50`}><Pencil size={16} /></button>
+                  <button type="button" onClick={() => remove(item.id)} className={`${ICON_BUTTON} border-red-200/70 text-red-600 hover:bg-red-50`}><Trash2 size={16} /></button>
+                </div>
+              </Td>
+            </tr>
+          ))}
+          {items.length === 0 && (
+            <tr><Td colSpan={6}><EmptyState message="کدی ثبت نشده است." /></Td></tr>
+          )}
+        </DataTable>
+      </section>
+    </div>
+  );
 }

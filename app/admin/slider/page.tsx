@@ -16,6 +16,7 @@ import {
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
+import { PageHeader, DataTable, Th, Td, Badge, EmptyState, PrimaryButton, SecondaryButton, DangerButton, SearchInput, Modal } from "@/components/admin/ui";
 
 interface SliderItem {
   id: string;
@@ -28,6 +29,11 @@ interface SliderItem {
   published: boolean;
   createdAt: string;
 }
+
+const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnCls = "rounded-lg p-2 text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnDangerCls = "rounded-lg p-2 text-slate-400 transition hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const orderBtnCls = "rounded p-0.5 text-slate-400 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 export default function AdminSlider() {
   const [slides, setSlides] = useState<SliderItem[]>([]);
@@ -226,7 +232,7 @@ export default function AdminSlider() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 text-error gap-2">
+      <div className="flex items-center justify-center h-64 text-red-600 gap-2">
         <AlertCircle size={20} />
         <span>خطا: {error}</span>
       </div>
@@ -234,268 +240,228 @@ export default function AdminSlider() {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-        <div className="relative w-full sm:w-64">
-          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
-          <input
-            type="text"
-            placeholder="جستجوی اسلاید..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] focus:border-[#03004b]"
-          />
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 bg-[#03004b] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors"
-        >
-          <Plus size={18} />
-          افزودن اسلاید
-        </button>
+    <div className="space-y-5">
+      <PageHeader
+        title="مدیریت اسلایدر"
+        actions={
+          <PrimaryButton onClick={openCreateModal}>
+            <Plus size={18} />
+            افزودن اسلاید
+          </PrimaryButton>
+        }
+      />
+      <div className="relative w-full sm:w-72">
+        <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <SearchInput
+          type="text"
+          placeholder="جستجوی اسلاید..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">تصویر</th>
-                <th className="text-right p-3 font-medium text-outline">عنوان</th>
-                <th className="text-right p-3 font-medium text-outline hidden md:table-cell">زیرعنوان</th>
-                <th className="text-center p-3 font-medium text-outline">ترتیب</th>
-                <th className="text-center p-3 font-medium text-outline">وضعیت</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((slide, index) => (
-                <tr key={slide.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="w-16 h-10 rounded-lg bg-surface-variant overflow-hidden">
-                      <img
-                        src={slide.imageUrl}
-                        alt={slide.title || "تصویر اسلاید"}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://placehold.co/100x60/e2e1f0/777681?text=No+Image";
-                        }}
-                      />
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="font-medium text-primary">{slide.title || "بدون عنوان"}</div>
-                  </td>
-                  <td className="p-3 text-outline hidden md:table-cell">{slide.subtitle || "—"}</td>
-                  <td className="p-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-outline text-xs ml-1">{slide.order}</span>
-                      <button
-                        onClick={() => moveOrder(slide.id, "up")}
-                        disabled={index === 0}
-                        className="p-0.5 rounded text-outline hover:text-[#03004b] disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        onClick={() => moveOrder(slide.id, "down")}
-                        disabled={index === filtered.length - 1}
-                        className="p-0.5 rounded text-outline hover:text-[#03004b] disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        slide.published
-                          ? "bg-green-50 text-green-700"
-                          : "bg-yellow-50 text-yellow-700"
-                      }`}
-                    >
-                      {slide.published ? <Check size={12} /> : <X size={12} />}
-                      {slide.published ? "منتشر شده" : "پیش‌نویس"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => openEditModal(slide)}
-                        className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
-                        title="ویرایش"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(slide)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors"
-                        title="حذف"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-outline">
-                    هیچ اسلایدی یافت نشد
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">
-                {editingSlide ? "ویرایش اسلاید" : "افزودن اسلاید جدید"}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-outline hover:text-primary p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">عنوان</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.title}
-                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">زیرعنوان</label>
-                  <input
-                    type="text"
-                    value={form.subtitle}
-                    onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
+      <DataTable
+        head={
+          <>
+            <Th>تصویر</Th>
+            <Th>عنوان</Th>
+            <Th className="hidden md:table-cell">زیرعنوان</Th>
+            <Th center>ترتیب</Th>
+            <Th center>وضعیت</Th>
+            <Th><span className="flex justify-end">عملیات</span></Th>
+          </>
+        }
+      >
+        {filtered.map((slide, index) => (
+          <tr key={slide.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
+            <Td>
+              <div className="h-10 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                <img
+                  src={slide.imageUrl}
+                  alt={slide.title || "تصویر اسلاید"}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://placehold.co/100x60/e2e1f0/777681?text=No+Image";
+                  }}
+                />
               </div>
-
-              <ImageUpload
-                value={form.imageUrl}
-                onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
-                label="تصویر اسلاید"
-                sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل"
-                aspectRatio="16:9"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آدرس لینک</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={form.linkUrl}
-                    onChange={(e) => setForm((p) => ({ ...p, linkUrl: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">متن لینک</label>
-                  <input
-                    type="text"
-                    value={form.linkText}
-                    onChange={(e) => setForm((p) => ({ ...p, linkText: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">ترتیب</label>
-                  <input
-                    type="number"
-                    value={form.order}
-                    onChange={(e) => setForm((p) => ({ ...p, order: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-                <div className="flex items-end pb-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.published}
-                      onChange={(e) => setForm((p) => ({ ...p, published: e.target.checked }))}
-                      className="w-4 h-4 rounded border-surface-variant text-[#03004b] focus:ring-[#ffdeab]"
-                    />
-                    <span className="text-sm text-primary">منتشر شده</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
+            </Td>
+            <Td>
+              <div className="font-bold text-slate-900">{slide.title || "بدون عنوان"}</div>
+            </Td>
+            <Td className="hidden text-slate-500 md:table-cell">{slide.subtitle || "—"}</Td>
+            <Td className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="ml-1 text-xs tabular-nums text-slate-500">{slide.order}</span>
                 <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-[#03004b] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors disabled:opacity-50"
+                  type="button"
+                  onClick={() => moveOrder(slide.id, "up")}
+                  disabled={index === 0}
+                  className={orderBtnCls}
+                  aria-label="انتقال به بالا"
                 >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  {editingSlide ? "بروزرسانی" : "ایجاد اسلاید"}
+                  <ChevronUp size={14} />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
+                  onClick={() => moveOrder(slide.id, "down")}
+                  disabled={index === filtered.length - 1}
+                  className={orderBtnCls}
+                  aria-label="انتقال به پایین"
                 >
-                  انصراف
+                  <ChevronDown size={14} />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            </Td>
+            <Td className="text-center">
+              <Badge tone={slide.published ? "emerald" : "slate"}>
+                {slide.published ? <Check size={12} /> : <X size={12} />}
+                {slide.published ? "منتشر شده" : "پیش‌نویس"}
+              </Badge>
+            </Td>
+            <Td>
+              <div className="flex items-center gap-1 justify-end">
+                <button
+                  type="button"
+                  onClick={() => openEditModal(slide)}
+                  className={iconBtnCls}
+                  title="ویرایش"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(slide)}
+                  className={iconBtnDangerCls}
+                  title="حذف"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+        {filtered.length === 0 && (
+          <tr className="border-t border-slate-100">
+            <Td colSpan={6}>
+              <EmptyState message="هیچ اسلایدی یافت نشد" />
+            </Td>
+          </tr>
+        )}
+      </DataTable>
+
+      {showModal && (
+        <Modal title={editingSlide ? "ویرایش اسلاید" : "افزودن اسلاید جدید"} onClose={() => !saving && setShowModal(false)}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">عنوان</label>
+                <input
+                  type="text"
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">زیرعنوان</label>
+                <input
+                  type="text"
+                  value={form.subtitle}
+                  onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))}
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+            </div>
+
+            <ImageUpload
+              value={form.imageUrl}
+              onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))}
+              label="تصویر اسلاید"
+              sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل"
+              aspectRatio="16:9"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">آدرس لینک</label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={form.linkUrl}
+                  onChange={(e) => setForm((p) => ({ ...p, linkUrl: e.target.value }))}
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">متن لینک</label>
+                <input
+                  type="text"
+                  value={form.linkText}
+                  onChange={(e) => setForm((p) => ({ ...p, linkText: e.target.value }))}
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">ترتیب</label>
+                <input
+                  type="number"
+                  value={form.order}
+                  onChange={(e) => setForm((p) => ({ ...p, order: e.target.value }))}
+                  className={`w-full tabular-nums ${inputCls}`}
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.published}
+                    onChange={(e) => setForm((p) => ({ ...p, published: e.target.checked }))}
+                    className="h-4 w-4 rounded accent-[#03004b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"
+                  />
+                  <span className="text-sm text-slate-900">منتشر شده</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <PrimaryButton type="submit" disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {editingSlide ? "بروزرسانی" : "ایجاد اسلاید"}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => setShowModal(false)} disabled={saving}>
+                انصراف
+              </SecondaryButton>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={28} className="text-error" />
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">حذف اسلاید</h3>
-              <p className="text-outline text-sm mb-1">
-                آیا از حذف اسلاید <span className="font-bold text-primary">"{deleteTarget.title}"</span> اطمینان دارید؟
-              </p>
-              <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-error text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  حذف
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
-                >
-                  انصراف
-                </button>
-              </div>
+        <Modal title="حذف اسلاید" onClose={() => !saving && setDeleteTarget(null)} maxWidth="max-w-md">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <Trash2 size={24} />
+            </div>
+            <p className="text-sm text-slate-600">
+              آیا از حذف اسلاید <span className="font-bold text-slate-900">"{deleteTarget.title}"</span> اطمینان دارید؟
+            </p>
+            <p className="mt-1 text-xs text-slate-500">این عمل قابل بازگشت نیست.</p>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <DangerButton onClick={handleDelete} disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                حذف
+              </DangerButton>
+              <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>
+                انصراف
+              </SecondaryButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

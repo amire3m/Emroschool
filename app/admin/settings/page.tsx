@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { HomeSectionContent, homeSectionDefinitions, parseHomeSectionContent } from "@/lib/home-sections";
+import { PageHeader, Badge, PrimaryButton } from "@/components/admin/ui";
 
 interface SiteSettings {
   siteName: string;
@@ -45,6 +46,12 @@ const iconMap: Record<string, React.ReactNode> = {
   Camera: <Camera size={18} />,
   Megaphone: <Megaphone size={18} />,
 };
+
+const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnCls = "rounded-lg p-2 text-slate-400 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const pickerBtnBase = "rounded-xl border-2 p-4 text-right transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const pickerBtnActive = "border-[#03004b] bg-[#03004b]/5";
+const pickerBtnIdle = "border-slate-200 hover:border-[#03004b]/30";
 
 export default function AdminSettings() {
   const [tab, setTab] = useState<"settings" | "pagebuilder">("settings");
@@ -180,14 +187,14 @@ export default function AdminSettings() {
   if (loading && !settings) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-primary" size={40} />
+        <Loader2 className="animate-spin text-[#03004b]" size={40} />
       </div>
     );
   }
 
   if (error && !settings) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-error gap-3">
+      <div className="flex flex-col items-center justify-center py-20 text-red-600 gap-3">
         <AlertCircle size={40} />
         <p>{error}</p>
       </div>
@@ -195,130 +202,128 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-primary">تنظیمات سایت</h2>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-5">
+      <PageHeader title="تنظیمات سایت" />
 
-      <div className="flex gap-1 bg-surface-low rounded-2xl p-1 border border-surface-variant">
+      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
         <button
+          type="button"
           onClick={() => setTab("settings")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all ${tab === "settings" ? "bg-white text-primary shadow-sm" : "text-outline hover:text-primary"}`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-bold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] ${tab === "settings" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
         >
           <Settings size={18} /> اطلاعات سایت
         </button>
         <button
+          type="button"
           onClick={() => setTab("pagebuilder")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all ${tab === "pagebuilder" ? "bg-white text-primary shadow-sm" : "text-outline hover:text-primary"}`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-bold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b] ${tab === "pagebuilder" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
         >
           <Layout size={18} /> ویرایش صفحه اصلی
         </button>
       </div>
 
       {tab === "settings" && settings && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 space-y-6 shadow-sm border border-surface-variant">
-            <h3 className="font-bold text-primary text-lg">اطلاعات سایت</h3>
+        <div className="space-y-5">
+          <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-base font-black text-slate-900">اطلاعات سایت</h2>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">نام سایت</label>
+              <label className="mb-1 block text-sm font-bold text-slate-900">نام سایت</label>
               <input type="text" value={settings.siteName} onChange={(e) => updateField("siteName", e.target.value)}
-                className="w-full rounded-xl border border-surface-variant px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-secondary-fixed" />
+                className={`w-full ${inputCls}`} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">لوگوی سایت</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">لوگوی سایت</label>
               <ImageUpload value={settings.siteLogo || ""} onChange={(url) => updateField("siteLogo", url)} label="آپلود لوگو" sizeHint="۵۱۲ × ۵۱۲ پیکسل" aspectRatio="1:1" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">رنگ پس زمینه سایت</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">رنگ پس زمینه سایت</label>
               <div className="flex gap-3 items-center">
                 <input type="color" value={settings.bgColor} onChange={(e) => updateField("bgColor", e.target.value)}
-                  className="w-12 h-12 rounded-xl cursor-pointer border border-surface-variant" />
-                <span className="text-sm text-outline font-mono">{settings.bgColor}</span>
+                  className="h-12 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]" />
+                <span className="text-sm tabular-nums text-slate-500" dir="ltr">{settings.bgColor}</span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">تصویر پس زمینه (اختیاری)</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">تصویر پس زمینه (اختیاری)</label>
               <ImageUpload value={settings.bgPattern || ""} onChange={(url) => updateField("bgPattern", url)} label="آپلود تصویر پس زمینه" sizeHint="۱۹۲۰ × ۱۰۸۰ پیکسل" aspectRatio="16:9" />
             </div>
-          </div>
+          </section>
 
-          <div className="bg-white rounded-2xl p-6 space-y-6 shadow-sm border border-surface-variant">
-            <h3 className="font-bold text-primary text-lg">قلم (فونت) سایت</h3>
+          <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-base font-black text-slate-900">قلم (فونت) سایت</h2>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">فونت انتخابی</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">فونت انتخابی</label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button onClick={() => updateField("siteFont", "foran")}
-                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "foran" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">فونت دوران</span>
-                  <span className="text-sm text-outline font-foran">نمایش متن با فونت دوران</span>
+                <button type="button" onClick={() => updateField("siteFont", "foran")}
+                  className={`${pickerBtnBase} ${settings.siteFont === "foran" ? pickerBtnActive : pickerBtnIdle}`}>
+                  <span className="block font-bold text-slate-900">فونت دوران</span>
+                  <span className="text-sm text-slate-500 font-foran">نمایش متن با فونت دوران</span>
                 </button>
-                <button onClick={() => updateField("siteFont", "kay")}
-                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "kay" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">فونت ری</span>
-                  <span className="text-sm text-outline font-kay">نمایش متن با فونت ری</span>
+                <button type="button" onClick={() => updateField("siteFont", "kay")}
+                  className={`${pickerBtnBase} ${settings.siteFont === "kay" ? pickerBtnActive : pickerBtnIdle}`}>
+                  <span className="block font-bold text-slate-900">فونت ری</span>
+                  <span className="text-sm text-slate-500 font-kay">نمایش متن با فونت ری</span>
                 </button>
-                <button onClick={() => updateField("siteFont", "ravagh")}
-                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.siteFont === "ravagh" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">فونت رواق</span>
-                  <span className="text-sm text-outline font-ravagh">نمایش متن با فونت رواق و اعداد فارسی</span>
+                <button type="button" onClick={() => updateField("siteFont", "ravagh")}
+                  className={`${pickerBtnBase} ${settings.siteFont === "ravagh" ? pickerBtnActive : pickerBtnIdle}`}>
+                  <span className="block font-bold text-slate-900">فونت رواق</span>
+                  <span className="text-sm text-slate-500 font-ravagh">نمایش متن با فونت رواق و اعداد فارسی</span>
                 </button>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="bg-white rounded-2xl p-6 space-y-6 shadow-sm border border-surface-variant">
-            <h3 className="font-bold text-primary text-lg">سایدبار (منوی کناری)</h3>
+          <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-base font-black text-slate-900">سایدبار (منوی کناری)</h2>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">رنگ سایدبار</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">رنگ سایدبار</label>
               <div className="flex gap-3 items-center">
                 <input type="color" value={settings.sidebarColor} onChange={(e) => updateField("sidebarColor", e.target.value)}
-                  className="w-12 h-12 rounded-xl cursor-pointer border border-surface-variant" />
-                <span className="text-sm text-outline font-mono">{settings.sidebarColor}</span>
+                  className="h-12 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]" />
+                <span className="text-sm tabular-nums text-slate-500" dir="ltr">{settings.sidebarColor}</span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-2">نوع چینش سایدبار</label>
+              <label className="mb-2 block text-sm font-bold text-slate-900">نوع چینش سایدبار</label>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => updateField("sidebarLayout", "default")}
-                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.sidebarLayout === "default" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">چینش پیش‌فرض</span>
-                  <span className="text-sm text-outline">آیکون + متن</span>
+                <button type="button" onClick={() => updateField("sidebarLayout", "default")}
+                  className={`${pickerBtnBase} ${settings.sidebarLayout === "default" ? pickerBtnActive : pickerBtnIdle}`}>
+                  <span className="block font-bold text-slate-900">چینش پیش‌فرض</span>
+                  <span className="text-sm text-slate-500">آیکون + متن</span>
                 </button>
-                <button onClick={() => updateField("sidebarLayout", "compact")}
-                  className={`p-4 rounded-xl border-2 text-right transition-all ${settings.sidebarLayout === "compact" ? "border-primary bg-primary/5" : "border-surface-variant hover:border-primary/30"}`}>
-                  <span className="block font-bold text-primary">چینش فشرده</span>
-                  <span className="text-sm text-outline">فقط آیکون (کوچک)</span>
+                <button type="button" onClick={() => updateField("sidebarLayout", "compact")}
+                  className={`${pickerBtnBase} ${settings.sidebarLayout === "compact" ? pickerBtnActive : pickerBtnIdle}`}>
+                  <span className="block font-bold text-slate-900">چینش فشرده</span>
+                  <span className="text-sm text-slate-500">فقط آیکون (کوچک)</span>
                 </button>
               </div>
             </div>
-          </div>
+          </section>
 
           <div className="flex justify-end">
-            <button onClick={handleSave} disabled={saving}
-              className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <PrimaryButton onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
               {saving ? "در حال ذخیره..." : "ذخیره تنظیمات"}
-            </button>
+            </PrimaryButton>
           </div>
         </div>
       )}
 
       {tab === "pagebuilder" && (
-        <div className="bg-white rounded-2xl border border-surface-variant shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="mb-6 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-bold text-primary">ویرایش صفحه اصلی</h3>
-              <p className="text-sm text-outline mt-0.5">محتوا، نمایش و ترتیب بخش‌های صفحه اصلی را مدیریت کنید</p>
+              <h2 className="text-base font-black text-slate-900">ویرایش صفحه اصلی</h2>
+              <p className="mt-1 text-xs text-slate-500">محتوا، نمایش و ترتیب بخش‌های صفحه اصلی را مدیریت کنید</p>
             </div>
-            <button onClick={saveSections} disabled={pbSaving}
-              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <PrimaryButton onClick={saveSections} disabled={pbSaving}>
               {pbSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               ذخیره تغییرات
-            </button>
+            </PrimaryButton>
           </div>
 
           {pbLoading ? (
-            <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-primary" /></div>
+            <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-[#03004b]" /></div>
           ) : (
             <div className="space-y-3">
               {sections.map((sec, index) => {
@@ -326,21 +331,17 @@ export default function AdminSettings() {
                 const isExpanded = expandedSection === sec.slug;
                 return (
                 <div key={sec.slug}
-                  className={`border border-surface-variant rounded-2xl p-4 transition-all ${sec.visible ? "bg-white" : "bg-surface-low opacity-60"}`}>
-                  <div className="flex items-center justify-between">
+                  className={`rounded-xl border border-slate-200 p-4 transition-all ${sec.visible ? "bg-white" : "bg-slate-50 opacity-60"}`}>
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                         {iconMap[sec.icon] || <Layout size={18} />}
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-primary">{sec.label}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-outline bg-surface-low px-2 py-0.5 rounded-lg">ترتیب {sec.order}</span>
-                          {sec.visible ? (
-                            <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">فعال</span>
-                          ) : (
-                            <span className="text-xs text-outline bg-surface-low px-2 py-0.5 rounded-lg">مخفی</span>
-                          )}
+                        <span className="text-sm font-bold text-slate-900">{sec.label}</span>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-500">ترتیب {sec.order}</span>
+                          <Badge tone={sec.visible ? "emerald" : "slate"}>{sec.visible ? "فعال" : "مخفی"}</Badge>
                         </div>
                       </div>
                     </div>
@@ -348,32 +349,32 @@ export default function AdminSettings() {
                       <button
                         type="button"
                         onClick={() => setExpandedSection(isExpanded ? null : sec.slug)}
-                        className="px-3 py-2 rounded-lg text-xs font-bold text-secondary hover:bg-secondary-fixed/20 transition-colors"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]"
                       >
                         {isExpanded ? "بستن ویرایش" : "ویرایش محتوا"}
                       </button>
-                      <button onClick={() => toggleVisibility(sec.slug)}
-                        className={`p-2 rounded-lg transition-colors ${sec.visible ? "text-primary hover:bg-surface-container" : "text-outline hover:text-primary hover:bg-surface-container"}`}>
+                      <button type="button" onClick={() => toggleVisibility(sec.slug)} aria-label={sec.visible ? "مخفی کردن" : "نمایش"}
+                        className={iconBtnCls}>
                         {sec.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                       </button>
-                      <button onClick={() => updateOrder(sec.slug, "up")} disabled={index === 0}
-                        className="p-2 rounded-lg text-outline hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <button type="button" onClick={() => updateOrder(sec.slug, "up")} disabled={index === 0} aria-label="انتقال به بالا"
+                        className={iconBtnCls}>
                         <ChevronUp size={16} />
                       </button>
-                      <button onClick={() => updateOrder(sec.slug, "down")} disabled={index === sections.length - 1}
-                        className="p-2 rounded-lg text-outline hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <button type="button" onClick={() => updateOrder(sec.slug, "down")} disabled={index === sections.length - 1} aria-label="انتقال به پایین"
+                        className={iconBtnCls}>
                         <ChevronDown size={16} />
                       </button>
                     </div>
                   </div>
                   {isExpanded && definition && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-surface-variant">
+                    <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 md:grid-cols-2">
                       {definition.fields.map((field) => {
                         const value = sec.content[field.key] ?? "";
                         const fullWidth = field.type === "textarea" || field.key === "imageUrl";
                         return (
                           <div key={field.key} className={fullWidth ? "md:col-span-2" : ""}>
-                            <label className="block text-sm font-medium text-primary mb-1.5">{field.label}</label>
+                            <label className="mb-1.5 block text-sm font-bold text-slate-900">{field.label}</label>
                             {field.key === "imageUrl" ? (
                               <ImageUpload
                                 value={String(value)}
@@ -386,7 +387,7 @@ export default function AdminSettings() {
                                 rows={3}
                                 value={String(value)}
                                 onChange={(event) => updateSectionContent(sec.slug, field.key, event.target.value)}
-                                className="w-full rounded-xl border border-surface-variant px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-secondary-fixed resize-y"
+                                className={`w-full resize-y leading-7 ${inputCls}`}
                               />
                             ) : (
                               <input
@@ -399,14 +400,14 @@ export default function AdminSettings() {
                                   field.key,
                                   field.type === "number" ? Math.max(0, Number(event.target.value) || 0) : event.target.value,
                                 )}
-                                className="w-full rounded-xl border border-surface-variant px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-secondary-fixed"
+                                className={`w-full tabular-nums ${inputCls}`}
                               />
                             )}
                           </div>
                         );
                       })}
                       {sec.slug === "hero" && (
-                        <p className="md:col-span-2 text-xs text-outline bg-surface-low rounded-xl p-3">
+                        <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-500 md:col-span-2">
                           این محتوا زمانی نمایش داده می‌شود که اسلاید منتشرشده‌ای وجود نداشته باشد. محتوای هر اسلاید از بخش «اسلایدر» مدیریت می‌شود.
                         </p>
                       )}
@@ -417,16 +418,15 @@ export default function AdminSettings() {
             </div>
           )}
 
-          <div className="mt-6 pt-5 border-t border-surface-variant flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-outline">
-              <CheckCircle2 size={14} className="text-green-600" /> بخش‌ها به ترتیب نمایش مرتب شده‌اند
+          <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <CheckCircle2 size={14} className="text-emerald-600" /> بخش‌ها به ترتیب نمایش مرتب شده‌اند
             </div>
-            <button onClick={saveSections} disabled={pbSaving}
-              className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <PrimaryButton onClick={saveSections} disabled={pbSaving}>
               {pbSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} ذخیره تغییرات
-            </button>
+            </PrimaryButton>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

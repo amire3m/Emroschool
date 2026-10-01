@@ -8,12 +8,12 @@ import {
   Loader2,
   AlertCircle,
   Search,
-  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCookie } from "@/lib/cookie";
 import CategoryIcon from "@/components/CategoryIcon";
 import { primaryCourseCategories } from "@/lib/course-categories";
+import { PageHeader, DataTable, Th, Td, EmptyState, PrimaryButton, SecondaryButton, DangerButton, SearchInput, Modal } from "@/components/admin/ui";
 
 interface Category {
   id: string;
@@ -24,6 +24,10 @@ interface Category {
   order: number;
   courseCount: number;
 }
+
+const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#03004b] focus:ring-2 focus:ring-[#03004b]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnCls = "rounded-lg p-2 text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
+const iconBtnDangerCls = "rounded-lg p-2 text-slate-400 transition hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#03004b]";
 
 function toSlug(str: string) {
   const map: Record<string, string> = {
@@ -204,7 +208,7 @@ export default function AdminCategories() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 text-error gap-2">
+      <div className="flex items-center justify-center h-64 text-red-600 gap-2">
         <AlertCircle size={20} />
         <span>خطا: {error}</span>
       </div>
@@ -212,243 +216,205 @@ export default function AdminCategories() {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-        <div className="relative w-full sm:w-64">
-          <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline" />
-          <input
-            type="text"
-            placeholder="جستجوی دسته‌بندی..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-surface-variant bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] focus:border-[#03004b]"
-          />
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 bg-[#03004b] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors"
-        >
-          <Plus size={18} />
-          افزودن دسته‌بندی
-        </button>
+    <div className="space-y-5">
+      <PageHeader
+        title="مدیریت دسته‌بندی‌ها"
+        actions={
+          <PrimaryButton onClick={openCreateModal}>
+            <Plus size={18} />
+            افزودن دسته‌بندی
+          </PrimaryButton>
+        }
+      />
+      <div className="relative w-full sm:w-72">
+        <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <SearchInput
+          type="text"
+          placeholder="جستجوی دسته‌بندی..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-variant shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-low">
-                <th className="text-right p-3 font-medium text-outline">نام</th>
-                <th className="text-right p-3 font-medium text-outline hidden sm:table-cell">آدرس</th>
-                <th className="text-center p-3 font-medium text-outline hidden md:table-cell">آیکون</th>
-                <th className="text-center p-3 font-medium text-outline">تعداد دوره</th>
-                <th className="text-center p-3 font-medium text-outline hidden lg:table-cell">ترتیب</th>
-                <th className="text-left p-3 font-medium text-outline">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((category) => (
-                <tr key={category.id} className="border-b border-surface-variant last:border-0 hover:bg-surface-low/50 transition-colors">
-                  <td className="p-3">
-                    <div className="font-medium text-primary">{category.name}</div>
-                    {category.description && (
-                      <div className="text-xs text-outline mt-0.5 max-w-[200px] truncate">
-                        {category.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-3 text-outline hidden sm:table-cell">{category.slug}</td>
-                  <td className="p-3 text-center hidden md:table-cell">
-                    {category.icon ? (
-                      <span className="inline-flex text-secondary"><CategoryIcon name={category.icon} size={24} /></span>
-                    ) : (
-                      <span className="text-outline text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className="font-medium">{category.courseCount}</span>
-                  </td>
-                  <td className="p-3 text-center hidden lg:table-cell">
-                    <span className="text-outline">{category.order}</span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => openEditModal(category)}
-                        className="p-2 rounded-xl text-outline hover:text-[#03004b] hover:bg-[#eeecfc] transition-colors"
-                        title="ویرایش"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(category)}
-                        className="p-2 rounded-xl text-outline hover:text-error hover:bg-error-container transition-colors"
-                        title="حذف"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-outline">
-                    دسته‌بندی یافت نشد
-                  </td>
-                </tr>
+      <DataTable
+        head={
+          <>
+            <Th>نام</Th>
+            <Th className="hidden sm:table-cell">آدرس</Th>
+            <Th center className="hidden md:table-cell">آیکون</Th>
+            <Th center>تعداد دوره</Th>
+            <Th center className="hidden lg:table-cell">ترتیب</Th>
+            <Th><span className="flex justify-end">عملیات</span></Th>
+          </>
+        }
+      >
+        {filtered.map((category) => (
+          <tr key={category.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
+            <Td>
+              <div className="font-bold text-slate-900">{category.name}</div>
+              {category.description && (
+                <div className="mt-0.5 max-w-[200px] truncate text-xs text-slate-500">
+                  {category.description}
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-primary">
-                {editingCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-outline hover:text-primary p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">نام</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آدرس در سایت</label>
-                  <div className="flex items-stretch gap-0">
-                    <span className="inline-flex items-center px-3 py-2.5 rounded-r-xl border border-l-0 border-surface-variant bg-surface-low text-outline text-sm select-none whitespace-nowrap" dir="ltr">
-                      imamruhollahschool.com/courses?category=
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      value={form.slug}
-                      onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
-                      className="flex-1 min-w-0 px-3 py-2.5 rounded-l-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] [direction:ltr]"
-                      style={{ fontFamily: "'Courier New', monospace" }}
-                    />
-                  </div>
-                  <p className="text-xs text-outline mt-1 flex items-center gap-1">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">توضیحات</label>
-                <textarea
-                  rows={2}
-                  value={form.description}
-                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab] resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">آیکون</label>
-                  <select
-                    value={form.icon}
-                    onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  >
-                    <option value="">انتخاب آیکون</option>
-                    {primaryCourseCategories.map((category) => (
-                      <option key={category.icon} value={category.icon}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">ترتیب</label>
-                  <input
-                    type="number"
-                    value={form.order}
-                    onChange={(e) => setForm((p) => ({ ...p, order: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-surface-variant text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdeab]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
+            </Td>
+            <Td className="hidden text-slate-500 sm:table-cell"><span dir="ltr">{category.slug}</span></Td>
+            <Td className="hidden text-center md:table-cell">
+              {category.icon ? (
+                <span className="inline-flex text-slate-600"><CategoryIcon name={category.icon} size={24} /></span>
+              ) : (
+                <span className="text-xs text-slate-400">—</span>
+              )}
+            </Td>
+            <Td className="text-center">
+              <span className="font-bold tabular-nums text-slate-900">{category.courseCount}</span>
+            </Td>
+            <Td className="hidden text-center lg:table-cell">
+              <span className="tabular-nums text-slate-500">{category.order}</span>
+            </Td>
+            <Td>
+              <div className="flex items-center gap-1 justify-end">
                 <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-[#03004b] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1b1c5e] transition-colors disabled:opacity-50"
+                  type="button"
+                  onClick={() => openEditModal(category)}
+                  className={iconBtnCls}
+                  title="ویرایش"
                 >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  {editingCategory ? "بروزرسانی" : "ایجاد دسته‌بندی"}
+                  <Pencil size={16} />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
+                  onClick={() => setDeleteTarget(category)}
+                  className={iconBtnDangerCls}
+                  title="حذف"
                 >
-                  انصراف
+                  <Trash2 size={16} />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            </Td>
+          </tr>
+        ))}
+        {filtered.length === 0 && (
+          <tr className="border-t border-slate-100">
+            <Td colSpan={6}>
+              <EmptyState message="دسته‌بندی یافت نشد" />
+            </Td>
+          </tr>
+        )}
+      </DataTable>
+
+      {showModal && (
+        <Modal title={editingCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"} onClose={() => !saving && setShowModal(false)}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">نام</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">آدرس در سایت</label>
+                <div className="flex items-stretch gap-0">
+                  <span className="inline-flex select-none items-center whitespace-nowrap rounded-r-lg border border-slate-200 border-l-0 bg-slate-50 px-3 py-2.5 text-sm text-slate-500" dir="ltr">
+                    imamruhollahschool.com/courses?category=
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={form.slug}
+                    onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
+                    className={`min-w-0 flex-1 [direction:ltr] ${inputCls} rounded-r-none tabular-nums`}
+                    style={{ fontFamily: "'Courier New', monospace" }}
+                  />
+                </div>
+                <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">🔒 بصورت خودکار از عنوان ساخته می‌شود</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-bold text-slate-900">توضیحات</label>
+              <textarea
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                className={`w-full resize-none ${inputCls}`}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">آیکون</label>
+                <select
+                  value={form.icon}
+                  onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
+                  className={`w-full ${inputCls}`}
+                >
+                  <option value="">انتخاب آیکون</option>
+                  {primaryCourseCategories.map((category) => (
+                    <option key={category.icon} value={category.icon}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-900">ترتیب</label>
+                <input
+                  type="number"
+                  value={form.order}
+                  onChange={(e) => setForm((p) => ({ ...p, order: e.target.value }))}
+                  className={`w-full tabular-nums ${inputCls}`}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <PrimaryButton type="submit" disabled={saving}>
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {editingCategory ? "بروزرسانی" : "ایجاد دسته‌بندی"}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => setShowModal(false)} disabled={saving}>
+                انصراف
+              </SecondaryButton>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !saving && setDeleteTarget(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-error-container flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={28} className="text-error" />
-              </div>
-              <h3 className="text-lg font-bold text-primary mb-2">حذف دسته‌بندی</h3>
-              {deleteTarget.courseCount > 0 ? (
-                <p className="text-outline text-sm">
-                  این دسته‌بندی دارای {deleteTarget.courseCount} دوره است و قابل حذف نیست.
+        <Modal title="حذف دسته‌بندی" onClose={() => !saving && setDeleteTarget(null)} maxWidth="max-w-md">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <Trash2 size={24} />
+            </div>
+            {deleteTarget.courseCount > 0 ? (
+              <p className="text-sm text-slate-500">
+                این دسته‌بندی دارای {deleteTarget.courseCount} دوره است و قابل حذف نیست.
+              </p>
+            ) : (
+              <>
+                <p className="mb-1 text-sm text-slate-600">
+                  آیا از حذف دسته‌بندی <span className="font-bold text-slate-900">"{deleteTarget.name}"</span> اطمینان دارید؟
                 </p>
-              ) : (
-                <>
-                  <p className="text-outline text-sm mb-1">
-                    آیا از حذف دسته‌بندی <span className="font-bold text-primary">"{deleteTarget.name}"</span> اطمینان دارید؟
-                  </p>
-                  <p className="text-outline text-xs">این عمل قابل بازگشت نیست.</p>
-                </>
+                <p className="text-xs text-slate-500">این عمل قابل بازگشت نیست.</p>
+              </>
+            )}
+            <div className="mt-6 flex items-center justify-center gap-3">
+              {deleteTarget.courseCount === 0 && (
+                <DangerButton onClick={handleDelete} disabled={saving}>
+                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  حذف
+                </DangerButton>
               )}
-              <div className="flex items-center justify-center gap-3 mt-6">
-                {deleteTarget.courseCount === 0 && (
-                  <button
-                    onClick={handleDelete}
-                    disabled={saving}
-                    className="flex items-center gap-2 bg-error text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {saving && <Loader2 size={16} className="animate-spin" />}
-                    حذف
-                  </button>
-                )}
-                <button
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm text-outline border border-surface-variant hover:bg-surface-variant transition-colors"
-                >
-                  {deleteTarget.courseCount > 0 ? "متوجه شدم" : "انصراف"}
-                </button>
-              </div>
+              <SecondaryButton onClick={() => setDeleteTarget(null)} disabled={saving}>
+                {deleteTarget.courseCount > 0 ? "متوجه شدم" : "انصراف"}
+              </SecondaryButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
