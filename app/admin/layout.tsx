@@ -16,69 +16,77 @@ import {
   GraduationCap,
   Image,
   HardDrive,
-  LifeBuoy,
   Bell,
   History,
-  Handshake,
-  SlidersHorizontal,
   Mail,
   Settings,
   ArrowLeft,
   LogOut,
   Menu,
   X,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { getCookie, removeCookie } from "@/lib/cookie";
 import { getFontFamily } from "@/lib/fonts";
 
-interface MenuItem {
+interface MenuLink {
   href: string;
   label: string;
   icon: LucideIcon;
   permission: string[] | null;
 }
 
-interface MenuSection {
-  title: string;
-  items: MenuItem[];
+interface MenuGroup {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  children: MenuLink[];
 }
 
-const NAV: MenuSection[] = [
+const NAV: Array<MenuLink | MenuGroup> = [
+  { href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null },
   {
-    title: "اصلی",
-    items: [{ href: "/admin", label: "داشبورد", icon: LayoutDashboard, permission: null }],
-  },
-  {
-    title: "مدیریت",
-    items: [
-      { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: ["applications"] },
-      { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: ["payments", "support"] },
-      { href: "/admin/discount-codes", label: "کدهای تخفیف", icon: BadgePercent, permission: ["discounts", "settings"] },
+    key: "education",
+    label: "آموزش",
+    icon: BookOpen,
+    children: [
       { href: "/admin/courses", label: "دوره‌ها", icon: BookOpen, permission: ["courses"] },
       { href: "/admin/events", label: "رویدادها", icon: CalendarDays, permission: ["events"] },
       { href: "/admin/categories", label: "دسته‌بندی‌ها", icon: FolderOpen, permission: ["courses"] },
-      { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: ["news"] },
-      { href: "/admin/users", label: "کاربران", icon: Users, permission: ["users"] },
+    ],
+  },
+  { href: "/admin/applications", label: "درخواست‌های ثبت‌نام", icon: ClipboardList, permission: ["applications"] },
+  { href: "/admin/payments", label: "پرداخت‌ها", icon: WalletCards, permission: ["payments", "support"] },
+  { href: "/admin/discount-codes", label: "کدهای تخفیف", icon: BadgePercent, permission: ["discounts", "settings"] },
+  { href: "/admin/support", label: "پشتیبانی کاربران", icon: Users, permission: ["support"] },
+  { href: "/admin/gallery", label: "گالری", icon: Image, permission: ["gallery"] },
+  { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: ["news"] },
+  { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: ["files"] },
+  { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: ["notifications"] },
+  { href: "/admin/email", label: "ایمیل", icon: Mail, permission: ["settings"] },
+  { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
+  {
+    key: "users",
+    label: "کاربران",
+    icon: Users,
+    children: [
+      { href: "/admin/users", label: "همه کاربران", icon: Users, permission: ["users"] },
       { href: "/admin/instructors", label: "اساتید", icon: GraduationCap, permission: ["instructors"] },
       { href: "/admin/alumni", label: "هنرآموختگان", icon: GraduationCap, permission: ["instructors"] },
-      { href: "/admin/gallery", label: "گالری", icon: Image, permission: ["gallery"] },
-      { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: ["files"] },
-      { href: "/admin/support", label: "پشتیبانی کاربران", icon: LifeBuoy, permission: ["support"] },
-      { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: ["notifications"] },
-      { href: "/admin/updates", label: "بروزرسانی‌ها", icon: History, permission: null },
-      { href: "/admin/partners", label: "همراهان", icon: Handshake, permission: null },
-      { href: "/admin/slider", label: "اسلایدر", icon: SlidersHorizontal, permission: ["slider"] },
-      { href: "/admin/email", label: "ایمیل", icon: Mail, permission: ["settings"] },
     ],
   },
   {
-    title: "سیستم",
-    items: [
+    key: "settings",
+    label: "تنظیمات سایت",
+    icon: Settings,
+    children: [
       { href: "/admin/settings", label: "تنظیمات سایت", icon: Settings, permission: ["settings"] },
-      { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },
+      { href: "/admin/slider", label: "اسلایدر", icon: Image, permission: ["slider"] },
+      { href: "/admin/partners", label: "همراهان", icon: Users, permission: null },
     ],
   },
+  { href: "/", label: "بازگشت به سایت", icon: ArrowLeft, permission: null },
 ];
 
 function roleLabel(role: string) {
@@ -94,6 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
@@ -178,33 +187,67 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ) : null}
         </div>
 
-        <nav className="space-y-5">
-          {NAV.map((section) => {
-            const visible = section.items.filter((item) => canAccess(item.permission, item.href));
-            if (visible.length === 0) return null;
-            return (
-              <div key={section.title}>
-                <p className="px-3 pb-1.5 text-[11px] font-bold text-slate-400">{section.title}</p>
-                <div className="space-y-1">
-                  {visible.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onNavigate}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${LINK_FOCUS} ${
-                          active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                      >
-                        <Icon size={18} className={active ? "text-white" : "text-slate-400"} />
-                        <span className="flex-1 text-right">{item.label}</span>
-                      </Link>
-                    );
-                  })}
+        <nav className="space-y-1">
+          {NAV.map((entry) => {
+            if ("children" in entry) {
+              const visibleChildren = entry.children.filter((child) => canAccess(child.permission, child.href));
+              if (visibleChildren.length === 0) return null;
+              const groupActive = visibleChildren.some((child) => isActive(child.href));
+              const expanded = Boolean(openGroups[entry.key]) || groupActive;
+              const GroupIcon = entry.icon;
+              return (
+                <div key={entry.key}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroups((previous) => ({ ...previous, [entry.key]: !expanded }))}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[11px] font-bold transition ${LINK_FOCUS} ${
+                      groupActive ? "text-slate-900" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    }`}
+                  >
+                    <GroupIcon size={16} className={groupActive ? "text-[#03004b]" : "text-slate-400"} />
+                    <span className="flex-1 text-right">{entry.label}</span>
+                    <ChevronDown size={14} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+                  </button>
+                  {expanded && (
+                    <div className="mr-3 mt-1 space-y-1 border-r border-slate-200 pr-2">
+                      {visibleChildren.map((child) => {
+                        const ChildIcon = child.icon;
+                        const active = isActive(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={onNavigate}
+                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${LINK_FOCUS} ${
+                              active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <ChildIcon size={17} className={active ? "text-white" : "text-slate-400"} />
+                            <span className="flex-1 text-right">{child.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
+              );
+            }
+
+            if (!canAccess(entry.permission, entry.href)) return null;
+            const Icon = entry.icon;
+            const active = isActive(entry.href);
+            return (
+              <Link
+                key={entry.href}
+                href={entry.href}
+                onClick={onNavigate}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${LINK_FOCUS} ${
+                  active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Icon size={18} className={active ? "text-white" : "text-slate-400"} />
+                <span className="flex-1 text-right">{entry.label}</span>
+              </Link>
             );
           })}
         </nav>
