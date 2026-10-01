@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -35,6 +35,7 @@ interface MenuLink {
   label: string;
   icon: LucideIcon;
   permission: string[] | null;
+  wipe?: boolean;
 }
 
 interface MenuGroup {
@@ -61,7 +62,7 @@ const NAV: Array<MenuLink | MenuGroup> = [
   { href: "/admin/discount-codes", label: "کدهای تخفیف", icon: BadgePercent, permission: ["discounts", "settings"] },
   { href: "/admin/support", label: "پشتیبانی کاربران", icon: Users, permission: ["support"] },
   { href: "/admin/gallery", label: "گالری", icon: Image, permission: ["gallery"] },
-  { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: ["news"] },
+  { href: "/admin/news", label: "اخبار", icon: Newspaper, permission: ["news"], wipe: true },
   { href: "/admin/files", label: "مدیریت فایل‌ها", icon: HardDrive, permission: ["files"] },
   { href: "/admin/notifications", label: "اعلان‌ها", icon: Bell, permission: ["notifications"] },
   { href: "/admin/email", label: "ایمیل", icon: Mail, permission: ["settings"] },
@@ -103,6 +104,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [newsWipe, setNewsWipe] = useState<"idle" | "cover" | "reveal">("idle");
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const wipeToken = useRef(0);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
@@ -164,6 +169,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
 
+  function cancelWipe(onNavigate?: () => void) {
+    wipeToken.current += 1;
+    if (newsWipe !== "idle") setNewsWipe("idle");
+    onNavigate?.();
+  }
+
+  function handleWipeNav(event: ReactMouseEvent, href: string, onNavigate?: () => void) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      cancelWipe(onNavigate);
+      return;
+    }
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      cancelWipe(onNavigate);
+      return;
+    }
+    const startPath = pathnameRef.current;
+    if (startPath === href || startPath.startsWith(`${href}/`)) {
+      onNavigate?.();
+      return;
+    }
+    event.preventDefault();
+    onNavigate?.();
+    const token = ++wipeToken.current;
+    setNewsWipe("cover");
+    window.setTimeout(() => {
+      if (wipeToken.current !== token || pathnameRef.current !== startPath) {
+        setNewsWipe("idle");
+        return;
+      }
+      router.push(href);
+    }, 480);
+    window.setTimeout(() => setNewsWipe("idle"), 4000);
+  }
+
+  useEffect(() => {
+    if (pathname === "/admin/news" && newsWipe === "cover") {
+      setNewsWipe("reveal");
+      const timer = window.setTimeout(() => setNewsWipe("idle"), 400);
+      return () => window.clearTimeout(timer);
+    }
+  }, [pathname, newsWipe]);
+
   function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <>
@@ -217,7 +264,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           <Link
                             key={child.href}
                             href={child.href}
-                            onClick={onNavigate}
+                            onClick={(event) => {
+                              if (child.wipe) handleWipeNav(event, child.href, onNavigate);
+                              else cancelWipe(onNavigate);
+                            }}
                             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${LINK_FOCUS} ${
                               active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                             }`}
@@ -240,7 +290,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={entry.href}
                 href={entry.href}
-                onClick={onNavigate}
+                onClick={(event) => {
+                  if (entry.wipe) handleWipeNav(event, entry.href, onNavigate);
+                  else cancelWipe(onNavigate);
+                }}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${LINK_FOCUS} ${
                   active ? "bg-[#03004b] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                 }`}
@@ -299,6 +352,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="absolute inset-y-4 right-4 flex w-72 flex-col overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4">
             <SidebarContent onNavigate={() => setDrawerOpen(false)} />
           </div>
+        </div>
+      )}
+
+      {newsWipe !== "idle" && (
+        <div
+          aria-hidden
+          className={`pointer-events-none fixed inset-0 z-[70] flex items-center justify-center gap-3 bg-[#03004b] text-white transition-transform duration-500 ease-[cubic-bezier(0.22,0.8,0.24,1)] ${
+            newsWipe === "cover" ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+            <Newspaper size={28} />
+          </span>
+          <span className="text-2xl font-black">اخبار</span>
         </div>
       )}
     </div>

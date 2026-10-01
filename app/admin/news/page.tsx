@@ -6,6 +6,7 @@ import { CalendarDays, Eye, Loader2, Newspaper, Pencil, Plus, Search, Star, Tras
 import toast from "react-hot-toast";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { getCookie } from "@/lib/cookie";
+import { motion } from "motion/react";
 import { Badge, DangerButton, EmptyState, Modal, PageHeader, PrimaryButton, SearchInput, SecondaryButton } from "@/components/admin/ui";
 
 interface NewsPost { id: string; title: string; slug: string; excerpt: string; content: string; coverImage: string | null; category: string; authorName: string | null; tags: string | null; featured: boolean; published: boolean; publishedAt: string | null; createdAt: string; }
@@ -30,6 +31,7 @@ export default function AdminNewsPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const token = () => getCookie("token") || "";
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   async function fetchNews() {
     setLoading(true);
@@ -77,7 +79,7 @@ export default function AdminNewsPage() {
         <SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو در اخبار..." />
       </div>
     </div>
-    {loading ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-[#03004b]" size={32} /></div> : filtered.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white py-10 text-center"><Newspaper size={42} className="mx-auto mb-1 text-slate-300" /><EmptyState message="خبری پیدا نشد" /></div> : <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((post) => <article key={post.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden group">
+    {loading ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-[#03004b]" size={32} /></div> : filtered.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white py-10 text-center"><Newspaper size={42} className="mx-auto mb-1 text-slate-300" /><EmptyState message="خبری پیدا نشد" /></div> : <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((post, index) => <motion.article key={post.id} initial={reduceMotion ? false : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut", delay: reduceMotion ? 0 : Math.min(index, 11) * 0.06 }} className="rounded-xl border border-slate-200 bg-white overflow-hidden group transition-[border-color,box-shadow] hover:border-slate-300 hover:shadow-lg">
       <div className="aspect-[16/8] bg-slate-100 relative overflow-hidden">
         {post.coverImage ? <img src={post.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Newspaper size={42} /></div>}
         <div className="absolute top-3 right-3 flex gap-2">
@@ -98,7 +100,7 @@ export default function AdminNewsPage() {
           </div>
         </div>
       </div>
-    </article>)}</div>}
+    </motion.article>)}</div>}
 
     {modalOpen && <Modal title={editing ? "ویرایش خبر" : "روایت تازه"} subtitle="متن را با یک خط خالی بین پاراگراف‌ها بنویسید." onClose={() => !saving && setModalOpen(false)} maxWidth="max-w-4xl">
       <form onSubmit={save}>
