@@ -38,8 +38,8 @@ export default function AdminDashboard() {
       .catch((reason) => setError(reason instanceof Error ? reason.message : "دریافت گزارش ناموفق بود"));
   }, []);
 
-  if (error) return <div className="flex h-64 items-center justify-center gap-2 text-error"><AlertCircle size={20} />{error}</div>;
-  if (!report) return <div className="flex h-64 items-center justify-center"><Loader2 size={32} className="animate-spin text-primary" /></div>;
+  if (error) return <div className="flex h-64 items-center justify-center gap-2 text-red-600"><AlertCircle size={20} />{error}</div>;
+  if (!report) return <div className="flex h-64 items-center justify-center"><Loader2 size={32} className="animate-spin text-[#03004b]" /></div>;
 
   const { summary } = report;
 
